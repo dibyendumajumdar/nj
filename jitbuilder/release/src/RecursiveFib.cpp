@@ -31,6 +31,9 @@
 #include "ilgen/MethodBuilder.hpp"
 #include "RecursiveFib.hpp"
 
+/* Un comment to enable debug output */
+/* #define RFIB_DEBUG_OUTPUT */
+
 static void
 printString(int64_t stringPointer)
    {
@@ -101,6 +104,7 @@ RecursiveFibonnaciMethod::buildIL()
    recursiveCase->            Load("n"),
    recursiveCase->            ConstInt32(2)))));
 
+#if defined(RFIB_DEBUG_OUTPUT)
    Call("printString", 1,
       ConstInt64((int64_t)prefix));
    Call("printInt32", 1,
@@ -111,6 +115,7 @@ RecursiveFibonnaciMethod::buildIL()
       Load("result"));
    Call("printString", 1,
       ConstInt64((int64_t)suffix));
+#endif
 
    Return(
       Load("result"));
