@@ -25,7 +25,12 @@
 #include <stdint.h>                            // for int32_t, uint8_t, etc
 #include <stdio.h>                             // for NULL, fprintf, fflush, etc
 #include <string.h>                            // for strlen
+#ifndef _WIN32
 #include <unistd.h>                            // for getpid, intptr_t, etc
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "codegen/CodeGenerator.hpp"           // for CodeGenerator
 #include "codegen/FrontEnd.hpp"                // for TR_VerboseLog, etc
 #include "codegen/LinkageConventionsEnum.hpp"
@@ -65,7 +70,12 @@ writePerfToolEntry(void *start, uint32_t size, const char *name)
    if (firstAttempt)
       {
       firstAttempt = false;
+#ifndef _WIN32
       pid_t jvmPid = getpid();
+#else
+      // FIXME
+      auto jvmPid = GetCurrentProcessId();
+#endif
       static const int maxPerfFilenameSize = 15 + sizeof(jvmPid)* 3; // "/tmp/perf-%ld.map"
       char perfFilename[maxPerfFilenameSize] = { 0 };
 
