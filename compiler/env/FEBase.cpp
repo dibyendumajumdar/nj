@@ -20,8 +20,10 @@
  *******************************************************************************/
 
 #include <stddef.h>
+#ifndef _WIN32
 #include <unistd.h> // for getpid
 #include <sys/time.h>
+#endif
 #include <sys/types.h> // for getpid
 #include "codegen/CodeGenerator.hpp"
 #include "compile/CompilationTypes.hpp"
