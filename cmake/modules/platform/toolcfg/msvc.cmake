@@ -30,6 +30,22 @@ list(APPEND OMR_PLATFORM_COMPILE_OPTIONS
 	/Zm400  # Precompiled header memory allocation limit
 	/wd4577 # Disable warning: Specifying noexcept when exceptions are disabled
 	/wd4091 # Disable warning: Caused by broken windows SDK, see also https://connect.microsoft.com/VisualStudio/feedback/details/1302025/warning-c4091-in-sdk-7-1a-shlobj-h-1051-dbghelp-h-1054-3056
+	# Disable signed/unsigned int conversion warnings.
+	/wd4018
+	# Disable warning about using struct/class for the same symobl.
+    /wd4099
+	# Disable performance warning about int-to-bool conversion.
+	/wd4800
+	# Disable signed/unsigned int conversion warnings.
+	/wd4018
+	# Disable warning about the insecurity of using "std::copy".
+	/wd4996
+	/wd4291
+	/wd4624
+	/wd4141
+	# return and argument conversion
+	/wd4244
+	/wd4267
 )
 
 if(OMR_ENV_DATA64)
