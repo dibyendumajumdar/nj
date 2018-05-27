@@ -20,7 +20,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
+#ifndef _WIN32
 #include <sys/mman.h>
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "runtime/CodeCache.hpp"
 #include "runtime/CodeCacheManager.hpp"
 #include "runtime/CodeCacheMemorySegment.hpp"
@@ -58,7 +63,7 @@ JitBuilder::CodeCacheManager::allocateCodeCacheSegment(size_t segmentSize,
    // We should really rely on the port library to allocate memory, but this connection
    // has not yet been made, so as a quick workaround for platforms like OS X <= 10.9
    // where MAP_ANONYMOUS is not defined, is to map MAP_ANON to MAP_ANONYMOUS ourselves
-   #if !defined(MAP_ANONYMOUS)
+   #if !defined(MAP_ANONYMOUS) && !defined(_WIN32)
       #define NO_MAP_ANONYMOUS
       #if defined(MAP_ANON)
          #define MAP_ANONYMOUS MAP_ANON
@@ -73,13 +78,21 @@ JitBuilder::CodeCacheManager::allocateCodeCacheSegment(size_t segmentSize,
    TR::CodeCacheConfig & config = self()->codeCacheConfig();
    if (segmentSize < config.codeCachePadKB() << 10)
       codeCacheSizeToAllocate = config.codeCachePadKB() << 10;
+#ifndef _WIN32
    uint8_t *memorySlab = (uint8_t *) mmap(NULL,
                                           codeCacheSizeToAllocate,
                                           PROT_READ | PROT_WRITE | PROT_EXEC,
                                           MAP_ANONYMOUS | MAP_PRIVATE,
                                           0,
                                           0);
-
+#else
+   // FIXME - where is the memory freed?
+   uint8_t *memorySlab = (uint8_t *)VirtualAlloc(NULL, codeCacheSizeToAllocate,
+		   MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_EXECUTE_READWRITE);
+   if (!memorySlab) {
+	   abort();
+   }
+#endif
    // keep the impact of this fix localized
    #if defined(NO_MAP_ANONYMOUS)
       #undef MAP_ANONYMOUS
