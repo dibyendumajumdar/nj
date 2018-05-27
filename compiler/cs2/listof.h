@@ -262,8 +262,9 @@ CS2_LI_DECL::~ListOf() {
 
   // Destroy the existing elements.
   for (listIndex = 0; listIndex < NumberOfElements(); ++listIndex) {
+    typedef typename CS2_AR_DECL::DerivedElement DE;
     typename CS2_AR_DECL::DerivedElement *derivedElement = (typename CS2_AR_DECL::DerivedElement *) & ElementAt(listIndex);
-    derivedElement->CS2_AR_DECL::DerivedElement::~DerivedElement();
+    derivedElement->DE::~DerivedElement();
   }
 }
 

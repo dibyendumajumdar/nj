@@ -478,11 +478,13 @@ template <class AElementType, class Allocator, size_t segmentBits = 8, class Ini
   void MakeEmpty() { return ShrinkTo(0); }
 
   void ShrinkTo(size_t newSize) {
-    if (newSize < fNumInitialized) {
+      typedef typename ArrayOf <AElementType, Allocator, segmentBits>::DerivedElement DE;
+	  if (newSize < fNumInitialized) {
       Cursor c(*this);
-      for (c.SetTo(newSize); c.Valid(); c.SetToNext())
-        (*c.DerivedElement()).CS2_BASEARDECL::DerivedElement::~DerivedElement();
-
+      for (c.SetTo(newSize); c.Valid(); c.SetToNext()) {
+        DE *derivedElement = c.DerivedElement();
+        (*derivedElement).DE::~DerivedElement();
+      }
       fNumInitialized = newSize;
       CS2_BASEARDECL::ShrinkTo(newSize);
     }
