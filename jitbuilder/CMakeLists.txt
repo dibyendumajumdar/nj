@@ -78,10 +78,8 @@ target_include_directories(jitbuilder
 target_link_libraries(jitbuilder
 )
 
-if (NOT OMR_WINVER)
-	# For now on Windows exclude samples
-	add_subdirectory(release)
-endif()
+# For now on Windows exclude samples
+add_subdirectory(release)
 
 # install(TARGETS jitbuilder
 #         ARCHIVE       DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release
