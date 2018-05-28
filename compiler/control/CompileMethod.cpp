@@ -55,7 +55,6 @@
 #include "ilgen/IlGeneratorMethodDetails.hpp"
 #include "infra/Assert.hpp"                    // for TR_ASSERT
 #include "ras/Debug.hpp"                       // for createDebugObject, etc
-#include "omr.h"
 #include "env/SystemSegmentProvider.hpp"
 #include "env/DebugSegmentProvider.hpp"
 #include "runtime/CodeCacheManager.hpp"

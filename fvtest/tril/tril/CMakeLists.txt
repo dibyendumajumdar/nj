@@ -92,8 +92,8 @@ target_link_libraries(tril_compiler tril)
 target_compile_options(tril
 	PUBLIC
 		${TR_COMPILE_OPTIONS}
-		$<$<COMPILE_LANGUAGE:CXX>:${TR_CXX_COMPILE_OPTIONS}>
-		$<$<COMPILE_LANGUAGE:C>:${TR_C_COMPILE_OPTIONS}>
+		#$<$<COMPILE_LANGUAGE:CXX>:${TR_CXX_COMPILE_OPTIONS}>
+		#$<$<COMPILE_LANGUAGE:C>:${TR_C_COMPILE_OPTIONS}>
 )
 
 #export(TARGETS tril jitbuilder FILE tril-config.cmake)

@@ -23,3 +23,5 @@ include(OmrAssert)
 
 add_subdirectory(omrGtestGlue)
 add_subdirectory(compilertest)
+add_subdirectory(tril)
+add_subdirectory(compilertriltest)

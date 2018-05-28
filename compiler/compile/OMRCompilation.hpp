@@ -69,8 +69,6 @@ namespace OMR { typedef OMR::Compilation CompilationConnector; }
 #include "ras/ILValidationStrategies.hpp"
 
 
-#include "omr.h"
-
 #include "il/symbol/ResolvedMethodSymbol.hpp"
 
 

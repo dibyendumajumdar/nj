@@ -126,6 +126,6 @@ endif()
 add_subdirectory(third_party)
 add_subdirectory(compiler)
 add_subdirectory(jitbuilder)
-
+add_subdirectory(util)
 add_subdirectory(fvtest)
 
