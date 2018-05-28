@@ -127,5 +127,5 @@ add_subdirectory(third_party)
 add_subdirectory(compiler)
 add_subdirectory(jitbuilder)
 
-#add_subdirectory(fvtest)
+add_subdirectory(fvtest)
 
