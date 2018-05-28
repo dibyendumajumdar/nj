@@ -19,7 +19,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
+#ifndef _WIN32
 #include <sys/mman.h>
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "compile/Compilation.hpp"
 #include "env/FEBase.hpp"
 #include "env/jittypes.h"
@@ -79,7 +84,7 @@ FEBase<Derived>::allocateCodeMemory(TR::Compilation *comp, uint32_t warmCodeSize
 // We should be relying on the port library to allocate memory, but this connection
 // has not yet been made, so as a quick workaround for platforms like OS X <= 10.9,
 // where MAP_ANONYMOUS is not defined, is to map MAP_ANON to MAP_ANONYMOUS ourselves
-#if !defined(MAP_ANONYMOUS)
+#if !defined(MAP_ANONYMOUS) && !defined(_WIN32)
   #define NO_MAP_ANONYMOUS
   #if defined(MAP_ANON)
     #define MAP_ANONYMOUS MAP_ANON
@@ -96,14 +101,23 @@ FEBase<Derived>::allocateRelocationData(TR::Compilation* comp, uint32_t size)
       way to allocate this */
    if (size == 0) return 0;
    TR_ASSERT(size >= 2048, "allocateRelocationData should be used for whole-sale memory allocation only");
+#ifndef _WIN32
    return (uint8_t *) mmap(0,
                            size,
                            PROT_READ | PROT_WRITE,
                            MAP_PRIVATE | MAP_ANONYMOUS,
                            -1,
                            0);
+#else
+   // FIXME - where is the memory freed?
+   uint8_t *memorySlab = (uint8_t *)VirtualAlloc(NULL, size,
+      MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READWRITE);
+   if (!memorySlab) {
+      abort();
    }
-
+   return memorySlab;
+#endif
+}
 // keep the impact of this fix localized
 #if defined(NO_MAP_ANONYMOUS)
   #undef MAP_ANONYMOUS
