@@ -22,5 +22,14 @@ can use the compiler as a library. However the JitBuilder api is somewhat higher
 Anyway - the approach requires that even to get anything compiled and built, we need a bunch of front-end
 files. This list is what I have found is the minimum needed:
 
-* **`TR::CodeGenerator`**: This is called by the backend - a simple front-end can simply ensure that this extends a platform specific implementation. The hierarchy goes like this; `TR::CodeGenerator` extends `NJCompiler::CodeGenerator` which extends `OMR::X86::I386::CodeGenerator` which extends `OMR::CodeGenerator` I think!
+### `TR::CodeGenerator`
+
+This is called by the backend - a simple front-end can simply ensure that this extends a platform specific implementation. The hierarchy goes like this; `TR::CodeGenerator` extends `NJCompiler::CodeGenerator` which extends `OMR::X86::I386::CodeGenerator` which extends `OMR::CodeGenerator` I think! 
+
+Following is from OMR presentation:
+
+* The CodeGenerator is overall orchestrator for the translation of IL trees to machine code
+* OMR::CodeGenerator contains architecture neutral functionality
+* CodeGenerator drives intruction selection, register assignment and binary encoding
+
 
