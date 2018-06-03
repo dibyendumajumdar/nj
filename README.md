@@ -49,7 +49,7 @@ make
 
 ### Windows 10
 
-* You will need Visual Studio 2017, Perl, Win flex-bison, and CMake installed
+* You will need Visual Studio 2017, Perl, [Win flex-bison](https://sourceforge.net/projects/winflexbison/), and CMake installed
 * Follow these steps from the source directory
 ```
 mkdir build
