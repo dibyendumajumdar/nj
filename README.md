@@ -32,3 +32,30 @@ Here is what is included:
 
 * Immediate focus is on trying to use the JIT engine behind a C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c)
 * I would like to further trim the library to make it smaller and more focussed
+
+## Build Instructions
+
+### Linux or Mac OSX
+
+* You will need CMake, Perl, bison and flex insatlled
+* Follow steps below from the location of source directory.
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+
+### Windows 10
+
+* You will need Visual Studio 2017, Perl, Win flex-bison, and CMake installed
+* Follow these steps from the source directory
+```
+mkdir build
+cd build
+cmake -G "Visual Studio 15 2017 Win64" ..
+make
+```
+
+
