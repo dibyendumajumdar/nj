@@ -31,4 +31,9 @@ namespace TR { class JitConfig; }
 int32_t init_options(TR::JitConfig *jitConfig, char * cmdLineOptions);
 int32_t commonJitInit(OMR::FrontEnd &fe, char * cmdLineOptions);
 uint8_t *compileMethod(OMR_VMThread *omrVMThread, TR_ResolvedMethod &compilee, TR_Hotness hotness, int32_t &rc);
+/**
+ * omrVMThread is optional - set to NULL 
+ * Returns the address of compiled method.
+ * TODO : Create a version that takes FrondEnd? 
+ */
 uint8_t *compileMethodFromDetails(OMR_VMThread *omrVMThread, TR::IlGeneratorMethodDetails &details, TR_Hotness hotness, int32_t &rc);

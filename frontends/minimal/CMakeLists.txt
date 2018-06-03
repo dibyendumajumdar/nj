@@ -9,14 +9,14 @@ set(API_FILES
 	runtime/NJJitConfig.cpp
 )
 
-# Create njapi library
+# Create njmin library
 # The create_omr_compiler_library() function
 # will add all the backend Compiler code to the library
 create_omr_compiler_library(
-	NAME    njapi
+	NAME    njmin
 	DEFINES NONJAVA
 	OBJECTS ${API_FILES}
 )
 
-target_link_libraries(njapi
+target_link_libraries(njmin
 )

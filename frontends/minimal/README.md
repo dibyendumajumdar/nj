@@ -32,4 +32,6 @@ Following is from OMR presentation:
 
 The backend references this via `TR::CodeGenerator`. A simple front-end can ensure that this simply extends a platform specific implementation. The hierarchy goes like this; `TR::CodeGenerator` extends `NJCompiler::CodeGenerator` which extends `OMR::X86::I386::CodeGenerator` which extends `OMR::CodeGenerator` I think! 
 
+A simple front-end need not add any functionality to this component.
+
 
