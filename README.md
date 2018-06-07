@@ -39,7 +39,7 @@ Following OMR components have been removed:
 
 ### Linux or Mac OSX
 
-* You will need CMake, Perl, bison and flex insatlled
+* You will need CMake, Perl, bison and flex installed
 * Follow steps below from the location of source directory.
 
 ```
