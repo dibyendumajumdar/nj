@@ -9,7 +9,7 @@ Here is what is included:
 * **`jitbuilder`**:     An easy to use high level abstraction on top of the
                         compiler technology.
 * **`tool`**:           Code generation tools for the build system
-* **`fvtest`**:         A language-independent test framework for the compiler
+* **`fvtest`**:         Tests for the compiler
 
 Following OMR components have been removed:
 
