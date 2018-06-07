@@ -9,8 +9,7 @@ Here is what is included:
 * **`jitbuilder`**:     An easy to use high level abstraction on top of the
                         compiler technology.
 * **`tool`**:           Code generation tools for the build system
-* **`fvtest`**:         A language-independent test framework so that Eclipse
-                        OMR components can be tested outside of a language runtime
+* **`fvtest`**:         A language-independent test framework for the compiler
 
 Following OMR components have been removed:
 
