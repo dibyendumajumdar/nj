@@ -1,5 +1,5 @@
-#ifndef nj_api_h
-#define nj_api_h
+#ifndef JIT_api_h
+#define JIT_api_h
 
 #include <stdint.h>
 
@@ -14,18 +14,18 @@ extern "C" {
 	* needed. Deleting the Jit Context will also delete all compiled
 	* functions managed by the context.
 	*/
-	typedef struct nj_context *nj_contextref;
+	typedef struct JIT_context *JIT_contextref;
 
 	/**
 	* Creates a Jit Context. 
 	*/
-	extern nj_contextref nj_create_context();
+	extern JIT_contextref JIT_create_context();
 
 	/**
 	* Destroys the Jit Context. Note that all compiled functions
 	* managed by this context will die at this point.
 	*/
-	extern void nj_destroy_context(nj_contextref);
+	extern void JIT_destroy_context(JIT_contextref);
 
 	/**
 	* A Function Builder is used to generate code for a single
@@ -33,20 +33,20 @@ extern "C" {
 	* finalize on the builder, the builder itself can be destroyed as the
 	* compiled function lives on in the associated Jit Context.
 	*/
-	typedef struct nj_function_builder *nj_function_builderref;
+	typedef struct JIT_function_builder *JIT_function_builderref;
 
 	/*
 	* These types are used to define function argument
-	* types. See nj_create_function_builder() below for further
+	* types. See JIT_create_function_builder() below for further
 	* notes.
 	*/
-	enum nj_value_kind {
-		nj_valuekind_V = 0, // void 
-		nj_valuekind_I = 1, // int32_t
-		nj_valuekind_Q = 2, // uint64_t
-		nj_valuekind_D = 3, // double
-		nj_valuekind_F = 4, // single-precision float;
-		nj_valuekind_P = 5, // pointer
+	enum JIT_value_kind {
+		JIT_valuekind_V = 0, // void 
+		JIT_valuekind_I = 1, // int32_t
+		JIT_valuekind_Q = 2, // uint64_t
+		JIT_valuekind_D = 3, // double
+		JIT_valuekind_F = 4, // single-precision float;
+		JIT_valuekind_P = 5, // pointer
 	};
 
 	/**
@@ -56,26 +56,26 @@ extern "C" {
 	* compiled the builder object can be thrown away - the compiled function
 	* will live as long as the owning Jit Context lives.
 	*/
-	extern nj_function_builderref nj_create_function_builder(
-		nj_contextref context, const char *name, enum nj_value_kind return_type);
+	extern JIT_function_builderref JIT_create_function_builder(
+		JIT_contextref context, const char *name, enum JIT_value_kind return_type);
 
 	/**
 	* Destroys the function builder object. Note that this will not delete the
 	* compiled function created using this builder - as the compiled function lives
 	* in the owning Jit Context.
 	*/
-	extern void nj_destroy_function_builder(nj_function_builderref);
+	extern void JIT_destroy_function_builder(JIT_function_builderref);
 
 	/**
 	* A value type
 	*/
-	typedef struct nj_value *nj_valueref;
+	typedef struct JIT_value *JIT_valueref;
 
-	extern nj_valueref nj_imm32(nj_function_builderref fb, int32_t i);
+	extern JIT_valueref JIT_imm32(JIT_function_builderref fb, int32_t i);
 
-	extern void nj_ret(nj_function_builderref fb, nj_valueref v);
+	extern void JIT_ret(JIT_function_builderref fb, JIT_valueref v);
 
-	extern void *nj_finalize(nj_function_builderref fb);
+	extern void *JIT_finalize(JIT_function_builderref fb);
 
 #ifdef __cplusplus
 }

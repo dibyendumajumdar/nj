@@ -9,9 +9,9 @@
 namespace nj {
 
 
-class NJ_Context {
+class JIT_Context {
 public:
-  NJ_Context() {}
+  JIT_Context() {}
 
 private:
   TR::TypeDictionary types;
@@ -25,25 +25,25 @@ static volatile int s_ctxcount;
 
 using namespace nj;
 
-static inline nj_contextref wrap_context(NJ_Context *p) {
-  return reinterpret_cast<nj_contextref>(p);
+static inline JIT_contextref wrap_context(JIT_Context *p) {
+  return reinterpret_cast<JIT_contextref>(p);
 }
 
-static inline NJ_Context *unwrap_context(nj_contextref p) {
-  return reinterpret_cast<NJ_Context *>(p);
+static inline JIT_Context *unwrap_context(JIT_contextref p) {
+  return reinterpret_cast<JIT_Context *>(p);
 }
 
-static inline nj_valueref wrap_value(TR::IlValue *p) {
-	return reinterpret_cast<nj_valueref>(p);
+static inline JIT_valueref wrap_value(TR::IlValue *p) {
+	return reinterpret_cast<JIT_valueref>(p);
 }
 
-static inline TR::IlValue *unwrap_value(nj_valueref p) {
+static inline TR::IlValue *unwrap_value(JIT_valueref p) {
 	return reinterpret_cast<TR::IlValue *>(p);
 }
 
 extern "C" {
 
-nj_contextref nj_create_context() {
+JIT_contextref JIT_create_context() {
   {
     std::lock_guard<std::mutex> g(s_jitlock);
     if (s_ctxcount == 0)
@@ -52,13 +52,13 @@ nj_contextref nj_create_context() {
     s_ctxcount++;
   }
 
-  NJ_Context *context = new NJ_Context();
+  JIT_Context *context = new JIT_Context();
 
   return wrap_context(context);
 }
 
-void nj_destroy_context(nj_contextref ctx) {
-  NJ_Context *context = unwrap_context(ctx);
+void JIT_destroy_context(JIT_contextref ctx) {
+  JIT_Context *context = unwrap_context(ctx);
   if (!context)
     return;
   {
