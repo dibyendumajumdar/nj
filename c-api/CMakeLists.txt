@@ -19,4 +19,11 @@ target_link_libraries(njapi PUBLIC
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(njapitest1
+	tests/test1.cpp
+)
+
+target_link_libraries(njapitest1
+	njapi
+)
 
