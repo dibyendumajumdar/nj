@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1996, 2016 IBM Corp. and others
+ * Copyright (c) 1996, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -478,13 +478,11 @@ template <class AElementType, class Allocator, size_t segmentBits = 8, class Ini
   void MakeEmpty() { return ShrinkTo(0); }
 
   void ShrinkTo(size_t newSize) {
-      typedef typename ArrayOf <AElementType, Allocator, segmentBits>::DerivedElement DE;
-	  if (newSize < fNumInitialized) {
+    if (newSize < fNumInitialized) {
       Cursor c(*this);
-      for (c.SetTo(newSize); c.Valid(); c.SetToNext()) {
-        DE *derivedElement = c.DerivedElement();
-        (*derivedElement).DE::~DerivedElement();
-      }
+      for (c.SetTo(newSize); c.Valid(); c.SetToNext())
+        c.DerivedElement()->~DerivedElement();
+
       fNumInitialized = newSize;
       CS2_BASEARDECL::ShrinkTo(newSize);
     }

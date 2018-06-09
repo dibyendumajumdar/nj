@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -21,16 +21,15 @@
 
 #include "control/CompileMethod.hpp"
 
+#if defined(OMR_OS_WINDOWS)
+#include <process.h>                           // for _getpid
+#else
+#include <unistd.h>                            // for getpid, intptr_t, etc
+#endif
 #include <exception>                           // for exception
 #include <stdint.h>                            // for int32_t, uint8_t, etc
 #include <stdio.h>                             // for NULL, fprintf, fflush, etc
 #include <string.h>                            // for strlen
-#ifndef _WIN32
-#include <unistd.h>                            // for getpid, intptr_t, etc
-#else
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 #include "codegen/CodeGenerator.hpp"           // for CodeGenerator
 #include "codegen/FrontEnd.hpp"                // for TR_VerboseLog, etc
 #include "codegen/LinkageConventionsEnum.hpp"
@@ -69,11 +68,10 @@ writePerfToolEntry(void *start, uint32_t size, const char *name)
    if (firstAttempt)
       {
       firstAttempt = false;
-#ifndef _WIN32
-      pid_t jvmPid = getpid();
+#if defined(OMR_OS_WINDOWS)
+      int jvmPid = _getpid();
 #else
-      // FIXME
-      auto jvmPid = GetCurrentProcessId();
+      pid_t jvmPid = getpid();
 #endif
       static const int maxPerfFilenameSize = 15 + sizeof(jvmPid)* 3; // "/tmp/perf-%ld.map"
       char perfFilename[maxPerfFilenameSize] = { 0 };
@@ -403,14 +401,15 @@ compileMethodFromDetails(
             }
 
          if (
-               TR::Options::getCmdLineOptions()->getOption(TR_PerfTool)
-            || TR::Options::getCmdLineOptions()->getOption(TR_EnableObjectFileGeneration)
+               TR::Options::getCmdLineOptions()->getOption(TR_PerfTool) 
+            || TR::Options::getCmdLineOptions()->getOption(TR_EmitExecutableELFFile)
+            || TR::Options::getCmdLineOptions()->getOption(TR_EmitRelocatableELFFile)
             )
             {
             TR::CodeCacheManager &codeCacheManager(fe.codeCacheManager());
             TR::CodeGenerator &codeGenerator(*compiler.cg());
             codeCacheManager.registerCompiledMethod(compiler.externalName(), startPC, codeGenerator.getCodeLength());
-            if (TR::Options::getCmdLineOptions()->getOption(TR_EnableObjectFileGeneration))
+            if (TR::Options::getCmdLineOptions()->getOption(TR_EmitRelocatableELFFile))
                {
                auto &relocations = codeGenerator.getStaticRelocations();
                for (auto it = relocations.begin(); it != relocations.end(); ++it)

@@ -68,7 +68,6 @@ namespace OMR { typedef OMR::Compilation CompilationConnector; }
 #include "ras/DebugCounter.hpp"               // for TR_DebugCounter, etc
 #include "ras/ILValidationStrategies.hpp"
 
-
 #include "il/symbol/ResolvedMethodSymbol.hpp"
 
 
