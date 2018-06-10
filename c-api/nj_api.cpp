@@ -138,43 +138,43 @@ unwrap_function_builder(JIT_FunctionBuilderRef p) {
 }
 
 static inline JIT_BlockRef wrap_block(TR::Block *p) {
-	return reinterpret_cast<JIT_BlockRef>(p);
+  return reinterpret_cast<JIT_BlockRef>(p);
 }
 
 static inline TR::Block *unwrap_block(JIT_BlockRef p) {
-	return reinterpret_cast<TR::Block *>(p);
+  return reinterpret_cast<TR::Block *>(p);
 }
 
 static inline JIT_NodeRef wrap_node(TR::Node *p) {
-	return reinterpret_cast<JIT_NodeRef>(p);
+  return reinterpret_cast<JIT_NodeRef>(p);
 }
 
 static inline TR::Node *unwrap_node(JIT_NodeRef p) {
-	return reinterpret_cast<TR::Node *>(p);
+  return reinterpret_cast<TR::Node *>(p);
 }
 
 static inline JIT_TreeTopRef wrap_treetop(TR::TreeTop *p) {
-	return reinterpret_cast<JIT_TreeTopRef>(p);
+  return reinterpret_cast<JIT_TreeTopRef>(p);
 }
 
 static inline TR::TreeTop *unwrap_node(JIT_TreeTopRef p) {
-	return reinterpret_cast<TR::TreeTop *>(p);
+  return reinterpret_cast<TR::TreeTop *>(p);
 }
 
 static inline JIT_CFGNodeRef wrap_cfgnode(TR::CFGNode *p) {
-	return reinterpret_cast<JIT_CFGNodeRef>(p);
+  return reinterpret_cast<JIT_CFGNodeRef>(p);
 }
 
 static inline TR::CFGNode *unwrap_cfgnode(JIT_CFGNodeRef p) {
-	return reinterpret_cast<TR::CFGNode *>(p);
+  return reinterpret_cast<TR::CFGNode *>(p);
 }
 
 static inline JIT_SymbolRef wrap_symbolref(TR::SymbolReference *p) {
-	return reinterpret_cast<JIT_SymbolRef>(p);
+  return reinterpret_cast<JIT_SymbolRef>(p);
 }
 
 static inline TR::SymbolReference *unwrap_symbolref(JIT_SymbolRef p) {
-	return reinterpret_cast<TR::SymbolReference *>(p);
+  return reinterpret_cast<TR::SymbolReference *>(p);
 }
 
 bool SimpleILInjector::injectIL() {
@@ -236,61 +236,109 @@ void *JIT_Compile(JIT_FunctionBuilderRef fb) {
 }
 
 void JIT_CreateBlocks(JIT_ILInjectorRef ilinjector, int32_t num) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	injector->createBlocks(num);
+  auto injector = unwrap_ilinjector(ilinjector);
+  injector->createBlocks(num);
 }
 
 void JIT_SetCurrentBlock(JIT_ILInjectorRef ilinjector, int32_t b) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	injector->generateToBlock(b);
+  auto injector = unwrap_ilinjector(ilinjector);
+  injector->generateToBlock(b);
 }
 
 JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	return wrap_block(injector->getCurrentBlock());
+  auto injector = unwrap_ilinjector(ilinjector);
+  return wrap_block(injector->getCurrentBlock());
 }
 
-JIT_NodeRef JIT_ConstInt32(int32_t i) {
-	return wrap_node(TR::Node::iconst(i));
-}
+JIT_NodeRef JIT_ConstInt32(int32_t i) { return wrap_node(TR::Node::iconst(i)); }
 
 JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
-	auto n1 = unwrap_node(c1);
-	return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 1, n1));
+  auto n1 = unwrap_node(c1);
+  return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 1, n1));
 }
 
-JIT_TreeTopRef JIT_GenerateTreeTop(JIT_ILInjectorRef ilinjector, JIT_NodeRef n) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto node = unwrap_node(n);
-	return wrap_treetop(injector->genTreeTop(node));
+JIT_TreeTopRef JIT_GenerateTreeTop(JIT_ILInjectorRef ilinjector,
+                                   JIT_NodeRef n) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto node = unwrap_node(n);
+  return wrap_treetop(injector->genTreeTop(node));
 }
 
-void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from, JIT_CFGNodeRef to) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto node1 = unwrap_cfgnode(from);
-	auto node2 = unwrap_cfgnode(to);
-	injector->cfg()->addEdge(node1, node2);
+void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from,
+                    JIT_CFGNodeRef to) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto node1 = unwrap_cfgnode(from);
+  auto node2 = unwrap_cfgnode(to);
+  injector->cfg()->addEdge(node1, node2);
 }
 
 JIT_CFGNodeRef JIT_BlockAsCFGNode(JIT_BlockRef b) {
-	auto block = unwrap_block(b);
-	return wrap_cfgnode(static_cast<TR::CFGNode *>(block));
+  auto block = unwrap_block(b);
+  return wrap_cfgnode(static_cast<TR::CFGNode *>(block));
 }
 
 JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	return wrap_cfgnode(injector->cfg()->getEnd());
+  auto injector = unwrap_ilinjector(ilinjector);
+  return wrap_cfgnode(injector->cfg()->getEnd());
 }
 
-JIT_SymbolRef JIT_CreateLocal(JIT_ILInjectorRef ilinjector, JIT_Type type) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	return wrap_symbolref(injector->symRefTab()->createTemporary(injector->methodSymbol(), TR::DataType((TR::DataTypes) type)));
+JIT_SymbolRef JIT_CreateTemporary(JIT_ILInjectorRef ilinjector, JIT_Type type) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  return wrap_symbolref(injector->symRefTab()->createTemporary(
+      injector->methodSymbol(), TR::DataType((TR::DataTypes)type)));
 }
 
-JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector, uint32_t size) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	return wrap_symbolref(injector->symRefTab()->createLocalPrimArray(size, injector->methodSymbol(), 8 /*apparently 8 means Java bytearray! */));
+JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector,
+                                       uint32_t size) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  return wrap_symbolref(injector->symRefTab()->createLocalPrimArray(
+      size, injector->methodSymbol(),
+      8 /*apparently 8 means Java bytearray! */));
 }
 
+JIT_NodeRef JIT_LoadTemporary(JIT_ILInjectorRef ilinjector,
+                              JIT_SymbolRef symbol) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  return wrap_node(injector->loadTemp(unwrap_symbolref(symbol)));
+}
+
+void JIT_StoreToTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbol,
+                          JIT_NodeRef value) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  return injector->storeToTemp(unwrap_symbolref(symbol), unwrap_node(value));
+}
+
+JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbol) {
+	auto symref = unwrap_symbolref(symbol);
+	return wrap_node(TR::Node::createWithSymRef(TR::loadaddr, 0, symref));
+}
+
+JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+                          JIT_NodeRef indexnode, JIT_Type dt) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto base = unwrap_node(basenode);
+  auto index = unwrap_node(indexnode);
+  auto type = TR::DataType((TR::DataTypes)dt);
+  TR::SymbolReference *symRef =
+      injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
+  TR::Node *load = TR::Node::createWithSymRef(
+      TR::ILOpCode::indirectLoadOpCode(type), 1, index, 0, symRef);
+  return wrap_node(load);
+}
+
+void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	JIT_NodeRef indexnode, JIT_NodeRef valuenode) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto base = unwrap_node(basenode);
+	auto index = unwrap_node(indexnode);
+	auto value = unwrap_node(valuenode);
+	auto type = value->getDataType();
+	TR::SymbolReference *symRef =
+		injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
+	TR::ILOpCodes storeOp = injector->comp()->il.opCodeForIndirectArrayStore(type);
+	TR::Node *store = TR::Node::createWithSymRef(
+		storeOp, 2, index, value, 0, symRef);
+	injector->genTreeTop(store);
+}
 
 } // extern "C"

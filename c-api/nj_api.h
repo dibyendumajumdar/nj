@@ -1051,23 +1051,45 @@ extern JIT_CFGNodeRef JIT_BlockAsCFGNode(JIT_BlockRef b);
  * Adds an edge in the control flow graph - note that blocks are CFGNodes so
  * you can convert blocks to CFGNodes by calling JIT_NodeAsCFGNode().
  */
-extern void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from, JIT_CFGNodeRef to);
+extern void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from,
+                           JIT_CFGNodeRef to);
 
 /**
-* Returns the node that is the bottom of the CFG
-*/
+ * Returns the node that is the bottom of the CFG
+ */
 extern JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector);
 
 /**
-* Creates a temporary value on the stack of required type
-*/
-extern JIT_SymbolRef JIT_CreateLocal(JIT_ILInjectorRef ilinjector, JIT_Type type);
+ * Creates a temporary value on the stack of required type
+ */
+extern JIT_SymbolRef JIT_CreateTemporary(JIT_ILInjectorRef ilinjector,
+                                         JIT_Type type);
 
 /**
-* Creates a temporary array value on the stack - this is similar to alloca() call (I believe)
-*/
-extern JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector, uint32_t size);
+ * Creates a temporary array value on the stack - this is similar to alloca()
+ * call (I believe)
+ */
+extern JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector,
+                                              uint32_t size);
 
+/**
+ * Load value at a temporary
+ */
+extern JIT_NodeRef JIT_LoadTemporary(JIT_ILInjectorRef ilinjector,
+                                     JIT_SymbolRef symbol);
+
+/**
+ * Store value to a temporary; the store is created as a TreeTop
+ */
+extern void JIT_StoreToTemporary(JIT_ILInjectorRef ilinjector,
+                                 JIT_SymbolRef symbol, JIT_NodeRef value);
+
+/**
+ * Load a value from specific offset within array
+ */
+extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
+                                 JIT_NodeRef base, JIT_NodeRef index,
+                                 JIT_Type value_type);
 
 #ifdef __cplusplus
 }
