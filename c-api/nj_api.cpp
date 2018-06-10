@@ -6,11 +6,17 @@
 #include "compile/Method.hpp"
 #include "control/CompileMethod.hpp"
 #include "env/jittypes.h"
+#include "il/Block.hpp"
 #include "il/DataTypes.hpp"
 #include "il/ILOpCodes.hpp"
+#include "il/Node.hpp"
+#include "il/Node_inlines.hpp"
+#include "il/TreeTop.hpp"
+#include "il/TreeTop_inlines.hpp"
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 #include "ilgen/IlInjector.hpp"
 #include "ilgen/TypeDictionary.hpp"
+#include "infra/Cfg.hpp"
 
 #include <mutex>
 #include <string>
@@ -154,6 +160,15 @@ static inline TR::TreeTop *unwrap_node(JIT_TreeTopRef p) {
 	return reinterpret_cast<TR::TreeTop *>(p);
 }
 
+static inline JIT_CFGNodeRef wrap_cfgnode(TR::CFGNode *p) {
+	return reinterpret_cast<JIT_CFGNodeRef>(p);
+}
+
+static inline TR::CFGNode *unwrap_cfgnode(JIT_CFGNodeRef p) {
+	return reinterpret_cast<TR::CFGNode *>(p);
+}
+
+
 
 bool SimpleILInjector::injectIL() {
   return (function_builder_->ilbuilder_(wrap_ilinjector(this),
@@ -232,7 +247,7 @@ JIT_NodeRef JIT_ConstInt32(int32_t i) {
 	return wrap_node(TR::Node::iconst(i));
 }
 
-JIT_NodeRef JIT_NodeC1(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
+JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
 	auto n1 = unwrap_node(c1);
 	return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 1, n1));
 }
@@ -243,4 +258,22 @@ JIT_TreeTopRef JIT_GenerateTreeTop(JIT_ILInjectorRef ilinjector, JIT_NodeRef n) 
 	return wrap_treetop(injector->genTreeTop(node));
 }
 
+void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from, JIT_CFGNodeRef to) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto node1 = unwrap_cfgnode(from);
+	auto node2 = unwrap_cfgnode(to);
+	injector->cfg()->addEdge(node1, node2);
 }
+
+JIT_CFGNodeRef JIT_BlockAsCFGNode(JIT_BlockRef b) {
+	auto block = unwrap_block(b);
+	return wrap_cfgnode(static_cast<TR::CFGNode *>(block));
+}
+
+JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	return wrap_cfgnode(injector->cfg()->getEnd());
+}
+
+
+} // extern "C"

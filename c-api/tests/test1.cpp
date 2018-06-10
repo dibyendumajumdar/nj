@@ -4,7 +4,12 @@
 
 static bool build_il(JIT_ILInjectorRef ilinjector, void *userdata) {
   JIT_CreateBlocks(ilinjector, 1);
-  return false;
+  JIT_SetCurrentBlock(ilinjector, 0);
+  auto iconst = JIT_ConstInt32(42);
+  auto node = JIT_CreateNode1C(OP_ireturn, iconst);
+  JIT_GenerateTreeTop(ilinjector, node);
+  JIT_CFGAddEdge(ilinjector, JIT_BlockAsCFGNode(JIT_GetCurrentBlock(ilinjector)), JIT_GetCFGEnd(ilinjector));
+  return true;
 }
 
 int main(int argc, const char *argv[]) {
