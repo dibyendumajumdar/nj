@@ -4,6 +4,7 @@
 #include "compile/Compilation.hpp"
 #include "compile/CompilationTypes.hpp"
 #include "compile/Method.hpp"
+#include "compile/SymbolReferenceTable.hpp"
 #include "control/CompileMethod.hpp"
 #include "env/jittypes.h"
 #include "il/Block.hpp"
@@ -168,7 +169,13 @@ static inline TR::CFGNode *unwrap_cfgnode(JIT_CFGNodeRef p) {
 	return reinterpret_cast<TR::CFGNode *>(p);
 }
 
+static inline JIT_SymbolRef wrap_symbolref(TR::SymbolReference *p) {
+	return reinterpret_cast<JIT_SymbolRef>(p);
+}
 
+static inline TR::SymbolReference *unwrap_symbolref(JIT_SymbolRef p) {
+	return reinterpret_cast<TR::SymbolReference *>(p);
+}
 
 bool SimpleILInjector::injectIL() {
   return (function_builder_->ilbuilder_(wrap_ilinjector(this),
@@ -273,6 +280,16 @@ JIT_CFGNodeRef JIT_BlockAsCFGNode(JIT_BlockRef b) {
 JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector) {
 	auto injector = unwrap_ilinjector(ilinjector);
 	return wrap_cfgnode(injector->cfg()->getEnd());
+}
+
+JIT_SymbolRef JIT_CreateLocal(JIT_ILInjectorRef ilinjector, JIT_Type type) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	return wrap_symbolref(injector->symRefTab()->createTemporary(injector->methodSymbol(), TR::DataType((TR::DataTypes) type)));
+}
+
+JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector, uint32_t size) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	return wrap_symbolref(injector->symRefTab()->createLocalPrimArray(size, injector->methodSymbol(), 8 /*apparently 8 means Java bytearray! */));
 }
 
 

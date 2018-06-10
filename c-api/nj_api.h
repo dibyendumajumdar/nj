@@ -94,6 +94,7 @@ typedef struct JIT_Node *JIT_NodeRef;
 typedef struct JIT_TreeTop *JIT_TreeTopRef;
 typedef struct JIT_Block *JIT_BlockRef;
 typedef struct JIT_CFGNode *JIT_CFGNodeRef; // Note that Blocks are CFGNodes
+typedef struct JIT_Symbol *JIT_SymbolRef;
 
 /**
  * Generate IL and compile the function. To generate IL the user supplied
@@ -1052,7 +1053,21 @@ extern JIT_CFGNodeRef JIT_BlockAsCFGNode(JIT_BlockRef b);
  */
 extern void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from, JIT_CFGNodeRef to);
 
+/**
+* Returns the node that is the bottom of the CFG
+*/
 extern JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector);
+
+/**
+* Creates a temporary value on the stack of required type
+*/
+extern JIT_SymbolRef JIT_CreateLocal(JIT_ILInjectorRef ilinjector, JIT_Type type);
+
+/**
+* Creates a temporary array value on the stack - this is similar to alloca() call (I believe)
+*/
+extern JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector, uint32_t size);
+
 
 #ifdef __cplusplus
 }
