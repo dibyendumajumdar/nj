@@ -1085,11 +1085,24 @@ extern void JIT_StoreToTemporary(JIT_ILInjectorRef ilinjector,
                                  JIT_SymbolRef symbol, JIT_NodeRef value);
 
 /**
- * Load a value from specific offset within array
+ * Loads the address of a local temporary or array
  */
-extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
-                                 JIT_NodeRef base, JIT_NodeRef index,
-                                 JIT_Type value_type);
+extern JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
+                                   JIT_SymbolRef symbol);
+
+/**
+ * Load a value from specific offset within array; note offset must be exact
+ * byte position
+ */
+extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef base,
+                                 JIT_NodeRef index, JIT_Type value_type);
+
+/**
+ * Store a value at specific array offet; note offset must be exact byte
+ * position
+ */
+extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+                           JIT_NodeRef indexnode, JIT_NodeRef valuenode);
 
 #ifdef __cplusplus
 }
