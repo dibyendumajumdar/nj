@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 static bool build_il(JIT_ILInjectorRef ilinjector, void *userdata) {
+  JIT_CreateBlocks(ilinjector, 1);
   return false;
 }
 

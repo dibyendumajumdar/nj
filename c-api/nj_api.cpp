@@ -130,6 +130,31 @@ unwrap_function_builder(JIT_FunctionBuilderRef p) {
   return reinterpret_cast<FunctionBuilder *>(p);
 }
 
+static inline JIT_BlockRef wrap_block(TR::Block *p) {
+	return reinterpret_cast<JIT_BlockRef>(p);
+}
+
+static inline TR::Block *unwrap_block(JIT_BlockRef p) {
+	return reinterpret_cast<TR::Block *>(p);
+}
+
+static inline JIT_NodeRef wrap_node(TR::Node *p) {
+	return reinterpret_cast<JIT_NodeRef>(p);
+}
+
+static inline TR::Node *unwrap_node(JIT_NodeRef p) {
+	return reinterpret_cast<TR::Node *>(p);
+}
+
+static inline JIT_TreeTopRef wrap_treetop(TR::TreeTop *p) {
+	return reinterpret_cast<JIT_TreeTopRef>(p);
+}
+
+static inline TR::TreeTop *unwrap_node(JIT_TreeTopRef p) {
+	return reinterpret_cast<TR::TreeTop *>(p);
+}
+
+
 bool SimpleILInjector::injectIL() {
   return (function_builder_->ilbuilder_(wrap_ilinjector(this),
                                         function_builder_->userdata_));
@@ -187,4 +212,35 @@ void *JIT_Compile(JIT_FunctionBuilderRef fb) {
   FunctionBuilder *function_builder = unwrap_function_builder(fb);
   return function_builder->compile();
 }
+
+void JIT_CreateBlocks(JIT_ILInjectorRef ilinjector, int32_t num) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	injector->createBlocks(num);
+}
+
+void JIT_SetCurrentBlock(JIT_ILInjectorRef ilinjector, int32_t b) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	injector->generateToBlock(b);
+}
+
+JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	return wrap_block(injector->getCurrentBlock());
+}
+
+JIT_NodeRef JIT_ConstInt32(int32_t i) {
+	return wrap_node(TR::Node::iconst(i));
+}
+
+JIT_NodeRef JIT_NodeC1(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
+	auto n1 = unwrap_node(c1);
+	return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 1, n1));
+}
+
+JIT_TreeTopRef JIT_GenerateTreeTop(JIT_ILInjectorRef ilinjector, JIT_NodeRef n) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto node = unwrap_node(n);
+	return wrap_treetop(injector->genTreeTop(node));
+}
+
 }
