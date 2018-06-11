@@ -1,23 +1,24 @@
 /*******************************************************************************
-* Copyright (c) 2000, 2018 IBM Corp. and others
-*
-* This program and the accompanying materials are made available under
-* the terms of the Eclipse Public License 2.0 which accompanies this
-* distribution and is available at http://eclipse.org/legal/epl-2.0
-* or the Apache License, Version 2.0 which accompanies this distribution
-* and is available at https://www.apache.org/licenses/LICENSE-2.0.
-*
-* This Source Code may also be made available under the following Secondary
-* Licenses when the conditions for such availability set forth in the
-* Eclipse Public License, v. 2.0 are satisfied: GNU General Public License,
-* version 2 with the GNU Classpath Exception [1] and GNU General Public
-* License, version 2 with the OpenJDK Assembly Exception [2].
-*
-* [1] https://www.gnu.org/software/classpath/license.html
-* [2] http://openjdk.java.net/legal/assembly-exception.html
-*
-* SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
-*******************************************************************************/
+ * Copyright (c) 2000, 2018 IBM Corp. and others
+ *
+ * This program and the accompanying materials are made available under
+ * the terms of the Eclipse Public License 2.0 which accompanies this
+ * distribution and is available at http://eclipse.org/legal/epl-2.0
+ * or the Apache License, Version 2.0 which accompanies this distribution
+ * and is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * This Source Code may also be made available under the following Secondary
+ * Licenses when the conditions for such availability set forth in the
+ * Eclipse Public License, v. 2.0 are satisfied: GNU General Public License,
+ * version 2 with the GNU Classpath Exception [1] and GNU General Public
+ * License, version 2 with the OpenJDK Assembly Exception [2].
+ *
+ * [1] https://www.gnu.org/software/classpath/license.html
+ * [2] http://openjdk.java.net/legal/assembly-exception.html
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH
+ *Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
+ *******************************************************************************/
 #ifndef JIT_api_h
 #define JIT_api_h
 
@@ -102,6 +103,13 @@ JIT_CreateFunctionBuilder(JIT_ContextRef context, const char *name,
                           enum JIT_Type return_type, int param_count,
                           JIT_FunctionParameter *parameters,
                           JIT_ILBuilder ilbuilder, void *userdata);
+
+/**
+ * Register an external function (not managed by JIT)
+ */
+extern void JIT_RegisterFunction(JIT_ContextRef context, const char *name,
+                                 enum JIT_Type return_type, int param_count,
+                                 JIT_FunctionParameter *parameters, void *ptr);
 
 /**
  * Destroys the function builder object. Note that this will not delete the
@@ -1114,8 +1122,9 @@ extern JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
  * Load a value from specific offset within array; note offset must be exact
  * byte offset (presumably suitably aligned)
  */
-extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
-                                 JIT_NodeRef byte_offset, JIT_Type value_type);
+extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
+                                 JIT_NodeRef address, JIT_NodeRef byte_offset,
+                                 JIT_Type value_type);
 
 /**
  * Store a value at specific array offet; note offset must be exact byte
@@ -1125,9 +1134,10 @@ extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
                            JIT_NodeRef byte_offset, JIT_NodeRef valuenode);
 
 /**
-* Load the specified parameter, slots start at 0.
-*/
-extern JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot);
+ * Load the specified parameter, slots start at 0.
+ */
+extern JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector,
+                                     int32_t slot);
 
 #ifdef __cplusplus
 }
