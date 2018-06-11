@@ -1,3 +1,23 @@
+/*******************************************************************************
+* Copyright (c) 2000, 2018 IBM Corp. and others
+*
+* This program and the accompanying materials are made available under
+* the terms of the Eclipse Public License 2.0 which accompanies this
+* distribution and is available at http://eclipse.org/legal/epl-2.0
+* or the Apache License, Version 2.0 which accompanies this distribution
+* and is available at https://www.apache.org/licenses/LICENSE-2.0.
+*
+* This Source Code may also be made available under the following Secondary
+* Licenses when the conditions for such availability set forth in the
+* Eclipse Public License, v. 2.0 are satisfied: GNU General Public License,
+* version 2 with the GNU Classpath Exception [1] and GNU General Public
+* License, version 2 with the OpenJDK Assembly Exception [2].
+*
+* [1] https://www.gnu.org/software/classpath/license.html
+* [2] http://openjdk.java.net/legal/assembly-exception.html
+*
+* SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
+*******************************************************************************/
 #include "nj_api.h"
 
 #include "Jit.hpp"
@@ -22,6 +42,10 @@
 #include <mutex>
 #include <string>
 
+#define TraceEnabled    (injector->comp()->getOption(TR_TraceILGen))
+#define TraceIL(m, ...) {if (TraceEnabled) {traceMsg(injector->comp(), m, ##__VA_ARGS__);}}
+
+
 namespace nj {
 
 class FunctionBuilder;
@@ -31,6 +55,8 @@ public:
   Context() {}
   FunctionBuilder *newFunctionBuilder(const char *name, JIT_Type return_type,
                                       JIT_ILBuilder ilbuilder, void *userdata);
+  FunctionBuilder *newFunctionBuilder(const char *name, JIT_Type return_type, int argc, JIT_FunctionParameter *args,
+	  JIT_ILBuilder ilbuilder, void *userdata);
 
 private:
   TR::TypeDictionary types;
@@ -110,6 +136,13 @@ FunctionBuilder *Context::newFunctionBuilder(const char *name,
   FunctionBuilder *function_builder = new FunctionBuilder(
       &types, name, return_type, 0, NULL, ilbuilder, userdata);
   return function_builder;
+}
+
+FunctionBuilder *Context::newFunctionBuilder(const char *name, JIT_Type return_type, int argc, JIT_FunctionParameter *args,
+	JIT_ILBuilder ilbuilder, void *userdata) {
+	FunctionBuilder *function_builder = new FunctionBuilder(
+		&types, name, return_type, argc, args, ilbuilder, userdata);
+	return function_builder;
 }
 
 static inline JIT_ContextRef wrap_context(Context *p) {
@@ -222,7 +255,7 @@ JIT_CreateFunctionBuilder(JIT_ContextRef ctx, const char *name,
                           JIT_ILBuilder ilbuilder, void *userdata) {
   Context *context = unwrap_context(ctx);
   return wrap_function_builder(
-      context->newFunctionBuilder(name, return_type, ilbuilder, userdata));
+      context->newFunctionBuilder(name, return_type, param_count, parameters, ilbuilder, userdata));
 }
 
 void JIT_DestroyFunctionBuilder(JIT_FunctionBuilderRef fb) {
@@ -313,6 +346,81 @@ JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbol) 
 	return wrap_node(TR::Node::createWithSymRef(TR::loadaddr, 0, symref));
 }
 
+#if 0
+// This is based on code in ILBuilder 
+// Array offset is logical - actual byte offset is computed from element size
+static TR::Node *
+IndexAt(SimpleILInjector *injector, TR::DataType elemType, TR::Node *baseNode, TR::Node *indexNode)
+{
+	TR_ASSERT(baseNode->getDataType() == TR::Address, "IndexAt must be called with a pointer base");
+	TR_ASSERT(elemType != TR::NoType, "Cannot use IndexAt with pointer to NoType.");
+	TR::Node *elemSizeNode;
+	TR::ILOpCodes addOp, mulOp;
+	TR::DataType indexType = indexNode->getDataType();
+	if (TR::Compiler->target.is64Bit())
+	{
+		if (indexType != TR::Int64)
+		{
+			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, TR::Int64);
+			indexNode = TR::Node::create(op, 1, indexNode);
+		}
+		elemSizeNode = TR::Node::lconst(TR::DataType::getSize(elemType));
+		addOp = TR::aladd;
+		mulOp = TR::lmul;
+	}
+	else
+	{
+		TR::DataType targetType = TR::Int32;
+		if (indexType != targetType)
+		{
+			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, targetType);
+			indexNode = TR::Node::create(op, 1, indexNode);
+		}
+		elemSizeNode = TR::Node::iconst(TR::DataType::getSize(elemType));
+		addOp = TR::aiadd;
+		mulOp = TR::imul;
+	}
+
+	TR::Node *offsetNode = TR::Node::create(mulOp, 2, indexNode, elemSizeNode);
+	TR::Node *addrNode = TR::Node::create(addOp, 2, baseNode, offsetNode);
+
+	return addrNode;
+}
+#endif
+
+/**
+* Given base array address and an offset, return address+offset
+*/
+static TR::Node *
+get_array_element_address(SimpleILInjector *injector, TR::DataType elemType, TR::Node *baseNode, TR::Node *indexNode)
+{
+	TR_ASSERT(baseNode->getDataType() == TR::Address, "IndexAt must be called with a pointer base");
+	TR_ASSERT(elemType != TR::NoType, "Cannot use IndexAt with pointer to NoType.");
+	TR::ILOpCodes addOp;
+	TR::DataType indexType = indexNode->getDataType();
+	if (TR::Compiler->target.is64Bit())
+	{
+		if (indexType != TR::Int64)
+		{
+			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, TR::Int64);
+			indexNode = TR::Node::create(op, 1, indexNode);
+		}
+		addOp = TR::aladd;
+	}
+	else
+	{
+		TR::DataType targetType = TR::Int32;
+		if (indexType != targetType)
+		{
+			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, targetType);
+			indexNode = TR::Node::create(op, 1, indexNode);
+		}
+		addOp = TR::aiadd;
+	}
+	TR::Node *addrNode = TR::Node::create(addOp, 2, baseNode, indexNode);
+	return addrNode;
+}
+
 JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
                           JIT_NodeRef indexnode, JIT_Type dt) {
   auto injector = unwrap_ilinjector(ilinjector);
@@ -322,7 +430,7 @@ JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *load = TR::Node::createWithSymRef(
-      TR::ILOpCode::indirectLoadOpCode(type), 1, index, 0, symRef);
+      TR::ILOpCode::indirectLoadOpCode(type), 1, get_array_element_address(injector,type,base,index), 0, symRef);
   return wrap_node(load);
 }
 
@@ -337,8 +445,20 @@ void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
 		injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
 	TR::ILOpCodes storeOp = injector->comp()->il.opCodeForIndirectArrayStore(type);
 	TR::Node *store = TR::Node::createWithSymRef(
-		storeOp, 2, index, value, 0, symRef);
+		storeOp, 2, get_array_element_address(injector, type, base, index), value, 0, symRef);
 	injector->genTreeTop(store);
+}
+
+JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto function_builder = injector->function_builder_;
+	TR_ASSERT(slot >= 0 && slot < function_builder->args_.size(), "Invalid argument slot %d", slot);
+	if (slot < 0 || slot >= function_builder->args_.size()) {
+		return nullptr;
+	}	
+	auto type = TR::DataType(function_builder->args_[slot]);
+	auto node = TR::Node::createLoad(injector->symRefTab()->findOrCreateAutoSymbol(injector->methodSymbol(), slot, type, true, false, true));
+	return wrap_node(node);
 }
 
 } // extern "C"
