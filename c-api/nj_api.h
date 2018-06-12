@@ -1139,6 +1139,11 @@ extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
 extern JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector,
                                      int32_t slot);
 
+/**
+ * Call a function; function must be registered already
+ */
+extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName, int32_t numArgs, ...);
+
 #ifdef __cplusplus
 }
 #endif

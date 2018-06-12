@@ -43,6 +43,8 @@
 #include <mutex>
 #include <string>
 
+#include <stdarg.h>
+
 #define TraceEnabled (injector->comp()->getOption(TR_TraceILGen))
 #define TraceIL(m, ...)                                                        \
   {                                                                            \
@@ -526,6 +528,53 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
       TR::Node::createLoad(injector->symRefTab()->findOrCreateAutoSymbol(
           injector->methodSymbol(), slot, type, true, false, true));
   return wrap_node(node);
+}
+
+TR::Node *
+convertTo(TR::IlInjector *injector, TR::DataType typeTo, TR::Node *v, bool needUnsigned = false)
+{
+	TR::DataType typeFrom = v->getDataType();
+
+	TR::ILOpCodes convertOp = TR::ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
+	TR_ASSERT(convertOp != TR::BadILOp, "Unknown conversion requested from TR::DataType %d to TR::DataType %d", (int)typeFrom, (int)typeTo);
+	TR::Node *result = TR::Node::create(convertOp, 1, v);
+	return result;
+}
+
+JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName, int32_t numArgs, ...)
+{
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto function_builder = injector->function_builder_;
+	TR::ResolvedMethod *resolvedMethod = function_builder->context_->getFunction(functionName);
+	TR_ASSERT(resolvedMethod, "Could not identify function %s\n", functionName);
+	if (resolvedMethod == nullptr)
+		return nullptr;
+	TR::SymbolReference *methodSymRef = injector->symRefTab()->findOrCreateComputedStaticMethodSymbol(JITTED_METHOD_INDEX, -1, resolvedMethod);
+	TR::DataType returnType = methodSymRef->getSymbol()->castToMethodSymbol()->getMethod()->returnType();
+	TR::Node *callNode = TR::Node::createWithSymRef(TR::ILOpCode::getDirectCall(returnType), numArgs, methodSymRef);
+	// TODO: should really verify argument types here
+	int32_t childIndex = 0;
+	TR::DataType targetType = TR::Int32;
+	if (TR::Compiler->target.is64Bit())
+		targetType = TR::Int64;
+	va_list args;
+	va_start(args, numArgs);
+	for (int32_t a = 0; a < numArgs; a++)
+	{
+		JIT_NodeRef arg = va_arg(args, JIT_NodeRef);
+		TR::Node *node = unwrap_node(arg);
+		if (node->getDataType() == TR::Int8 || node->getDataType() == TR::Int16 || (targetType == TR::Int64 && node->getDataType() == TR::Int32))
+			node = convertTo(injector, targetType, node);
+		callNode->setAndIncChild(childIndex++, node);
+	}
+	va_end(args);
+	// callNode must be anchored by itself
+	injector->genTreeTop(callNode);
+	if (returnType != TR::NoType)
+	{
+		return wrap_node(callNode);
+	}
+	return nullptr;
 }
 
 } // extern "C"
