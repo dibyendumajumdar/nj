@@ -61,17 +61,17 @@ struct ResolvedMethodWrapper {
   std::string file_;
   std::string line_;
   std::string name_;
+  std::vector<TR::IlType *> params_;
   TR::ResolvedMethod resolvedMethod_;
 
   ResolvedMethodWrapper(const char *fileName, const char *lineNumber,
-                        const char *name, int32_t numArgs,
-                        TR::IlType **parmTypes, TR::IlType *returnType,
-                        void *entryPoint)
-      : file_(fileName), line_(lineNumber), name_(name),
+                        const char *name, std::vector<TR::IlType *> &params,
+                        TR::IlType *returnType, void *entryPoint)
+      : file_(fileName), line_(lineNumber), name_(name), params_(params),
         // FIXME
         resolvedMethod_((char *)file_.data(), (char *)line_.data(),
-                        (char *)name_.data(), numArgs, parmTypes, returnType,
-                        entryPoint, NULL) {}
+                        (char *)name_.data(), (int32_t)params_.size(),
+                        params_.data(), returnType, entryPoint, NULL) {}
 };
 
 struct Context {
@@ -179,9 +179,9 @@ void Context::registerFunction(const char *name, TR::DataType return_type,
                                std::vector<TR::IlType *> &argIlTypes,
                                void *ptr) {
   std::shared_ptr<ResolvedMethodWrapper> resolvedMethod =
-      std::make_shared<ResolvedMethodWrapper>(
-          "file", "line", name, argIlTypes.size(), argIlTypes.data(),
-          types_.PrimitiveType(return_type), ptr);
+      std::make_shared<ResolvedMethodWrapper>("file", "line", name, argIlTypes,
+                                              types_.PrimitiveType(return_type),
+                                              ptr);
   functions_.insert(
       std::pair<std::string, std::shared_ptr<ResolvedMethodWrapper>>(
           std::string(name), resolvedMethod));
@@ -530,51 +530,60 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
   return wrap_node(node);
 }
 
-TR::Node *
-convertTo(TR::IlInjector *injector, TR::DataType typeTo, TR::Node *v, bool needUnsigned = false)
-{
-	TR::DataType typeFrom = v->getDataType();
+TR::Node *convertTo(TR::IlInjector *injector, TR::DataType typeTo, TR::Node *v,
+                    bool needUnsigned = false) {
+  TR::DataType typeFrom = v->getDataType();
 
-	TR::ILOpCodes convertOp = TR::ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
-	TR_ASSERT(convertOp != TR::BadILOp, "Unknown conversion requested from TR::DataType %d to TR::DataType %d", (int)typeFrom, (int)typeTo);
-	TR::Node *result = TR::Node::create(convertOp, 1, v);
-	return result;
+  TR::ILOpCodes convertOp =
+      TR::ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
+  TR_ASSERT(
+      convertOp != TR::BadILOp,
+      "Unknown conversion requested from TR::DataType %d to TR::DataType %d",
+      (int)typeFrom, (int)typeTo);
+  TR::Node *result = TR::Node::create(convertOp, 1, v);
+  return result;
 }
 
-JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName, int32_t numArgs, ...)
-{
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto function_builder = injector->function_builder_;
-	TR::ResolvedMethod *resolvedMethod = function_builder->context_->getFunction(functionName);
-	TR_ASSERT(resolvedMethod, "Could not identify function %s\n", functionName);
-	if (resolvedMethod == nullptr)
-		return nullptr;
-	TR::SymbolReference *methodSymRef = injector->symRefTab()->findOrCreateComputedStaticMethodSymbol(JITTED_METHOD_INDEX, -1, resolvedMethod);
-	TR::DataType returnType = methodSymRef->getSymbol()->castToMethodSymbol()->getMethod()->returnType();
-	TR::Node *callNode = TR::Node::createWithSymRef(TR::ILOpCode::getDirectCall(returnType), numArgs, methodSymRef);
-	// TODO: should really verify argument types here
-	int32_t childIndex = 0;
-	TR::DataType targetType = TR::Int32;
-	if (TR::Compiler->target.is64Bit())
-		targetType = TR::Int64;
-	va_list args;
-	va_start(args, numArgs);
-	for (int32_t a = 0; a < numArgs; a++)
-	{
-		JIT_NodeRef arg = va_arg(args, JIT_NodeRef);
-		TR::Node *node = unwrap_node(arg);
-		if (node->getDataType() == TR::Int8 || node->getDataType() == TR::Int16 || (targetType == TR::Int64 && node->getDataType() == TR::Int32))
-			node = convertTo(injector, targetType, node);
-		callNode->setAndIncChild(childIndex++, node);
-	}
-	va_end(args);
-	// callNode must be anchored by itself
-	injector->genTreeTop(callNode);
-	if (returnType != TR::NoType)
-	{
-		return wrap_node(callNode);
-	}
-	return nullptr;
+JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
+                     int32_t numArgs, ...) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto function_builder = injector->function_builder_;
+  TR::ResolvedMethod *resolvedMethod =
+      function_builder->context_->getFunction(functionName);
+  TR_ASSERT(resolvedMethod, "Could not identify function %s\n", functionName);
+  if (resolvedMethod == nullptr)
+    return nullptr;
+  TR::SymbolReference *methodSymRef =
+      injector->symRefTab()->findOrCreateComputedStaticMethodSymbol(
+          JITTED_METHOD_INDEX, -1, resolvedMethod);
+  TR::DataType returnType = methodSymRef->getSymbol()
+                                ->castToMethodSymbol()
+                                ->getMethod()
+                                ->returnType();
+  TR::Node *callNode = TR::Node::createWithSymRef(
+      TR::ILOpCode::getDirectCall(returnType), numArgs, methodSymRef);
+  // TODO: should really verify argument types here
+  int32_t childIndex = 0;
+  TR::DataType targetType = TR::Int32;
+  if (TR::Compiler->target.is64Bit())
+    targetType = TR::Int64;
+  va_list args;
+  va_start(args, numArgs);
+  for (int32_t a = 0; a < numArgs; a++) {
+    JIT_NodeRef arg = va_arg(args, JIT_NodeRef);
+    TR::Node *node = unwrap_node(arg);
+    if (node->getDataType() == TR::Int8 || node->getDataType() == TR::Int16 ||
+        (targetType == TR::Int64 && node->getDataType() == TR::Int32))
+      node = convertTo(injector, targetType, node);
+    callNode->setAndIncChild(childIndex++, node);
+  }
+  va_end(args);
+  // callNode must be anchored by itself
+  injector->genTreeTop(callNode);
+  if (returnType != TR::NoType) {
+    return wrap_node(callNode);
+  }
+  return nullptr;
 }
 
 } // extern "C"

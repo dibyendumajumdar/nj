@@ -118,6 +118,23 @@ extern void JIT_RegisterFunction(JIT_ContextRef context, const char *name,
  */
 extern void JIT_DestroyFunctionBuilder(JIT_FunctionBuilderRef);
 
+/*
+IMPORTANT Notes:
+
+The IL is a DAG rather than linear IR.
+
+The IL is arranged in basic blocks JIT_BlockRef (Block). The instructions are
+represented by JIT_NodeRef (Node) objects which are anchored in JIT_TreeTopRefs
+(TreeTops). The TreeTops are used to determine program order.
+
+Separately a Control Flow Graph is maintained which links the blocks in a graph.
+The user must set up the graph edges depending on control flow. JIT_BlockRefs
+are of type JIT_CFGNodeRef.
+
+The IL requires that a Node can only be used in a different Block if the Node is
+stored in the block that created it.
+*/
+
 typedef struct JIT_Node *JIT_NodeRef;
 typedef struct JIT_TreeTop *JIT_TreeTopRef;
 typedef struct JIT_Block *JIT_BlockRef;
@@ -1142,7 +1159,8 @@ extern JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector,
 /**
  * Call a function; function must be registered already
  */
-extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName, int32_t numArgs, ...);
+extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector,
+                            const char *functionName, int32_t numArgs, ...);
 
 #ifdef __cplusplus
 }
