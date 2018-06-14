@@ -56,8 +56,8 @@ make
 ```
 mkdir build
 cd build
-cmake -G "Visual Studio 15 2017 Win64" ..
-cmake --build . --config Debug
+cmake -DCMAKE_INSTALL_PREFIX=/Software/omr -G "Visual Studio 15 2017 Win64" ..
+cmake --build . --target INSTALL --config Debug
 ```
 
 
