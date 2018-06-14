@@ -73,6 +73,7 @@ enum JIT_Type {
   JIT_VectorDouble,
   JIT_Aggregate,
 };
+typedef enum JIT_Type JIT_Type;
 
 typedef struct JIT_ILInjector *JIT_ILInjectorRef;
 typedef bool (*JIT_ILBuilder)(JIT_ILInjectorRef, void *userdata);
@@ -1074,6 +1075,7 @@ enum JIT_NodeOpCode {
   OP_Prefetch, // Prefetch
 
 };
+typedef enum JIT_NodeOpCode JIT_NodeOpCode;
 
 /**
  * Create a Node with one child. The Node gets created in the context of
