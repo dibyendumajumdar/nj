@@ -27,3 +27,10 @@ target_link_libraries(njapitest1
 	njapi
 )
 
+install(FILES nj_api.h
+        DESTINATION include/nj)
+install(TARGETS njapi
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib
+		LIBRARY DESTINATION lib)
+

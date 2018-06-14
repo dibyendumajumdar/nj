@@ -58,12 +58,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Note the paths are a bit odd compared to standard gnu install paths
 # This is because we arent expecting to actually be installing globally
 # since we don't have a good story for installing OMR system-wide
-set(CMAKE_INSTALL_BINDIR ".")
-set(CMAKE_INSTALL_LIBDIR ".")
-set(OMR_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Root path where to install OMR")
-set(CMAKE_INSTALL_PREFIX "${OMR_INSTALL_PREFIX}")
-include(GNUInstallDirs)
-set(CMAKE_INSTALL_RPATH "\$ORIGIN")
+set(CMAKE_INSTALL_BINDIR "${CMAKE_INSTALL_PREFIX}/bin")
+set(CMAKE_INSTALL_LIBDIR "${CMAKE_INSTALL_PREFIX}/lib")
+set(OMR_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Root path where to install OMR")
+#set(CMAKE_INSTALL_PREFIX "${OMR_INSTALL_PREFIX}")
+#include(GNUInstallDirs)
+#set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 add_custom_target(omr_install_tooling
 	COMMAND ${CMAKE_COMMAND} --build tools --target preinstall
 	COMMAND ${CMAKE_COMMAND} -DCMAKE_INSTALL_COMPONENT=tooling -P "${CMAKE_BINARY_DIR}/cmake_install.cmake"
