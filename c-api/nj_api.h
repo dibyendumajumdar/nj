@@ -168,10 +168,14 @@ extern void JIT_SetCurrentBlock(JIT_ILInjectorRef ilinjector, int32_t b);
 extern JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector);
 
 /**
- * Create an Int32 constant
+ * Create various constants
  */
 extern JIT_NodeRef JIT_ConstInt32(int32_t i);
-
+extern JIT_NodeRef JIT_ConstInt64(int64_t i);
+extern JIT_NodeRef JIT_ConstInt16(int16_t i);
+extern JIT_NodeRef JIT_ConstInt8(int8_t i);
+extern JIT_NodeRef JIT_ConstFloat(float value);
+extern JIT_NodeRef JIT_ConstDouble(double value);
 /**
  * Node opcodes
  */
@@ -1084,6 +1088,20 @@ typedef enum JIT_NodeOpCode JIT_NodeOpCode;
 extern JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1);
 
 /**
+ * Create a Node with two children. The Node gets created in the context of
+ * the current Compiler object stored in Thread Context.
+ */
+extern JIT_NodeRef JIT_CreateNode2C(JIT_NodeOpCode opcode, JIT_NodeRef c1,
+                                    JIT_NodeRef c2);
+
+/**
+ * Create a Node with three children. The Node gets created in the context of
+ * the current Compiler object stored in Thread Context.
+ */
+extern JIT_NodeRef JIT_CreateNode3C(JIT_NodeOpCode opcode, JIT_NodeRef c1,
+                                    JIT_NodeRef c2, JIT_NodeRef c3);
+
+/**
  * If the given node is not a TreeTrop - creates a new TreeTop node
  * and inserts the new TreeTop prior to the last TreeTrop in the current
  * Block
@@ -1157,6 +1175,14 @@ extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
  */
 extern JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector,
                                      int32_t slot);
+
+/**
+ * Convert a value to target type; note that if conversion is not valid then
+ * the call will return NULL.
+ */
+extern JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector,
+                                 JIT_NodeRef value, JIT_Type targetType,
+                                 bool needUnsigned);
 
 /**
  * Call a function; function must be registered already

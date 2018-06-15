@@ -347,9 +347,42 @@ JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector) {
 
 JIT_NodeRef JIT_ConstInt32(int32_t i) { return wrap_node(TR::Node::iconst(i)); }
 
+JIT_NodeRef JIT_ConstInt64(int64_t i) { return wrap_node(TR::Node::lconst(i)); }
+
+JIT_NodeRef JIT_ConstInt16(int16_t i) { return wrap_node(TR::Node::sconst(i)); }
+
+JIT_NodeRef JIT_ConstInt8(int8_t i) { return wrap_node(TR::Node::bconst(i)); }
+
+JIT_NodeRef JIT_ConstFloat(float value) { 
+	TR::Node *node = TR::Node::create(0, TR::fconst, 0);
+	node->setFloat(value);
+	return wrap_node(node);
+}
+
+JIT_NodeRef JIT_ConstDouble(double value) {
+	TR::Node *node = TR::Node::create(0, TR::dconst, 0);
+	node->setDouble(value);
+	return wrap_node(node);
+}
+
 JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
   auto n1 = unwrap_node(c1);
   return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 1, n1));
+}
+
+JIT_NodeRef JIT_CreateNode2C(JIT_NodeOpCode opcode, JIT_NodeRef c1,
+                             JIT_NodeRef c2) {
+  auto n1 = unwrap_node(c1);
+  auto n2 = unwrap_node(c2);
+  return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 2, n1, n2));
+}
+
+JIT_NodeRef JIT_CreateNode3C(JIT_NodeOpCode opcode, JIT_NodeRef c1,
+                             JIT_NodeRef c2, JIT_NodeRef c3) {
+  auto n1 = unwrap_node(c1);
+  auto n2 = unwrap_node(c2);
+  auto n3 = unwrap_node(c3);
+  return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 3, n1, n2, n3));
 }
 
 JIT_TreeTopRef JIT_GenerateTreeTop(JIT_ILInjectorRef ilinjector,
@@ -530,8 +563,8 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
   return wrap_node(node);
 }
 
-TR::Node *convertTo(TR::IlInjector *injector, TR::DataType typeTo, TR::Node *v,
-                    bool needUnsigned = false) {
+static TR::Node *convertTo(TR::IlInjector *injector, TR::DataType typeTo,
+                           TR::Node *v, bool needUnsigned = false) {
   TR::DataType typeFrom = v->getDataType();
 
   TR::ILOpCodes convertOp =
@@ -540,8 +573,17 @@ TR::Node *convertTo(TR::IlInjector *injector, TR::DataType typeTo, TR::Node *v,
       convertOp != TR::BadILOp,
       "Unknown conversion requested from TR::DataType %d to TR::DataType %d",
       (int)typeFrom, (int)typeTo);
+  if (convertOp == TR::BadILOp)
+    return nullptr;
   TR::Node *result = TR::Node::create(convertOp, 1, v);
   return result;
+}
+
+JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
+                          JIT_Type targetType, bool needUnsigned) {
+  return wrap_node(convertTo(unwrap_ilinjector(ilinjector),
+                             TR::DataType((TR::DataTypes)targetType),
+                             unwrap_node(value), needUnsigned));
 }
 
 JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
