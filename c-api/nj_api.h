@@ -1206,8 +1206,22 @@ extern JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector,
 extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector,
                             const char *functionName, int32_t numArgs, ...);
 
+/**
+ * Generate unconditional jump to given block; CFG will be updated to add an
+ * edge from current block to target block; the jump instruction will be
+ * anchored in a TreeTop. The current block will remain as is - caller must
+ * update current block.
+ */
 extern JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block);
-extern JIT_NodeRef JIT_ReturnValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value);
+
+/**
+ * Generate return instruction; CFG will be updated to add an edge from
+ * current block to end of CFG; the return instruction will be anchored in a
+ * TreeTop. The current block will remain as is - caller must update current
+ * block.
+ */
+extern JIT_NodeRef JIT_ReturnValue(JIT_ILInjectorRef ilinjector,
+                                   JIT_NodeRef value);
 extern JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector);
 
 #ifdef __cplusplus
