@@ -345,6 +345,8 @@ JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector) {
   return wrap_block(injector->getCurrentBlock());
 }
 
+JIT_NodeRef JIT_ConstAddress(void * value) { return wrap_node(TR::Node::aconst((uintptrj_t)value)); }
+
 JIT_NodeRef JIT_ConstInt32(int32_t i) { return wrap_node(TR::Node::iconst(i)); }
 
 JIT_NodeRef JIT_ConstInt64(int64_t i) { return wrap_node(TR::Node::lconst(i)); }

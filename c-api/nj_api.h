@@ -180,6 +180,8 @@ extern JIT_NodeRef JIT_ConstInt16(int16_t i);
 extern JIT_NodeRef JIT_ConstInt8(int8_t i);
 extern JIT_NodeRef JIT_ConstFloat(float value);
 extern JIT_NodeRef JIT_ConstDouble(double value);
+extern JIT_NodeRef JIT_ConstAddress(void * value);
+
 /**
  * Node opcodes
  */
