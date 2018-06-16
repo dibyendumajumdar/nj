@@ -345,7 +345,19 @@ JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector) {
   return wrap_block(injector->getCurrentBlock());
 }
 
-JIT_NodeRef JIT_ConstAddress(void * value) { return wrap_node(TR::Node::aconst((uintptrj_t)value)); }
+JIT_BlockRef JIT_GetBlock(JIT_ILInjectorRef ilinjector, int32_t b) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  return wrap_block(injector->block(b));
+}
+
+JIT_Type JIT_GetNodeType(JIT_NodeRef node) {
+  auto n1 = unwrap_node(node);
+  return (JIT_Type)n1->getDataType().getDataType();
+}
+
+JIT_NodeRef JIT_ConstAddress(void *value) {
+  return wrap_node(TR::Node::aconst((uintptrj_t)value));
+}
 
 JIT_NodeRef JIT_ConstInt32(int32_t i) { return wrap_node(TR::Node::iconst(i)); }
 
@@ -355,16 +367,16 @@ JIT_NodeRef JIT_ConstInt16(int16_t i) { return wrap_node(TR::Node::sconst(i)); }
 
 JIT_NodeRef JIT_ConstInt8(int8_t i) { return wrap_node(TR::Node::bconst(i)); }
 
-JIT_NodeRef JIT_ConstFloat(float value) { 
-	TR::Node *node = TR::Node::create(0, TR::fconst, 0);
-	node->setFloat(value);
-	return wrap_node(node);
+JIT_NodeRef JIT_ConstFloat(float value) {
+  TR::Node *node = TR::Node::create(0, TR::fconst, 0);
+  node->setFloat(value);
+  return wrap_node(node);
 }
 
 JIT_NodeRef JIT_ConstDouble(double value) {
-	TR::Node *node = TR::Node::create(0, TR::dconst, 0);
-	node->setDouble(value);
-	return wrap_node(node);
+  TR::Node *node = TR::Node::create(0, TR::dconst, 0);
+  node->setDouble(value);
+  return wrap_node(node);
 }
 
 JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1) {

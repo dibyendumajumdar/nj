@@ -172,6 +172,11 @@ extern void JIT_SetCurrentBlock(JIT_ILInjectorRef ilinjector, int32_t b);
 extern JIT_BlockRef JIT_GetCurrentBlock(JIT_ILInjectorRef ilinjector);
 
 /**
+ * Gets the specified block
+ */
+extern JIT_BlockRef JIT_GetBlock(JIT_ILInjectorRef ilinjector, int32_t b);
+
+/**
  * Create various constants
  */
 extern JIT_NodeRef JIT_ConstInt32(int32_t i);
@@ -180,7 +185,12 @@ extern JIT_NodeRef JIT_ConstInt16(int16_t i);
 extern JIT_NodeRef JIT_ConstInt8(int8_t i);
 extern JIT_NodeRef JIT_ConstFloat(float value);
 extern JIT_NodeRef JIT_ConstDouble(double value);
-extern JIT_NodeRef JIT_ConstAddress(void * value);
+extern JIT_NodeRef JIT_ConstAddress(void *value);
+
+/**
+ * Gets the Node's type
+ */
+extern JIT_Type JIT_GetNodeType(JIT_NodeRef node);
 
 /**
  * Node opcodes
