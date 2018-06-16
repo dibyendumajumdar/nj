@@ -379,6 +379,10 @@ JIT_NodeRef JIT_ConstDouble(double value) {
   return wrap_node(node);
 }
 
+JIT_NodeRef JIT_CreateNode(JIT_NodeOpCode opcode) {
+	return wrap_node(TR::Node::create((TR::ILOpCodes)opcode));
+}
+
 JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
   auto n1 = unwrap_node(c1);
   return wrap_node(TR::Node::create((TR::ILOpCodes)opcode, 1, n1));

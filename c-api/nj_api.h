@@ -1099,6 +1099,13 @@ enum JIT_NodeOpCode {
 typedef enum JIT_NodeOpCode JIT_NodeOpCode;
 
 /**
+* Create a Node with no children. The Node gets created in the context of
+* the current Compiler object stored in Thread Context.
+*/
+extern JIT_NodeRef JIT_CreateNode(JIT_NodeOpCode opcode);
+
+
+/**
  * Create a Node with one child. The Node gets created in the context of
  * the current Compiler object stored in Thread Context.
  */
