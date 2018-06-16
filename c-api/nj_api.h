@@ -186,6 +186,7 @@ extern JIT_NodeRef JIT_ConstInt8(int8_t i);
 extern JIT_NodeRef JIT_ConstFloat(float value);
 extern JIT_NodeRef JIT_ConstDouble(double value);
 extern JIT_NodeRef JIT_ConstAddress(void *value);
+extern JIT_NodeRef JIT_ZeroValue(JIT_ILInjectorRef ilinjector, JIT_Type type);
 
 /**
  * Gets the Node's type
@@ -1223,6 +1224,16 @@ extern JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block);
 extern JIT_NodeRef JIT_ReturnValue(JIT_ILInjectorRef ilinjector,
                                    JIT_NodeRef value);
 extern JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector);
+
+/**
+ * If given value is != 0 then jump to blockOnNonZero.
+ * CFG will be updated to add edge from current block to blockOnNonZero.
+ * The current block will not be updated; note that caller must handle
+ * false condition.
+ */
+extern JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector,
+                                      JIT_NodeRef value,
+                                      JIT_BlockRef blockOnNonZero);
 
 #ifdef __cplusplus
 }

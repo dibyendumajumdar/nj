@@ -643,31 +643,83 @@ JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
 }
 
 JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto target_block = unwrap_block(block);
-	TR::Node *gotoNode = TR::Node::create(NULL, TR::Goto);
-	gotoNode->setBranchDestination(target_block->getEntry());
-	injector->genTreeTop(gotoNode);
-	injector->cfg()->addEdge(injector->getCurrentBlock(), target_block);
-	return wrap_node(gotoNode);
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto target_block = unwrap_block(block);
+  TR::Node *gotoNode = TR::Node::create(NULL, TR::Goto);
+  gotoNode->setBranchDestination(target_block->getEntry());
+  injector->genTreeTop(gotoNode);
+  injector->cfg()->addEdge(injector->getCurrentBlock(), target_block);
+  return wrap_node(gotoNode);
 }
 
 JIT_NodeRef JIT_ReturnValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto valueNode = unwrap_node(value);
-	TR::Node *returnNode = TR::Node::create(TR::ILOpCode::returnOpCode(valueNode->getDataType()), 1, valueNode);
-	injector->genTreeTop(returnNode);
-	injector->cfg()->addEdge(injector->getCurrentBlock(), injector->cfg()->getEnd());
-	return wrap_node(returnNode);
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto valueNode = unwrap_node(value);
+  TR::Node *returnNode = TR::Node::create(
+      TR::ILOpCode::returnOpCode(valueNode->getDataType()), 1, valueNode);
+  injector->genTreeTop(returnNode);
+  injector->cfg()->addEdge(injector->getCurrentBlock(),
+                           injector->cfg()->getEnd());
+  return wrap_node(returnNode);
 }
 
 JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	TR::Node *returnNode = TR::Node::create(TR::ILOpCode::returnOpCode(TR::NoType));
-	injector->genTreeTop(returnNode);
-	injector->cfg()->addEdge(injector->getCurrentBlock(), injector->cfg()->getEnd());
-	return wrap_node(returnNode);
+  auto injector = unwrap_ilinjector(ilinjector);
+  TR::Node *returnNode =
+      TR::Node::create(TR::ILOpCode::returnOpCode(TR::NoType));
+  injector->genTreeTop(returnNode);
+  injector->cfg()->addEdge(injector->getCurrentBlock(),
+                           injector->cfg()->getEnd());
+  return wrap_node(returnNode);
 }
 
+JIT_NodeRef JIT_ZeroValue(JIT_ILInjectorRef ilinjector, JIT_Type type) {
+  auto injector = unwrap_ilinjector(ilinjector);
+  TR::DataTypes t = (TR::DataTypes)type;
+  TR::Node *n = NULL;
+  switch (t) {
+  case TR::DataTypes::Int8:
+    n = TR::Node::bconst(0);
+    break;
+  case TR::DataTypes::Int16:
+    n = TR::Node::sconst(0);
+    break;
+  case TR::DataTypes::Int32:
+    n = TR::Node::iconst(0);
+    break;
+  case TR::DataTypes::Int64:
+    n = TR::Node::lconst(0);
+    break;
+  case TR::DataTypes::Float:
+    n = TR::Node::create(0, TR::fconst, 0);
+    n->setFloat(0.0);
+    break;
+  case TR::DataTypes::Double:
+    n = TR::Node::create(0, TR::dconst, 0);
+    n->setDouble(0.0);
+    break;
+  case TR::DataTypes::Address:
+    n = TR::Node::aconst(0);
+    break;
+  }
+  return wrap_node(n);
+}
+
+JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
+                               JIT_BlockRef blockOnNonZero) {
+  JIT_NodeRef zeroValue = JIT_ZeroValue(ilinjector, JIT_GetNodeType(value));
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto zv = unwrap_node(zeroValue);
+  auto v = unwrap_node(value);
+  auto targetBlock = unwrap_block(blockOnNonZero);
+  if (!zeroValue)
+    return NULL;
+  TR::Node *ifNode =
+      TR::Node::createif(TR::ILOpCode::ifcmpneOpCode(v->getDataType()), v, zv,
+                         targetBlock->getEntry());
+  injector->genTreeTop(ifNode);
+  injector->cfg()->addEdge(injector->getCurrentBlock(), targetBlock);
+  return wrap_node(ifNode);
+}
 
 } // extern "C"
