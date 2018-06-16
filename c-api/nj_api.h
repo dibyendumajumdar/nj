@@ -1206,6 +1206,10 @@ extern JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector,
 extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector,
                             const char *functionName, int32_t numArgs, ...);
 
+extern JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block);
+extern JIT_NodeRef JIT_ReturnValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value);
+extern JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector);
+
 #ifdef __cplusplus
 }
 #endif
