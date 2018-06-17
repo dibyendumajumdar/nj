@@ -79,7 +79,7 @@ struct Context {
   FunctionBuilder *newFunctionBuilder(const char *name, JIT_Type return_type,
                                       JIT_ILBuilder ilbuilder, void *userdata);
   FunctionBuilder *newFunctionBuilder(const char *name, JIT_Type return_type,
-                                      int argc, JIT_FunctionParameter *args,
+                                      int argc, const JIT_Type *args,
                                       JIT_ILBuilder ilbuilder, void *userdata);
   void registerFunction(const char *name, TR::DataType return_type,
                         std::vector<TR::IlType *> &args, void *ptr);
@@ -120,7 +120,7 @@ struct FunctionBuilder {
   char line_[30];
 
   FunctionBuilder(Context *ctx, TR::TypeDictionary *types, const char *name,
-                  JIT_Type return_type, int argc, JIT_FunctionParameter *args,
+                  JIT_Type return_type, int argc, const JIT_Type *args,
                   JIT_ILBuilder ilbuilder, void *userdata)
       : context_(ctx), types_(types), ilgenerator_(types, this),
         return_type_((TR::DataTypes)return_type), ilbuilder_(ilbuilder),
@@ -130,7 +130,7 @@ struct FunctionBuilder {
     strncpy(name_, name, sizeof name_);
     name_[sizeof name_ - 1] = 0;
     for (int i = 0; i < argc; i++) {
-      args_.push_back((TR::DataTypes)args[i].type);
+      args_.push_back((TR::DataTypes)args[i]);
     }
   }
 
@@ -167,7 +167,7 @@ FunctionBuilder *Context::newFunctionBuilder(const char *name,
 
 FunctionBuilder *Context::newFunctionBuilder(const char *name,
                                              JIT_Type return_type, int argc,
-                                             JIT_FunctionParameter *args,
+                                             const JIT_Type *args,
                                              JIT_ILBuilder ilbuilder,
                                              void *userdata) {
   FunctionBuilder *function_builder = new FunctionBuilder(
@@ -299,12 +299,12 @@ void JIT_DestroyContext(JIT_ContextRef ctx) {
 
 void JIT_RegisterFunction(JIT_ContextRef ctx, const char *name,
                           enum JIT_Type return_type, int param_count,
-                          JIT_FunctionParameter *parameters, void *ptr) {
+                          const JIT_Type *parameters, void *ptr) {
   Context *context = unwrap_context(ctx);
   auto argIlTypes = std::vector<TR::IlType *>(param_count);
   for (int i = 0; i < param_count; i++) {
     argIlTypes[i] = context->types_.PrimitiveType(
-        TR::DataType((TR::DataTypes)parameters[i].type));
+        TR::DataType((TR::DataTypes)parameters[i]));
   }
   context->registerFunction(name, TR::DataType((TR::DataTypes)return_type),
                             argIlTypes, ptr);
@@ -320,8 +320,8 @@ void *JIT_GetFunction(JIT_ContextRef ctx, const char *name) {
 
 JIT_FunctionBuilderRef
 JIT_CreateFunctionBuilder(JIT_ContextRef ctx, const char *name,
-                          enum JIT_Type return_type, int param_count,
-                          JIT_FunctionParameter *parameters,
+                          JIT_Type return_type, int param_count,
+                          const JIT_Type *parameters,
                           JIT_ILBuilder ilbuilder, void *userdata) {
   Context *context = unwrap_context(ctx);
   return wrap_function_builder(context->newFunctionBuilder(
@@ -345,6 +345,7 @@ void JIT_CreateBlocks(JIT_ILInjectorRef ilinjector, int32_t num) {
 
 void JIT_SetCurrentBlock(JIT_ILInjectorRef ilinjector, int32_t b) {
   auto injector = unwrap_ilinjector(ilinjector);
+  TR_ASSERT(b < injector->numBlocks(), "Block number %b is out of range\n", b);
   injector->generateToBlock(b);
 }
 

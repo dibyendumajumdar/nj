@@ -53,8 +53,8 @@ static bool test2_il(JIT_ILInjectorRef ilinjector, void *userdata) {
 }
 
 static int test2(JIT_ContextRef ctx) {
-  JIT_FunctionParameter params[1] = {
-      {JIT_Address, "arg1"},
+  JIT_Type params[1] = {
+      JIT_Address
   };
   JIT_FunctionBuilderRef function_builder = JIT_CreateFunctionBuilder(
       ctx, "ret2", JIT_Int32, 1, params, test2_il, NULL);
@@ -91,8 +91,8 @@ static bool test3_il(JIT_ILInjectorRef ilinjector, void *userdata) {
 }
 
 static int test3(JIT_ContextRef ctx) {
-  JIT_FunctionParameter params[1] = {
-      {JIT_Int32, "arg1"},
+  JIT_Type params[1] = {
+      JIT_Int32
   };
   JIT_RegisterFunction(ctx, "callme", JIT_Int32, 1, params, callme);
   JIT_FunctionBuilderRef function_builder = JIT_CreateFunctionBuilder(

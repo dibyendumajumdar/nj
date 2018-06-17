@@ -39,6 +39,15 @@ extern "C" {
  * needed. Deleting the Jit Context may delete all compiled
  * functions managed by the context (this happens if there are
  * no more alive JIT contexts).
+ *
+ * Note that at present OMR JIT maintains a global
+ * Code Cache behind the scenes. Hence compiled code may live on
+ * longer than expected although once the JIT Context is dead
+ * you may not be able to access the compiled code held in
+ * the code cache.
+ *
+ * In future my hope is to make the global Code Cache local
+ * to the JIT Context.
  */
 typedef struct JIT_Context *JIT_ContextRef;
 
@@ -58,7 +67,7 @@ extern JIT_ContextRef JIT_CreateContext();
 extern void JIT_DestroyContext(JIT_ContextRef);
 
 /*
- * Types supported in the instructions
+ * OMR Types
  */
 enum JIT_Type {
   JIT_NoType = 0,
@@ -68,17 +77,26 @@ enum JIT_Type {
   JIT_Int64,
   JIT_Float,
   JIT_Double,
-  JIT_Address,
+  JIT_Address, /* pointer */
   JIT_VectorInt8,
   JIT_VectorInt16,
   JIT_VectorInt32,
   JIT_VectorInt64,
   JIT_VectorFloat,
   JIT_VectorDouble,
-  JIT_Aggregate,
+  JIT_Aggregate, /* A byte array is of this type for example */
 };
 typedef enum JIT_Type JIT_Type;
 
+/**
+ * The JIT ILBuilder callback must be implemented by the
+ * user. All of the IL generation is meant to happen here.
+ * Note that during compilation certain thread local variables are
+ * used; including a Compiler object which is stored in the
+ * thread local context.
+ *
+ * Userdata is whatever was given to JIT_CreateFunctionBuilder.
+ */
 typedef struct JIT_ILInjector *JIT_ILInjectorRef;
 typedef bool (*JIT_ILBuilder)(JIT_ILInjectorRef, void *userdata);
 
@@ -90,11 +108,6 @@ typedef bool (*JIT_ILBuilder)(JIT_ILInjectorRef, void *userdata);
  */
 typedef struct JIT_FunctionBuilder *JIT_FunctionBuilderRef;
 
-typedef struct {
-  JIT_Type type;
-  const char *name;
-} JIT_FunctionParameter;
-
 /**
  * Creates a new function builder object. The builder is used to construct the
  * code that will go into one function. Note that this function only
@@ -105,19 +118,22 @@ typedef struct {
  */
 extern JIT_FunctionBuilderRef
 JIT_CreateFunctionBuilder(JIT_ContextRef context, const char *name,
-                          enum JIT_Type return_type, int param_count,
-                          JIT_FunctionParameter *parameters,
-                          JIT_ILBuilder ilbuilder, void *userdata);
+                          JIT_Type return_type, int param_count,
+                          const JIT_Type *parameters, JIT_ILBuilder ilbuilder,
+                          void *userdata);
 
 /**
- * Register an external function (not managed by JIT)
+ * Register an external function (not managed by JIT). Note that
+ * any exsiting function regsitered by the same name will be
+ * over-written.
  */
 extern void JIT_RegisterFunction(JIT_ContextRef context, const char *name,
                                  enum JIT_Type return_type, int param_count,
-                                 JIT_FunctionParameter *parameters, void *ptr);
+                                 const JIT_Type *parameters, void *functionptr);
 
 /**
- * Get a registered function
+ * Get a registered function by name. This will return
+ * NULL if no function exists by that name.
  */
 void *JIT_GetFunction(JIT_ContextRef ctx, const char *name);
 
@@ -133,16 +149,18 @@ IMPORTANT Notes:
 
 The IL is a DAG rather than linear IR.
 
-The IL is arranged in basic blocks JIT_BlockRef (Block). The instructions are
-represented by JIT_NodeRef (Node) objects which are anchored in JIT_TreeTopRefs
-(TreeTops). The TreeTops are used to determine program order.
+The IL is arranged in basic blocks of type JIT_BlockRef (Block). The
+instructions are represented by JIT_NodeRef (Node) objects which are DAG nodes.
+The Nodes are anchored in JIT_TreeTopRefs (TreeTops). The TreeTops are used to
+determine program order.
 
 Separately a Control Flow Graph is maintained which links the blocks in a graph.
 The user must set up the graph edges depending on control flow. JIT_BlockRefs
-are of type JIT_CFGNodeRef.
+are of type JIT_CFGNodeRef. Some api calls will automatically add the
+appropriate edge. See usage notes below for when you need to add your own.
 
-The IL requires that a Node can only be used in a different Block if the Node is
-stored in the block that created it.
+The IL requires that for a Node to be accessed in a Block other than where
+it was created, the Node must have be stored in the block that created it.
 */
 
 typedef struct JIT_Node *JIT_NodeRef;
@@ -155,19 +173,21 @@ typedef struct JIT_Symbol *JIT_SymbolRef;
  * Generate IL and compile the function. To generate IL the user supplied
  * JIT_ILBuilder callback will be invoked. If that succeeds then the
  * function will be compiled.
+ *
  * This function returns pointer to compiled code on success
- * Or else a nullptr.
+ * Or else a NULL is returned.
  */
 extern void *JIT_Compile(JIT_FunctionBuilderRef fb);
 
 /**
- * Allocates given number of blocks - the blocks are chained
- * together, and leaves the current block pointer at 0.
+ * Allocates given number of blocks, and leaves the current block pointer
+ * at 0. The CFG starting edge is made to point to Node 0.
  */
 extern void JIT_CreateBlocks(JIT_ILInjectorRef ilinjector, int32_t num);
 
 /**
- * Makes the given block number the current block.
+ * Makes the given block number the current block. This must be done
+ * prior to generating any IL.
  */
 extern void JIT_SetCurrentBlock(JIT_ILInjectorRef ilinjector, int32_t b);
 
@@ -199,7 +219,10 @@ extern JIT_NodeRef JIT_ZeroValue(JIT_ILInjectorRef ilinjector, JIT_Type type);
 extern JIT_Type JIT_GetNodeType(JIT_NodeRef node);
 
 /**
- * Node opcodes
+ * Node opcodes - See the JIT_CreateNode*() family of
+ * functions. Note that some opcodes need 1 or more child nodes,
+ * this is indicated in the comment that follows each enum
+ * value.
  */
 enum JIT_NodeOpCode {
   OP_BadILOp = 0, // illegal op hopefully help with uninitialised nodes
@@ -1131,13 +1154,12 @@ extern JIT_NodeRef JIT_CreateNode3C(JIT_NodeOpCode opcode, JIT_NodeRef c1,
 
 /**
  * If the given node is not a TreeTrop - creates a new TreeTop node
- * and inserts the new TreeTop prior to the last TreeTrop in the current
- * Block
+ * and anchors the node in the treetop.
  */
 extern JIT_TreeTopRef JIT_GenerateTreeTop(JIT_ILInjectorRef ilinjector,
                                           JIT_NodeRef n);
 
-/* Convert a Block to CFGNode */
+/* Convert a BlockRef to CFGNodeRef */
 extern JIT_CFGNodeRef JIT_BlockAsCFGNode(JIT_BlockRef b);
 
 /**
@@ -1153,18 +1175,23 @@ extern void JIT_CFGAddEdge(JIT_ILInjectorRef ilinjector, JIT_CFGNodeRef from,
 extern JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector);
 
 /**
- * Creates a temporary value on the stack of required type
+ * Creates a temporary value on the stack of required type; returns a
+ * SymbolRef that can be used to load/store.
  */
 extern JIT_SymbolRef JIT_CreateTemporary(JIT_ILInjectorRef ilinjector,
                                          JIT_Type type);
 
 /**
- * Creates a temporary array value on the stack - this is similar to alloca()
- * call (I believe)
+ * Creates a temporary array value on the stack; the value will be of
+ * type JIT_Aggregate. To load or store values, first obtain the symbol's
+ * address using JIT_LoadAddress
  */
 extern JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector,
                                               uint32_t size);
 
+/**
+ * Gets the type of the SymbolRef.
+ */
 extern JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym);
 
 /**
@@ -1194,7 +1221,7 @@ extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
                                  JIT_Type value_type);
 
 /**
- * Store a value at specific array offet; note offset must be exact byte
+ * Store a value at specific array offset; note offset must be exact byte
  * offset (presumably suitably aligned)
  */
 extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
@@ -1243,6 +1270,24 @@ extern JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector);
  * CFG will be updated to add edge from current block to blockOnNonZero.
  * The current block will not be updated; note that caller must handle
  * false condition.
+ *
+ * Note that OMR expects a new block to start after this IL. Control
+ * falls through to the new block. If you need to provide an alternate
+ * destination then you can put a Goto instruction in the new block.
+ *
+ * You must also manually add a CFG edge from current block to the
+ * next block.
+ *
+ * Suppose current block is b1, and next block is b2.
+ * Also suppose that the IfNotZero target block is b10.
+ * Aand alternate destination is b13.
+ * Then you must do:
+ *
+ * JIT_IfNotZeroValue(injector, cond, b10);
+ * // Create block b2
+ * JIT_CFGAddEdge(injector, JIT_BlockAsCFGNode(b1), JIT_BlockAsCFGNode(b2));
+ * JIT_SetCurrentBlock(b2);
+ * JIT_Goto(injector, b13); // Must be in the new block
  */
 extern JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector,
                                       JIT_NodeRef value,
@@ -1253,6 +1298,8 @@ extern JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector,
  * CFG will be updated to add edge from current block to blockOnZero.
  * The current block will not be updated; note that caller must handle
  * false condition.
+ *
+ * The same considerations apply as for JIT_IfNotZeroValue() above.
  */
 extern JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector,
                                    JIT_NodeRef value, JIT_BlockRef blockOnZero);
