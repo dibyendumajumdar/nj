@@ -726,4 +726,9 @@ JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
   return wrap_node(ifNode);
 }
 
+JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym) {
+	auto symbolref = unwrap_symbolref(sym);
+	return (JIT_Type) symbolref->getSymbol()->getDataType().getDataType();
+}
+
 } // extern "C"

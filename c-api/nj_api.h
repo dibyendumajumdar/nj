@@ -1161,6 +1161,8 @@ extern JIT_SymbolRef JIT_CreateTemporary(JIT_ILInjectorRef ilinjector,
 extern JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector,
                                               uint32_t size);
 
+extern JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym);
+
 /**
  * Load value at a temporary
  */

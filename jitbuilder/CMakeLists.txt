@@ -81,6 +81,11 @@ target_link_libraries(jitbuilder
 # For now on Windows exclude samples
 add_subdirectory(release)
 
+install(TARGETS jitbuilder
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib
+		LIBRARY DESTINATION lib)
+
 # install(TARGETS jitbuilder
 #         ARCHIVE       DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release
 #         PUBLIC_HEADER DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release/include
