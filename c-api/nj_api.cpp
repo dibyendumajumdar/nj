@@ -310,6 +310,14 @@ void JIT_RegisterFunction(JIT_ContextRef ctx, const char *name,
                             argIlTypes, ptr);
 }
 
+void *JIT_GetFunction(JIT_ContextRef ctx, const char *name) {
+  Context *context = unwrap_context(ctx);
+  auto resolvedMethod = context->getFunction(name);
+  if (resolvedMethod)
+    return resolvedMethod->getEntryPoint();
+  return nullptr;
+}
+
 JIT_FunctionBuilderRef
 JIT_CreateFunctionBuilder(JIT_ContextRef ctx, const char *name,
                           enum JIT_Type return_type, int param_count,
@@ -380,7 +388,7 @@ JIT_NodeRef JIT_ConstDouble(double value) {
 }
 
 JIT_NodeRef JIT_CreateNode(JIT_NodeOpCode opcode) {
-	return wrap_node(TR::Node::create((TR::ILOpCodes)opcode));
+  return wrap_node(TR::Node::create((TR::ILOpCodes)opcode));
 }
 
 JIT_NodeRef JIT_CreateNode1C(JIT_NodeOpCode opcode, JIT_NodeRef c1) {
@@ -726,9 +734,26 @@ JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
   return wrap_node(ifNode);
 }
 
+JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
+                            JIT_BlockRef blockOnZero) {
+  JIT_NodeRef zeroValue = JIT_ZeroValue(ilinjector, JIT_GetNodeType(value));
+  auto injector = unwrap_ilinjector(ilinjector);
+  auto zv = unwrap_node(zeroValue);
+  auto v = unwrap_node(value);
+  auto targetBlock = unwrap_block(blockOnZero);
+  if (!zeroValue)
+    return NULL;
+  TR::Node *ifNode =
+      TR::Node::createif(TR::ILOpCode::ifcmpeqOpCode(v->getDataType()), v, zv,
+                         targetBlock->getEntry());
+  injector->genTreeTop(ifNode);
+  injector->cfg()->addEdge(injector->getCurrentBlock(), targetBlock);
+  return wrap_node(ifNode);
+}
+
 JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym) {
-	auto symbolref = unwrap_symbolref(sym);
-	return (JIT_Type) symbolref->getSymbol()->getDataType().getDataType();
+  auto symbolref = unwrap_symbolref(sym);
+  return (JIT_Type)symbolref->getSymbol()->getDataType().getDataType();
 }
 
 } // extern "C"

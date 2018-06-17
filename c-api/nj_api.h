@@ -117,6 +117,11 @@ extern void JIT_RegisterFunction(JIT_ContextRef context, const char *name,
                                  JIT_FunctionParameter *parameters, void *ptr);
 
 /**
+ * Get a registered function
+ */
+void *JIT_GetFunction(JIT_ContextRef ctx, const char *name);
+
+/**
  * Destroys the function builder object. Note that this will not delete the
  * compiled function created using this builder - as the compiled function lives
  * in the owning Jit Context.
@@ -1099,11 +1104,10 @@ enum JIT_NodeOpCode {
 typedef enum JIT_NodeOpCode JIT_NodeOpCode;
 
 /**
-* Create a Node with no children. The Node gets created in the context of
-* the current Compiler object stored in Thread Context.
-*/
+ * Create a Node with no children. The Node gets created in the context of
+ * the current Compiler object stored in Thread Context.
+ */
 extern JIT_NodeRef JIT_CreateNode(JIT_NodeOpCode opcode);
-
 
 /**
  * Create a Node with one child. The Node gets created in the context of
@@ -1235,7 +1239,7 @@ extern JIT_NodeRef JIT_ReturnValue(JIT_ILInjectorRef ilinjector,
 extern JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector);
 
 /**
- * If given value is != 0 then jump to blockOnNonZero.
+ * If given value != 0 then jump to blockOnNonZero.
  * CFG will be updated to add edge from current block to blockOnNonZero.
  * The current block will not be updated; note that caller must handle
  * false condition.
@@ -1243,6 +1247,15 @@ extern JIT_NodeRef JIT_ReturnNoValue(JIT_ILInjectorRef ilinjector);
 extern JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector,
                                       JIT_NodeRef value,
                                       JIT_BlockRef blockOnNonZero);
+
+/**
+ * If given value == 0 then jump to blockOnZero.
+ * CFG will be updated to add edge from current block to blockOnZero.
+ * The current block will not be updated; note that caller must handle
+ * false condition.
+ */
+extern JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector,
+                                   JIT_NodeRef value, JIT_BlockRef blockOnZero);
 
 #ifdef __cplusplus
 }
