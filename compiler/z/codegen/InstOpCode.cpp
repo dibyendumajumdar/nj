@@ -220,22 +220,30 @@ OMR::Z::InstOpCode::getInstructionLength(TR::InstOpCode::Mnemonic i_opCode)
        case 0x40 :
        case 0x80 : return 4;
        case 0xC0 : return 6;
-       default   : return 0;
+       default:
+          break;
        }
      }
   else // not a real instruction e.g. DC, PSEUDO
      {
      switch(getInstructionFormat(i_opCode))
-       {
-       case DC_FORMAT:
-          {
-          if (i_opCode == DC2)   return 2;
-          else                      return 4;
-          }
-       case PSEUDO : return 0;
-       default     : return 0;
-       }
+        {
+        case E_FORMAT:
+           {
+           return 2;
+           }
+
+        case DC_FORMAT:
+           {
+           return i_opCode == DC2 ? 2 : 4;
+           }
+
+       default:
+          break;
+        }
      }
+
+  return 0;
   }
 
 TR::InstOpCode::Mnemonic
@@ -315,6 +323,9 @@ OMR::Z::InstOpCode::getAddThreeRegOpCode() { return TR::Compiler->target.is64Bit
 
 TR::InstOpCode::Mnemonic
 OMR::Z::InstOpCode::getAddLogicalThreeRegOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::ALGRK : TR::InstOpCode::ALRK; }
+
+TR::InstOpCode::Mnemonic
+OMR::Z::InstOpCode::getAddLogicalImmOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::ALGFI : TR::InstOpCode::ALFI; }
 
 TR::InstOpCode::Mnemonic
 OMR::Z::InstOpCode::getAddLogicalRegRegImmediateOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::ALGHSIK : TR::InstOpCode::ALHSIK; }

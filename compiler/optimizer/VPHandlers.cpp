@@ -2161,6 +2161,7 @@ TR::Node *constrainIaload(OMR::ValuePropagation *vp, TR::Node *node)
          if (symRef == vp->comp()->getSymRefTab()->findClassFromJavaLangClassSymbolRef())
             {
             TR::KnownObjectTable *knot = vp->comp()->getOrCreateKnownObjectTable();
+            TR_ASSERT(knot, "Can not have a TR::VPKnownObject without a known-object table");
 
                {
                TR::VMAccessCriticalSection constrainIaloadCriticalSection(vp->comp(),
@@ -2212,9 +2213,9 @@ TR::Node *constrainIaload(OMR::ValuePropagation *vp, TR::Node *node)
           && base->getClass()
           && (!needInitializedCheck || TR::Compiler->cls.isClassInitialized(vp->comp(), base->getClass())))
          {
-         if (symRef == vp->comp()->getSymRefTab()->findJavaLangClassFromClassSymbolRef())
+         TR::KnownObjectTable *knot = vp->comp()->getOrCreateKnownObjectTable();
+         if (knot && symRef == vp->comp()->getSymRefTab()->findJavaLangClassFromClassSymbolRef())
             {
-            TR::KnownObjectTable *knot = vp->comp()->getOrCreateKnownObjectTable();
             TR_J9VMBase *fej9 = (TR_J9VMBase *)(vp->comp()->fe());
             TR::KnownObjectTable::Index knownObjectIndex = knot->getIndexAt((uintptrj_t*)(base->getClass() + fej9->getOffsetOfJavaLangClassFromClassField()));
             vp->addBlockOrGlobalConstraint(node,
@@ -5563,9 +5564,9 @@ TR::Node *constrainCall(OMR::ValuePropagation *vp, TR::Node *node)
                 TR::Compiler->cls.isClassInitialized(vp->comp(), j9class) &&
                 performTransformation(vp->comp(), "%s Remove TR::sun_misc_Unsafe_ensureClassInitialized call, class already initialized [%p]\n", OPT_DETAILS, node))
                 {
-                vp->removeNode(node);
-                vp->_curTree->setNode(NULL);
-                return NULL;
+                TR::Node* receiver = node->getChild(0);
+                TR::TransformUtil::transformCallNodeToPassThrough(vp, node, vp->_curTree, receiver);
+                return node;
                 }
             }
          }
@@ -9678,9 +9679,9 @@ static TR::Node *constrainIfcmpeqne(OMR::ValuePropagation *vp, TR::Node *node, b
                      TR::VPConstraint *classConstraint = vp->getConstraint(classNode, isGlobal);
                      if (ignoreVirtualGuard && classConstraint && classConstraint->isFixedClass())
                         {
-                        uint8_t   *clazz            = (uint8_t*)classConstraint->getClass();
+                        TR_OpaqueClassBlock *clazz  = classConstraint->getClass();
                         int32_t    vftOffset        = vtableEntryNode->getSymbolReference()->getOffset();
-                        intptrj_t  vftEntry         = *(intptrj_t*)(clazz + vftOffset);
+                        intptrj_t  vftEntry         = TR::Compiler->cls.getVFTEntry(vp->comp(), clazz, vftOffset);
                         bool       childrenAreEqual = (vftEntry == methodPtrNode->getAddress());
                         bool       testForEquality  = (node->getOpCodeValue() == TR::ifacmpeq);
                         traceMsg(vp->comp(), "TR_MethodTest: node=%p, vtableEntryNode=%p, clazz=%p, vftOffset=%d, vftEntry=%p, childrenAreEqual=%d, testForEquality=%d\n",

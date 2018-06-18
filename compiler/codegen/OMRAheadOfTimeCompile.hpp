@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -37,6 +37,7 @@ namespace OMR { typedef OMR::AheadOfTimeCompile AheadOfTimeCompileConnector; }
 #include "runtime/Runtime.hpp"      // for TR_ExternalRelocationTargetKind
 
 class TR_Debug;
+namespace TR { class ExternalRelocation; }
 namespace TR { class IteratedExternalRelocation; }
 namespace TR { class AheadOfTimeCompile; }
 
@@ -81,13 +82,18 @@ class OMR_EXTENSIBLE AheadOfTimeCompile
       }
 
    virtual void     processRelocations() = 0;
-   virtual uint8_t *initialiseAOTRelocationHeader(TR::IteratedExternalRelocation *relocation) = 0;
+   virtual uint8_t *initializeAOTRelocationHeader(TR::IteratedExternalRelocation *relocation) = 0;
 
    // virtual void dumpRelocationData() = 0;
    void dumpRelocationData() {}
 
    void traceRelocationOffsets(uint8_t *&cursor, int32_t offsetSize, const uint8_t *endOfCurrentRecord, bool isOrderedPair);
 
+   /**
+    * Do project-specific processing of an AOT relocation just before combining
+    * it into an IteratedExternalRelocation.
+    */
+   static void interceptAOTRelocation(TR::ExternalRelocation *relocation) { }
 
    private:
    TR::Compilation *                           _comp;

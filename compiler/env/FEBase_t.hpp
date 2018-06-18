@@ -19,12 +19,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef _WIN32
-#include <sys/mman.h>
-#else
+#if defined(OMR_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#endif
+#else
+#include <sys/mman.h>
+#endif /* OMR_OS_WINDOWS */
 #include "compile/Compilation.hpp"
 #include "env/FEBase.hpp"
 #include "env/jittypes.h"

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -156,6 +156,8 @@ uint8_t TR::ExternalRelocation::collectModifier()
 
 void TR::ExternalRelocation::addAOTRelocation(TR::CodeGenerator *codeGen)
    {
+   TR::AheadOfTimeCompile::interceptAOTRelocation(this);
+
    TR::Compilation *comp = codeGen->comp();
    AOTcgDiag0(comp, "TR::ExternalRelocation::addAOTRelocation\n");
    if (comp->getOption(TR_AOT))
@@ -418,11 +420,12 @@ const char *TR::ExternalRelocation::_externalRelocationTargetKindNames[TR_NumExt
    "TR_ValidateArbitraryClass (50)",
    "TR_EmitClass (51)",
    "TR_JNISpecialTargetAddress (52)",
-   "TR_VirtualRamMethodConst (53)"
+   "TR_VirtualRamMethodConst (53)",
    "TR_InlinedInterfaceMethod (54)",
    "TR_InlinedVirtualMethod (55)",
    "TR_NativeMethodAbsolute (56)",
    "TR_NativeMethodRelative (57)",
+   "TR_ArbitraryClassAddress (58)",
    };
 
 uintptr_t TR::ExternalRelocation::_globalValueList[TR_NumGlobalValueItems] =
@@ -480,10 +483,10 @@ TR::IteratedExternalRelocation::IteratedExternalRelocation(uint8_t *target, uint
       AOTcgDiag0(TR::comp(), "TR::IteratedExternalRelocation::IteratedExternalRelocation\n");
       }
 
-void TR::IteratedExternalRelocation::initialiseRelocation(TR::CodeGenerator *codeGen)
+void TR::IteratedExternalRelocation::initializeRelocation(TR::CodeGenerator *codeGen)
    {
-   AOTcgDiag0(TR::comp(), "TR::IteratedExternalRelocation::initialiseRelocation\n");
-   _relocationDataCursor = codeGen->getAheadOfTimeCompile()->initialiseAOTRelocationHeader(this);
+   AOTcgDiag0(TR::comp(), "TR::IteratedExternalRelocation::initializeRelocation\n");
+   _relocationDataCursor = codeGen->getAheadOfTimeCompile()->initializeAOTRelocationHeader(this);
    }
 
 void TR::IteratedExternalRelocation::addRelocationEntry(uint32_t locationOffset)
