@@ -21,7 +21,6 @@
  *******************************************************************************/
 #include "nj_api.h"
 
-#include "Jit.hpp"
 #include "compile/Compilation.hpp"
 #include "compile/CompilationTypes.hpp"
 #include "compile/Method.hpp"
@@ -40,6 +39,7 @@
 #include "ilgen/TypeDictionary.hpp"
 #include "infra/Cfg.hpp"
 
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -52,6 +52,14 @@
       traceMsg(injector->comp(), m, ##__VA_ARGS__);                            \
     }                                                                          \
   }
+
+
+namespace TR { class MethodBuilder; }
+class TR_Memory;
+
+extern "C" bool initializeJit();
+extern "C" uint32_t compileMethodBuilder(TR::MethodBuilder *m, uint8_t **entry);
+extern "C" void shutdownJit();
 
 namespace nj {
 

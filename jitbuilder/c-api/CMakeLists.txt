@@ -22,37 +22,38 @@
 
 include(OmrCompilerSupport)
 
+message(STATUS "omr_SOURCE_DIR is ${omr_SOURCE_DIR}")
 
 # JitBuilder Files
 set(JITBUILDER_OBJECTS
-	env/FrontEnd.cpp
-	compile/Method.cpp
-	control/Jit.cpp
-	ilgen/JBIlGeneratorMethodDetails.cpp
-	optimizer/JBOptimizer.hpp
-	optimizer/JBOptimizer.cpp
-	optimizer/Optimizer.hpp
-	runtime/JBCodeCacheManager.cpp
+	nj_api.cpp
+	${omr_SOURCE_DIR}/jitbuilder/env/FrontEnd.cpp
+	${omr_SOURCE_DIR}/jitbuilder/compile/Method.cpp
+	${omr_SOURCE_DIR}/jitbuilder/control/Jit.cpp
+	${omr_SOURCE_DIR}/jitbuilder/ilgen/JBIlGeneratorMethodDetails.cpp
+	${omr_SOURCE_DIR}/jitbuilder/optimizer/JBOptimizer.hpp
+	${omr_SOURCE_DIR}/jitbuilder/optimizer/JBOptimizer.cpp
+	${omr_SOURCE_DIR}/jitbuilder/optimizer/Optimizer.hpp
+	${omr_SOURCE_DIR}/jitbuilder/runtime/JBCodeCacheManager.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/VirtualMachineOperandArray.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/VirtualMachineOperandStack.cpp
-	c-api/nj_api.cpp
 )
 
 if(OMR_ARCH_X86)
 	list(APPEND JITBUILDER_OBJECTS
-		x/codegen/Evaluator.cpp
+		${omr_SOURCE_DIR}/jitbuilder/x/codegen/Evaluator.cpp
 	)
 elseif(OMR_ARCH_S390)
 	list(APPEND JITBUILDER_OBJECTS
-		z/codegen/Evaluator.cpp
-		z/codegen/JBCodeGenerator.cpp
+		${omr_SOURCE_DIR}/jitbuilder/z/codegen/Evaluator.cpp
+		${omr_SOURCE_DIR}/jitbuilder/z/codegen/JBCodeGenerator.cpp
 	)
 elseif(OMR_ARCH_POWER)
 	list(APPEND JITBUILDER_OBJECTS
-		p/codegen/Evaluator.cpp
-		p/runtime/CodeSync.cpp
-		p/runtime/AsmUtil.spp
-		p/runtime/CodeDispatch.spp
+		${omr_SOURCE_DIR}/jitbuilder/p/codegen/Evaluator.cpp
+		${omr_SOURCE_DIR}/jitbuilder/p/runtime/CodeSync.cpp
+		${omr_SOURCE_DIR}/jitbuilder/p/runtime/AsmUtil.spp
+		${omr_SOURCE_DIR}/jitbuilder/p/runtime/CodeDispatch.spp
 		${omr_SOURCE_DIR}/compiler/p/env/OMRDebugEnv.cpp
 	)
 endif()
@@ -60,7 +61,7 @@ endif()
 
 # Create jitbuilder library.
 create_omr_compiler_library(
-	NAME    jitbuilder
+	NAME    njapi
 	OBJECTS ${JITBUILDER_OBJECTS}
 	DEFINES PROD_WITH_ASSUMES JITTEST
 )
@@ -69,37 +70,25 @@ create_omr_compiler_library(
 # NOTE: `release` directory  isn't being automatically setup, so this
 #       is adding the actual compiler dir, as opposed to the 'composed'
 #       install directory.
-target_include_directories(jitbuilder
+target_include_directories(njapi
 	INTERFACE
-		release/include
-		c-api
-		../compiler/
-		../
+	${omr_SOURCE_DIR}/jitbuilder/release/include
+	${CMAKE_CURRENT_BINARY_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(jitbuilder
+add_executable(njapitest1
+	tests/test1.cpp
 )
 
-# For now on Windows exclude samples
-add_subdirectory(release)
-add_subdirectory(c-api-tests)
+target_link_libraries(njapitest1
+	njapi
+)
 
-install(FILES c-api/nj_api.h
+install(FILES nj_api.h
         DESTINATION include/nj)
-install(TARGETS jitbuilder
+install(TARGETS njapi
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib)
+		LIBRARY DESTINATION lib)
 
-# install(TARGETS jitbuilder
-#         ARCHIVE       DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release
-#         PUBLIC_HEADER DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release/include
-#         )
-#
-#
-# #Create release directory
-# file(MAKE_DIRECTORY jitbuilder_release)
-# file(COPY ${jitbuilder_library} DESTINATION jitbuilder_release)
-# file(COPY ${CMAKE_SOURCE_DIR}/compiler/env   DESTINATION jitbuilder_release/include)
-# file(COPY ${CMAKE_SOURCE_DIR}/compiler/il    DESTINATION jitbuilder_release/include)
-# file(COPY ${CMAKE_SOURCE_DIR}/compiler/ilgen DESTINATION jitbuilder_release/include)

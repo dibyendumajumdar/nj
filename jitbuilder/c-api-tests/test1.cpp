@@ -94,7 +94,7 @@ static int test3(JIT_ContextRef ctx) {
   JIT_Type params[1] = {
       JIT_Int32
   };
-  JIT_RegisterFunction(ctx, "callme", JIT_Int32, 1, params, callme);
+  JIT_RegisterFunction(ctx, "callme", JIT_Int32, 1, params, (void *)callme);
   JIT_FunctionBuilderRef function_builder = JIT_CreateFunctionBuilder(
       ctx, "ret3", JIT_Int32, 1, params, test3_il, NULL);
   int rc = 0;
