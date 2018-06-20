@@ -1245,7 +1245,7 @@ extern JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector,
  * Call a function; function must be registered already
  */
 extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector,
-                            const char *functionName, int32_t numArgs, ...);
+                            const char *functionName, int32_t numArgs, JIT_NodeRef* args);
 
 /**
  * Generate unconditional jump to given block; CFG will be updated to add an

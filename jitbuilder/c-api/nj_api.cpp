@@ -622,7 +622,7 @@ JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
 }
 
 JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
-                     int32_t numArgs, ...) {
+                     int32_t numArgs, JIT_NodeRef* args) {
   auto injector = unwrap_ilinjector(ilinjector);
   auto function_builder = injector->function_builder_;
   TR::ResolvedMethod *resolvedMethod =
@@ -644,17 +644,14 @@ JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
   TR::DataType targetType = TR::Int32;
   if (TR::Compiler->target.is64Bit())
     targetType = TR::Int64;
-  va_list args;
-  va_start(args, numArgs);
   for (int32_t a = 0; a < numArgs; a++) {
-    JIT_NodeRef arg = va_arg(args, JIT_NodeRef);
+    JIT_NodeRef arg = args[a];
     TR::Node *node = unwrap_node(arg);
     if (node->getDataType() == TR::Int8 || node->getDataType() == TR::Int16 ||
         (targetType == TR::Int64 && node->getDataType() == TR::Int32))
       node = convertTo(injector, targetType, node);
     callNode->setAndIncChild(childIndex++, node);
   }
-  va_end(args);
   // callNode must be anchored by itself
   injector->genTreeTop(callNode);
   if (returnType != TR::NoType) {

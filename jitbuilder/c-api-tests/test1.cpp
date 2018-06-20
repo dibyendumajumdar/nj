@@ -81,7 +81,8 @@ static bool test3_il(JIT_ILInjectorRef ilinjector, void *userdata) {
   JIT_CreateBlocks(ilinjector, 1);
   JIT_SetCurrentBlock(ilinjector, 0);
   auto input = JIT_LoadParameter(ilinjector, 0);         // Load arg
-  auto value = JIT_Call(ilinjector, "callme", 1, input); // Call callme(input)
+  JIT_NodeRef args[] = { input };
+  auto value = JIT_Call(ilinjector, "callme", 1, args); // Call callme(input)
   auto node = JIT_CreateNode1C(OP_ireturn, value);
   JIT_GenerateTreeTop(ilinjector, node);
   JIT_CFGAddEdge(ilinjector,
