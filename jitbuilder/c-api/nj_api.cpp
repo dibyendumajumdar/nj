@@ -757,6 +757,32 @@ JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
   return wrap_node(ifNode);
 }
 
+JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
+	JIT_BlockRef default_branch, int num_cases, JIT_BlockRef *case_branches, int32_t *case_values) {
+
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto exprNode = unwrap_node(expr);
+	auto defaultBlock = unwrap_block(default_branch);
+
+	auto switchBlock = injector->getCurrentBlock();
+
+	TR::Node *defaultNode = TR::Node::createCase(0, defaultBlock->getEntry());
+	TR::Node *lookupNode = TR::Node::create(TR::lookup, num_cases + 2, exprNode, defaultNode);
+	injector->genTreeTop(lookupNode);
+	for (int i = 0; i < num_cases; i++) {
+		JIT_BlockRef block = case_branches[i];
+		int32_t value = case_values[i];
+
+		TR::Block *caseBlock = unwrap_block(block);
+		injector->cfg()->addEdge(switchBlock, caseBlock);
+
+		TR::Node *caseNode = TR::Node::createCase(0, caseBlock->getEntry(), value);
+		lookupNode->setAndIncChild(i + 2, caseNode);
+	}
+	injector->cfg()->addEdge(switchBlock, defaultBlock);
+	return wrap_node(lookupNode);
+}
+
 JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym) {
   auto symbolref = unwrap_symbolref(sym);
   return (JIT_Type)symbolref->getSymbol()->getDataType().getDataType();

@@ -1304,6 +1304,13 @@ extern JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector,
 extern JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector,
                                    JIT_NodeRef value, JIT_BlockRef blockOnZero);
 
+
+/**
+ * C style switch
+ */
+extern JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
+	JIT_BlockRef default_branch, int num_cases, JIT_BlockRef *case_branches, int32_t *case_values);
+
 #ifdef __cplusplus
 }
 #endif
