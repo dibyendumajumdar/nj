@@ -156,7 +156,7 @@ struct FunctionBuilder {
     int32_t rc = 0;
     uint8_t *entry_point =
         compileMethodFromDetails(NULL, methodDetails, warm, rc);
-    if (rc == 0) {
+    if (entry_point) {
       context_->registerFunction(name_, return_type_, argIlTypes, entry_point);
       return entry_point;
     }
@@ -383,6 +383,13 @@ JIT_NodeRef JIT_ConstInt64(int64_t i) { return wrap_node(TR::Node::lconst(i)); }
 JIT_NodeRef JIT_ConstInt16(int16_t i) { return wrap_node(TR::Node::sconst(i)); }
 
 JIT_NodeRef JIT_ConstInt8(int8_t i) { return wrap_node(TR::Node::bconst(i)); }
+
+JIT_NodeRef JIT_ConstUInt32(uint32_t i) { return wrap_node(TR::Node::iuconst(i)); }
+
+JIT_NodeRef JIT_ConstUInt64(uint64_t i) { return wrap_node(TR::Node::luconst(i)); }
+
+JIT_NodeRef JIT_ConstUInt8(uint8_t i) { return wrap_node(TR::Node::buconst(i)); }
+
 
 JIT_NodeRef JIT_ConstFloat(float value) {
   TR::Node *node = TR::Node::create(0, TR::fconst, 0);

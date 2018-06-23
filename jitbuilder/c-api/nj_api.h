@@ -211,6 +211,9 @@ extern JIT_NodeRef JIT_ConstInt8(int8_t i);
 extern JIT_NodeRef JIT_ConstFloat(float value);
 extern JIT_NodeRef JIT_ConstDouble(double value);
 extern JIT_NodeRef JIT_ConstAddress(void *value);
+extern JIT_NodeRef JIT_ConstUInt32(uint32_t i);
+extern JIT_NodeRef JIT_ConstUInt64(uint64_t i);
+extern JIT_NodeRef JIT_ConstUInt8(uint8_t i);
 extern JIT_NodeRef JIT_ZeroValue(JIT_ILInjectorRef ilinjector, JIT_Type type);
 
 /**
