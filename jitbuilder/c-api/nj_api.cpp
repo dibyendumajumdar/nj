@@ -565,11 +565,22 @@ JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   auto base = unwrap_node(basenode);
   auto index = unwrap_node(indexnode);
   auto type = TR::DataType((TR::DataTypes)dt);
+  auto aoffset = get_array_element_address(injector, type, base, index);
+  auto loadOp = TR::ILOpCode::indirectLoadOpCode(type);
+#if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *load = TR::Node::createWithSymRef(
-      TR::ILOpCode::indirectLoadOpCode(type), 1,
-      get_array_element_address(injector, type, base, index), 0, symRef);
+      loadOp, 1,
+      aoffset, 0, symRef);
+#else
+  TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
+  TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory())
+	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+  TR::Node *load = TR::Node::createWithSymRef(
+	  loadOp, 1,
+	  aoffset, 0, symRef);
+#endif
   return wrap_node(load);
 }
 
@@ -580,13 +591,22 @@ void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   auto index = unwrap_node(indexnode);
   auto value = unwrap_node(valuenode);
   auto type = value->getDataType();
+
+  TR::ILOpCodes storeOp =
+	  injector->comp()->il.opCodeForIndirectArrayStore(type);
+  auto aoffset = get_array_element_address(injector, type, base, index);
+#if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
-  TR::ILOpCodes storeOp =
-      injector->comp()->il.opCodeForIndirectArrayStore(type);
   TR::Node *store = TR::Node::createWithSymRef(
-      storeOp, 2, get_array_element_address(injector, type, base, index), value,
+      storeOp, 2, aoffset, value,
       0, symRef);
+#else
+  TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
+  TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory()) 
+	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+  auto store = TR::Node::createWithSymRef(storeOp, 2, aoffset, value, 0, symRef);
+#endif
   injector->genTreeTop(store);
 }
 
