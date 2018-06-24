@@ -685,10 +685,7 @@ JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
   }
   // callNode must be anchored by itself
   injector->genTreeTop(callNode);
-  if (returnType != TR::NoType) {
-    return wrap_node(callNode);
-  }
-  return nullptr;
+  return wrap_node(callNode);
 }
 
 JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block) {
