@@ -454,16 +454,20 @@ JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector) {
 
 JIT_SymbolRef JIT_CreateTemporary(JIT_ILInjectorRef ilinjector, JIT_Type type) {
   auto injector = unwrap_ilinjector(ilinjector);
-  return wrap_symbolref(injector->symRefTab()->createTemporary(
-      injector->methodSymbol(), TR::DataType((TR::DataTypes)type)));
+  auto newSymRef = injector->symRefTab()->createTemporary(
+	  injector->methodSymbol(), TR::DataType((TR::DataTypes)type));
+  newSymRef->getSymbol()->setNotCollected();
+  return wrap_symbolref(newSymRef);
 }
 
 JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector,
                                        uint32_t size) {
   auto injector = unwrap_ilinjector(ilinjector);
-  return wrap_symbolref(injector->symRefTab()->createLocalPrimArray(
-      size, injector->methodSymbol(),
-      8 /*apparently 8 means Java bytearray! */));
+  auto newSymRef = injector->symRefTab()->createLocalPrimArray(
+	  size, injector->methodSymbol(),
+	  8 /*apparently 8 means Java bytearray! */);
+  newSymRef->getSymbol()->setNotCollected();
+  return wrap_symbolref(newSymRef);
 }
 
 JIT_NodeRef JIT_LoadTemporary(JIT_ILInjectorRef ilinjector,
