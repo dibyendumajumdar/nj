@@ -57,10 +57,16 @@ elseif(OMR_ARCH_POWER)
 	)
 endif()
 
+if (NOT OMR_TOOLCONFIG MATCHES "msvc")
+	# On Linux at least creating static library
+	# makes it hard to link with C code
+	set(JITBUILDER_LIB_TYPE SHARED)
+endif() 
 
 # Create jitbuilder library.
 create_omr_compiler_library(
 	NAME    jitbuilder
+	${JITBUILDER_LIB_TYPE}
 	OBJECTS ${JITBUILDER_OBJECTS}
 	DEFINES PROD_WITH_ASSUMES JITTEST
 )
