@@ -632,7 +632,8 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
 static TR::Node *convertTo(TR::IlInjector *injector, TR::DataType typeTo,
                            TR::Node *v, bool needUnsigned = false) {
   TR::DataType typeFrom = v->getDataType();
-
+  if (typeFrom == typeTo)
+	  return v;
   TR::ILOpCodes convertOp =
       TR::ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
   TR_ASSERT(
