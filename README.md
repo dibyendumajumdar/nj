@@ -1,6 +1,6 @@
 # nj
 
-This is an experimental project that aims to create a cut-down version of IBM's [Eclipse OMR](https://github.com/eclipse/omr) project focussing just on the compiler / JIT backend. 
+This is a cut-down version of IBM's [Eclipse OMR](https://github.com/eclipse/omr) project focussing just on the compiler / JIT backend. 
 
 Here is what is included:
 
