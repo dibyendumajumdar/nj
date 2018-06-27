@@ -1,6 +1,6 @@
 # nj
 
-This is a cut-down version of the [Eclipse OMR](https://github.com/eclipse/omr) project focussing just on the compiler / JIT backend. 
+This is a leaner version of the [Eclipse OMR](https://github.com/eclipse/omr) project focussing just on the compiler / JIT backend. 
 
 Here is what is included:
 
@@ -8,8 +8,8 @@ Here is what is included:
                         compilers.
 * **`jitbuilder`**:     An easy to use high level abstraction on top of the
                         compiler technology.
-* **`tool`**:           Code generation tools for the build system
-* **`fvtest`**:         Tests for the compiler
+* **`tool`**:           Code generation tools for the build system (only required parts)
+* **`fvtest`**:         Tests for the compiler/JitBuilder (includes tril)
 
 Following OMR components have been removed:
 
@@ -35,19 +35,34 @@ Following OMR components have been removed:
 ## Roadmap
 
 * Immediate focus is on trying to use the JIT engine behind a C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c)
-* I would like to further trim the library to make it smaller and more focussed
+* I would like to further trim the library to make it leaner and more focussed - especially enable a build option that is minimal in size
+
+## Merge Strategy
+
+I will probably submit a pull request to Eclipse OMR for the C api once I am happy with it. But that would not do away with the
+need to maintain this project as I disagree with one aspect of the Eclipse OMR strategy which is to make the compiler depend on
+the port and thread libraries. 
+
+Initially I wanted to merge the commits from Eclipse OMR using git's `am` facility. But I got hopelessly lost and some of the
+merges did not succeed. So sadly I am going to take the easy way and just do regular manual merge from the OMR tree. The downside is
+that all history will be lost.
 
 ## Build Instructions
+
+You can build the libraries and install the C headers plus library. On Windows a static library is built. On Mac OSX and Linux
+a shared library will be built.
+
+Note - the only builds I have done so far as X86-64 versions. I have no means of testing other architectures.
 
 ### Linux or Mac OSX
 
 * You will need CMake, Perl, bison and flex installed
-* Follow steps below from the location of source directory.
+* I follow steps below from the location of source directory.
 
 ```
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/Software/omr ..
 make
 ```
 
