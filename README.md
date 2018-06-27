@@ -63,7 +63,7 @@ Note - the only builds I have done so far as X86-64 versions. I have no means of
 mkdir build
 cd build
 cmake -DCMAKE_INSTALL_PREFIX=$HOME/Software/omr ..
-make
+make install
 ```
 
 ### Windows 10
