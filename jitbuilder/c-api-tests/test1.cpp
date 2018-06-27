@@ -81,7 +81,8 @@ static bool test3_il(JIT_ILInjectorRef ilinjector, void *userdata) {
   JIT_CreateBlocks(ilinjector, 1);
   JIT_SetCurrentBlock(ilinjector, 0);
   auto input = JIT_LoadParameter(ilinjector, 0);         // Load arg
-  auto value = JIT_Call(ilinjector, "callme", 1, input); // Call callme(input)
+  JIT_NodeRef args[] = { input };
+  auto value = JIT_Call(ilinjector, "callme", 1, args); // Call callme(input)
   auto node = JIT_CreateNode1C(OP_ireturn, value);
   JIT_GenerateTreeTop(ilinjector, node);
   JIT_CFGAddEdge(ilinjector,
@@ -94,7 +95,7 @@ static int test3(JIT_ContextRef ctx) {
   JIT_Type params[1] = {
       JIT_Int32
   };
-  JIT_RegisterFunction(ctx, "callme", JIT_Int32, 1, params, callme);
+  JIT_RegisterFunction(ctx, "callme", JIT_Int32, 1, params, (void *)callme);
   JIT_FunctionBuilderRef function_builder = JIT_CreateFunctionBuilder(
       ctx, "ret3", JIT_Int32, 1, params, test3_il, NULL);
   int rc = 0;

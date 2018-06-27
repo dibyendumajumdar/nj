@@ -21,7 +21,6 @@
  *******************************************************************************/
 #include "nj_api.h"
 
-#include "Jit.hpp"
 #include "compile/Compilation.hpp"
 #include "compile/CompilationTypes.hpp"
 #include "compile/Method.hpp"
@@ -40,6 +39,7 @@
 #include "ilgen/TypeDictionary.hpp"
 #include "infra/Cfg.hpp"
 
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -52,6 +52,14 @@
       traceMsg(injector->comp(), m, ##__VA_ARGS__);                            \
     }                                                                          \
   }
+
+
+namespace TR { class MethodBuilder; }
+class TR_Memory;
+
+extern "C" bool initializeJit();
+extern "C" uint32_t compileMethodBuilder(TR::MethodBuilder *m, uint8_t **entry);
+extern "C" void shutdownJit();
 
 namespace nj {
 
@@ -148,7 +156,7 @@ struct FunctionBuilder {
     int32_t rc = 0;
     uint8_t *entry_point =
         compileMethodFromDetails(NULL, methodDetails, warm, rc);
-    if (rc == 0) {
+    if (entry_point) {
       context_->registerFunction(name_, return_type_, argIlTypes, entry_point);
       return entry_point;
     }
@@ -376,6 +384,13 @@ JIT_NodeRef JIT_ConstInt16(int16_t i) { return wrap_node(TR::Node::sconst(i)); }
 
 JIT_NodeRef JIT_ConstInt8(int8_t i) { return wrap_node(TR::Node::bconst(i)); }
 
+JIT_NodeRef JIT_ConstUInt32(uint32_t i) { return wrap_node(TR::Node::iuconst(i)); }
+
+JIT_NodeRef JIT_ConstUInt64(uint64_t i) { return wrap_node(TR::Node::luconst(i)); }
+
+JIT_NodeRef JIT_ConstUInt8(uint8_t i) { return wrap_node(TR::Node::buconst(i)); }
+
+
 JIT_NodeRef JIT_ConstFloat(float value) {
   TR::Node *node = TR::Node::create(0, TR::fconst, 0);
   node->setFloat(value);
@@ -439,16 +454,20 @@ JIT_CFGNodeRef JIT_GetCFGEnd(JIT_ILInjectorRef ilinjector) {
 
 JIT_SymbolRef JIT_CreateTemporary(JIT_ILInjectorRef ilinjector, JIT_Type type) {
   auto injector = unwrap_ilinjector(ilinjector);
-  return wrap_symbolref(injector->symRefTab()->createTemporary(
-      injector->methodSymbol(), TR::DataType((TR::DataTypes)type)));
+  auto newSymRef = injector->symRefTab()->createTemporary(
+	  injector->methodSymbol(), TR::DataType((TR::DataTypes)type));
+  newSymRef->getSymbol()->setNotCollected();
+  return wrap_symbolref(newSymRef);
 }
 
 JIT_SymbolRef JIT_CreateLocalByteArray(JIT_ILInjectorRef ilinjector,
                                        uint32_t size) {
   auto injector = unwrap_ilinjector(ilinjector);
-  return wrap_symbolref(injector->symRefTab()->createLocalPrimArray(
-      size, injector->methodSymbol(),
-      8 /*apparently 8 means Java bytearray! */));
+  auto newSymRef = injector->symRefTab()->createLocalPrimArray(
+	  size, injector->methodSymbol(),
+	  8 /*apparently 8 means Java bytearray! */);
+  newSymRef->getSymbol()->setNotCollected();
+  return wrap_symbolref(newSymRef);
 }
 
 JIT_NodeRef JIT_LoadTemporary(JIT_ILInjectorRef ilinjector,
@@ -550,11 +569,22 @@ JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   auto base = unwrap_node(basenode);
   auto index = unwrap_node(indexnode);
   auto type = TR::DataType((TR::DataTypes)dt);
+  auto aoffset = get_array_element_address(injector, type, base, index);
+  auto loadOp = TR::ILOpCode::indirectLoadOpCode(type);
+#if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *load = TR::Node::createWithSymRef(
-      TR::ILOpCode::indirectLoadOpCode(type), 1,
-      get_array_element_address(injector, type, base, index), 0, symRef);
+      loadOp, 1,
+      aoffset, 0, symRef);
+#else
+  TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
+  TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory())
+	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+  TR::Node *load = TR::Node::createWithSymRef(
+	  loadOp, 1,
+	  aoffset, 0, symRef);
+#endif
   return wrap_node(load);
 }
 
@@ -565,13 +595,22 @@ void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   auto index = unwrap_node(indexnode);
   auto value = unwrap_node(valuenode);
   auto type = value->getDataType();
+
+  TR::ILOpCodes storeOp =
+	  injector->comp()->il.opCodeForIndirectArrayStore(type);
+  auto aoffset = get_array_element_address(injector, type, base, index);
+#if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
-  TR::ILOpCodes storeOp =
-      injector->comp()->il.opCodeForIndirectArrayStore(type);
   TR::Node *store = TR::Node::createWithSymRef(
-      storeOp, 2, get_array_element_address(injector, type, base, index), value,
+      storeOp, 2, aoffset, value,
       0, symRef);
+#else
+  TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
+  TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory()) 
+	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+  auto store = TR::Node::createWithSymRef(storeOp, 2, aoffset, value, 0, symRef);
+#endif
   injector->genTreeTop(store);
 }
 
@@ -593,7 +632,8 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
 static TR::Node *convertTo(TR::IlInjector *injector, TR::DataType typeTo,
                            TR::Node *v, bool needUnsigned = false) {
   TR::DataType typeFrom = v->getDataType();
-
+  if (typeFrom == typeTo)
+	  return v;
   TR::ILOpCodes convertOp =
       TR::ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
   TR_ASSERT(
@@ -614,7 +654,7 @@ JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
 }
 
 JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
-                     int32_t numArgs, ...) {
+                     int32_t numArgs, JIT_NodeRef* args) {
   auto injector = unwrap_ilinjector(ilinjector);
   auto function_builder = injector->function_builder_;
   TR::ResolvedMethod *resolvedMethod =
@@ -636,23 +676,17 @@ JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
   TR::DataType targetType = TR::Int32;
   if (TR::Compiler->target.is64Bit())
     targetType = TR::Int64;
-  va_list args;
-  va_start(args, numArgs);
   for (int32_t a = 0; a < numArgs; a++) {
-    JIT_NodeRef arg = va_arg(args, JIT_NodeRef);
+    JIT_NodeRef arg = args[a];
     TR::Node *node = unwrap_node(arg);
     if (node->getDataType() == TR::Int8 || node->getDataType() == TR::Int16 ||
         (targetType == TR::Int64 && node->getDataType() == TR::Int32))
       node = convertTo(injector, targetType, node);
     callNode->setAndIncChild(childIndex++, node);
   }
-  va_end(args);
   // callNode must be anchored by itself
   injector->genTreeTop(callNode);
-  if (returnType != TR::NoType) {
-    return wrap_node(callNode);
-  }
-  return nullptr;
+  return wrap_node(callNode);
 }
 
 JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block) {
@@ -750,6 +784,32 @@ JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector, JIT_NodeRef value,
   injector->genTreeTop(ifNode);
   injector->cfg()->addEdge(injector->getCurrentBlock(), targetBlock);
   return wrap_node(ifNode);
+}
+
+JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
+	JIT_BlockRef default_branch, int num_cases, JIT_BlockRef *case_branches, int32_t *case_values) {
+
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto exprNode = unwrap_node(expr);
+	auto defaultBlock = unwrap_block(default_branch);
+
+	auto switchBlock = injector->getCurrentBlock();
+
+	TR::Node *defaultNode = TR::Node::createCase(0, defaultBlock->getEntry());
+	TR::Node *lookupNode = TR::Node::create(TR::lookup, num_cases + 2, exprNode, defaultNode);
+	injector->genTreeTop(lookupNode);
+	for (int i = 0; i < num_cases; i++) {
+		JIT_BlockRef block = case_branches[i];
+		int32_t value = case_values[i];
+
+		TR::Block *caseBlock = unwrap_block(block);
+		injector->cfg()->addEdge(switchBlock, caseBlock);
+
+		TR::Node *caseNode = TR::Node::createCase(0, caseBlock->getEntry(), value);
+		lookupNode->setAndIncChild(i + 2, caseNode);
+	}
+	injector->cfg()->addEdge(switchBlock, defaultBlock);
+	return wrap_node(lookupNode);
 }
 
 JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym) {

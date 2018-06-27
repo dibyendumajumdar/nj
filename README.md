@@ -1,6 +1,6 @@
 # nj
 
-This is an experimental project that aims to create a cut-down version of IBM's [Eclipse OMR](https://github.com/eclipse/omr) project focussing just on the compiler / JIT backend. 
+This is a cut-down version of the [Eclipse OMR](https://github.com/eclipse/omr) project focussing just on the compiler / JIT backend. 
 
 Here is what is included:
 
@@ -29,6 +29,8 @@ Following OMR components have been removed:
 
 * Builds successfully on Linux, Mac OSX and Windows 10 
 * Not all tests pass on Windows 10
+* A [C API](https://github.com/dibyendumajumdar/nj/blob/master/jitbuilder/c-api/nj_api.h) is implemented to allow easy use of the JIT engine in projects; note this is a low level api, not the same as the JitBuilder api provided by Eclipse OMR. A user guide for this api will be available at a future date.
+* An easy way to get started is to use the C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c), which enables you to generate code from C code taking away a lot of the complexities of working with the JIT api.
 
 ## Roadmap
 

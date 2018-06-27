@@ -211,6 +211,9 @@ extern JIT_NodeRef JIT_ConstInt8(int8_t i);
 extern JIT_NodeRef JIT_ConstFloat(float value);
 extern JIT_NodeRef JIT_ConstDouble(double value);
 extern JIT_NodeRef JIT_ConstAddress(void *value);
+extern JIT_NodeRef JIT_ConstUInt32(uint32_t i);
+extern JIT_NodeRef JIT_ConstUInt64(uint64_t i);
+extern JIT_NodeRef JIT_ConstUInt8(uint8_t i);
 extern JIT_NodeRef JIT_ZeroValue(JIT_ILInjectorRef ilinjector, JIT_Type type);
 
 /**
@@ -1245,7 +1248,7 @@ extern JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector,
  * Call a function; function must be registered already
  */
 extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector,
-                            const char *functionName, int32_t numArgs, ...);
+                            const char *functionName, int32_t numArgs, JIT_NodeRef* args);
 
 /**
  * Generate unconditional jump to given block; CFG will be updated to add an
@@ -1303,6 +1306,13 @@ extern JIT_NodeRef JIT_IfNotZeroValue(JIT_ILInjectorRef ilinjector,
  */
 extern JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector,
                                    JIT_NodeRef value, JIT_BlockRef blockOnZero);
+
+
+/**
+ * C style switch
+ */
+extern JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
+	JIT_BlockRef default_branch, int num_cases, JIT_BlockRef *case_branches, int32_t *case_values);
 
 #ifdef __cplusplus
 }
