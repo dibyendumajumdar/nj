@@ -66,7 +66,7 @@ list(APPEND TR_COMPILE_OPTIONS
 # TR_CXX_COMPILE_OPTIONS are appended to CMAKE_CXX_FLAGS, and so apply only to
 # C++ file compilation
 list(APPEND TR_CXX_COMPILE_OPTIONS
-	-std=c++0x
+	-std=c++11
 )
 
 # TR_C_COMPILE_OPTIONS are appended to CMAKE_C_FLAGS, and so apply only to
