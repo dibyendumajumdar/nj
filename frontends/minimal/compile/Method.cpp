@@ -24,10 +24,7 @@
 #include "compile/SymbolReferenceTable.hpp"
 #include "il/SymbolReference.hpp"
 #include "il/symbol/ParameterSymbol.hpp"
-#include "ilgen/TypeDictionary.hpp"
-#include "ilgen/IlInjector.hpp"
-#include "ilgen/IlBuilder.hpp"
-#include "ilgen/MethodBuilder.hpp"
+#include "ilgen/NJIlGenerator.hpp"
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 
 namespace NJCompiler
@@ -36,6 +33,21 @@ namespace NJCompiler
 // needs major overhaul
 ResolvedMethod::ResolvedMethod(TR_OpaqueMethodBlock *method)
    {
+	// trouble! trouble! where do we get TypeDictionary from now?
+	_ilInjector = reinterpret_cast<TR::IlGenerator *>(method);
+
+	TR::ResolvedMethod * resolvedMethod = (TR::ResolvedMethod *)_ilInjector->methodSymbol()->getResolvedMethod();
+	//_fileName = resolvedMethod->classNameChars();
+	_name = resolvedMethod->nameChars();
+	_numParms = resolvedMethod->getNumArgs();
+	_parmTypes = resolvedMethod->_parmTypes;
+	//_lineNumber = resolvedMethod->getLineNumber();
+	_returnType = resolvedMethod->returnType();
+	//_signature = resolvedMethod->getSignature();
+	//_externalName = 0;
+	_entryPoint = resolvedMethod->getEntryPoint();
+	strncpy(_signatureChars, resolvedMethod->signatureChars(), 62); // TODO: introduce concept of robustness
+
    }
 
 const char *

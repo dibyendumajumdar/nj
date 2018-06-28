@@ -5,6 +5,8 @@ set(API_FILES
 	control/NJJit.cpp
 	env/FrontEnd.cpp
 	ilgen/NJIlGeneratorMethodDetails.cpp
+	ilgen/NJIlGenerator.cpp
+	ilgen/JIT_API.cpp
 	runtime/NJCodeCacheManager.cpp
 	runtime/NJJitConfig.cpp
 )

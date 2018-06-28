@@ -37,17 +37,14 @@ namespace TR {
 class IlGeneratorMethodDetails;
 }
 namespace TR {
-class IlType;
-}
-namespace TR {
-class IlInjector;
+class IlGenerator;
 }
 namespace TR {
 class FrontEnd;
 }
 
-// quick and dirty implementation to get up and running
-// needs major overhaul
+// NJ Minimal Method definition
+// For use by C api
 
 namespace NJCompiler {
 
@@ -109,9 +106,9 @@ class ResolvedMethod : public ResolvedMethodBase, public Method {
 public:
   ResolvedMethod(TR_OpaqueMethodBlock *method);
   ResolvedMethod(const char *fileName, const char *lineNumber, char *name,
-                 int32_t numParms, TR::IlType **parmTypes,
-                 TR::IlType *returnType, void *entryPoint,
-                 TR::IlInjector *ilInjector) {}
+                 int32_t numParms, TR::DataType *parmTypes,
+                 TR::DataType returnType, void *entryPoint,
+                 TR::IlGenerator *ilInjector) {}
 
   virtual TR_Method *convertToMethod() { return this; }
 
@@ -135,17 +132,33 @@ public:
 
   virtual uint32_t maxBytecodeIndex() { return 0; }
   virtual uint8_t *code() { return NULL; }
-  virtual TR_OpaqueMethodBlock *getPersistentIdentifier() {
-    return (TR_OpaqueMethodBlock *)nullptr;
-  }
+  virtual TR_OpaqueMethodBlock *getPersistentIdentifier() { return (TR_OpaqueMethodBlock *)_ilInjector; }
   virtual bool isInterpreted() { return startAddressForJittedMethod() == 0; }
 
   virtual void makeParameterList(TR::ResolvedMethodSymbol *);
+
+  TR::DataType                  returnType() { return _returnType; }
+  int32_t                       getNumArgs() { return _numParms; }
+  void                          setEntryPoint(void *ep) { _entryPoint = ep; }
+  void                        * getEntryPoint() { return _entryPoint; }
+
+  TR::IlGenerator *getInjector(
+	  TR::IlGeneratorMethodDetails * details,
+	  TR::ResolvedMethodSymbol *methodSymbol,
+	  TR::FrontEnd *fe,
+	  TR::SymbolReferenceTable *symRefTab);
 
 protected:
   char *_name;
   char *_signature;
   char _signatureChars[64];
+
+  int32_t          _numParms;
+  TR::DataType     *_parmTypes;
+  TR::DataType     _returnType;
+  void           * _entryPoint;
+  TR::IlGenerator * _ilInjector;
+
 };
 
 } // namespace NJCompiler
@@ -158,8 +171,8 @@ public:
   ResolvedMethod(TR_OpaqueMethodBlock *method)
       : NJCompiler::ResolvedMethod(method) {}
   ResolvedMethod(char *fileName, char *lineNumber, char *name, int32_t numArgs,
-                 TR::IlType **parmTypes, TR::IlType *returnType,
-                 void *entryPoint, TR::IlInjector *ilInjector)
+                 TR::DataType *parmTypes, TR::DataType returnType,
+                 void *entryPoint, TR::IlGenerator *ilInjector)
       : NJCompiler::ResolvedMethod(fileName, lineNumber, name, numArgs,
                                    parmTypes, returnType, entryPoint,
                                    ilInjector) {}
