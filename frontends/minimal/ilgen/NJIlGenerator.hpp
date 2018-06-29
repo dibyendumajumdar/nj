@@ -69,7 +69,9 @@ public:
                            TR::SymbolReferenceTable     * symRefTab);
 
    bool                           genIL();
-   TR::Block                    * getCurrentBlock();
+   virtual TR::Block                * getCurrentBlock() = 0;
+   virtual TR::Block                * block(int32_t num) = 0;
+   virtual int32_t                    numBlocks() const = 0;
    virtual TR::ResolvedMethodSymbol * methodSymbol() const { return _methodSymbol; }
    virtual int32_t currentByteCodeIndex() { return -1; }
 
@@ -82,14 +84,6 @@ public:
    TR::SymbolReferenceTable     * symRefTab()              { return _symRefTab; }
    TR::CFG                      * cfg();
 
-   TR::Block                   ** blocks()           const { return _blocks; }
-   int32_t                        numBlocks()        const { return _numBlocks; }
-
-   // helpers to inject IL
-   void                           generateToBlock(int32_t b);
-   void                           allocateBlocks(int32_t num);
-   TR::Block                    * newBlock();
-   void                           createBlocks(int32_t num);
    TR::Node                     * parameter(int32_t slot, TR::DataType dt);
    TR::SymbolReference          * newTemp(TR::DataType dt);
    TR::Node                     * iconst(int32_t value);
@@ -102,28 +96,12 @@ public:
    TR::Node                     * staticAddress(void *address);
    void                           storeToTemp(TR::SymbolReference *tempSymRef, TR::Node *value);
    TR::Node                     * loadTemp(TR::SymbolReference *tempSymRef);
-   TR::Node                     * i2l(TR::Node *n);
-   TR::Node                     * iu2l(TR::Node *n);
-
-   void                           ifjump(TR::ILOpCodes op, TR::Node *first, TR::Node *second, TR::Block *targetBlock);
-   void                           ifjump(TR::ILOpCodes op, TR::Node *first, TR::Node *second, int32_t targetBlockNumber);
-   TR::Node                     * shiftLeftBy(TR::Node *value, int32_t shift);
-   TR::Node                     * multiplyBy(TR::Node *value, int64_t factor);
-   TR::Node                     * arrayLoad(TR::Node *base, TR::Node *index, TR::DataType dt);
-   void                           returnValue(TR::Node *value);
-   void                           returnNoValue();
 
    TR::TreeTop                  * genTreeTop(TR::Node *n);
-   TR::Block                    * block(int32_t num) { return _blocks[num]; }
-   void                           gotoBlock(TR::Block *block);
-   void                           branchToBlock(int32_t num) { gotoBlock(_blocks[num]); }
-   void                           generateFallThrough();
+   
    TR::Node                     * createWithoutSymRef(TR::ILOpCodes opCode, uint16_t numArgs, ...);
 
 private:
-   void                           validateTargetBlock();
-
-   TR::Block                    * block(int32_t num) const { return _blocks[num]; }
 
 protected:
    // data
@@ -134,14 +112,6 @@ protected:
 
    TR::IlGeneratorMethodDetails * _details;
    TR::ResolvedMethodSymbol     * _methodSymbol;
-
-   TR::Block                    * _currentBlock;
-   int32_t                        _currentBlockNumber;
-   int32_t                        _numBlocks;
-
-   TR::Block                   ** _blocks;
-   bool                           _blocksAllocatedUpFront;
-
    };
 
 } // namespace OMR
@@ -157,6 +127,10 @@ namespace TR
 		  IlGenerator()
             : OMR::IlGenerator()
             { }
+		  virtual TR::Block                * getCurrentBlock() = 0;
+		  virtual TR::Block                * block(int32_t num) = 0;
+		  virtual int32_t                    numBlocks() const = 0;
+
       };
 
 } // namespace TR

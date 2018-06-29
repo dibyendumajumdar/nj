@@ -101,9 +101,64 @@ static volatile int s_ctxcount;
 
 struct SimpleILInjector : public TR::IlGenerator {
   SimpleILInjector(FunctionBuilder *function_builder)
-      : function_builder_(function_builder) {}
+      : _currentBlock(nullptr),
+	    _currentBlockNumber(-1),
+	  _numBlocks(0),
+	  _blocks(nullptr),
+	  function_builder_(function_builder) {}
 
   bool injectIL() override; /* override */
+
+  TR::Block                    * block(int32_t num) override { return _blocks[num]; }
+  int32_t                        numBlocks() const override { return _numBlocks; }
+  TR::Block *getCurrentBlock() override
+     {
+     return _currentBlock;
+     }
+  void
+  allocateBlocks(int32_t num)
+     {
+     _numBlocks = num;
+     _blocks = (TR::Block **) _comp->trMemory()->allocateHeapMemory(num * sizeof(TR::Block *));
+     }
+  
+  TR::Block *
+  newBlock()
+     {
+     return TR::Block::createEmptyBlock(comp());
+     }
+  void
+  generateToBlock(int32_t b)
+     {
+     _currentBlockNumber = b;
+     _currentBlock = _blocks[b];
+     }
+
+
+  void
+  createBlocks(int32_t num)
+     {
+     allocateBlocks(num);
+     for (int32_t b = 0;b < num;b ++)
+        {
+        _blocks[b] = newBlock();
+        cfg()->addNode(_blocks[b]);
+        }
+     cfg()->addEdge(cfg()->getStart(), block(0));
+     for (int32_t b = 0; b < num-1;b++)
+        _blocks[b]->getExit()->join(_blocks[b+1]->getEntry());
+  
+     _methodSymbol->setFirstTreeTop(_blocks[0]->getEntry());
+  
+     generateToBlock(0);
+     }
+
+
+     TR::Block                    * _currentBlock;
+     int32_t                        _currentBlockNumber;
+     int32_t                        _numBlocks;
+
+     TR::Block                   ** _blocks;
 
   FunctionBuilder *function_builder_;
 };
