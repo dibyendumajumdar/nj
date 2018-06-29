@@ -56,7 +56,7 @@ IlGeneratorMethodDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
    TR_ASSERT(forceClassLookahead == false, "IlGenerator does not support class lookahead");
    TR_ASSERT(blocksToInline == 0, "IlGenerator does not yet support partial inlining");
    TR::ResolvedMethod *method = static_cast<TR::ResolvedMethod *>(methodSymbol->getResolvedMethod());
-   return (TR_IlGenerator *) nullptr; // TODOmethod->getInjector(self(), methodSymbol, static_cast<TR::FrontEnd *>(fe), symRefTab);
+   return (TR_IlGenerator *)method->getInjector(self(), methodSymbol, static_cast<TR::FrontEnd *>(fe), symRefTab);
    }
 
 

@@ -332,6 +332,7 @@ function(create_omr_compiler_library)
 	# client project (if any):
 	foreach(object ${COMPILER_FILTER})
 		get_filename_component(abs_filename ${object} ABSOLUTE)
+		message("Removing ${abs_filename}")
 		list(REMOVE_ITEM core_compiler_objects ${abs_filename})
 	endforeach()
 
