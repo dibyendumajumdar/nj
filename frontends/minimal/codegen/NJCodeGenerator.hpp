@@ -47,4 +47,4 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGeneratorConnector
    };
 
 }
-#endif // !defined(TEST_CODEGENERATORBASE_INCL)
+#endif // !defined(NJ_CODEGENERATORBASE_INCL)

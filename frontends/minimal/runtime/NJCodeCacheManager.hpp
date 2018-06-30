@@ -51,7 +51,11 @@ public:
 
    void *operator new(size_t s, TR::CodeCacheManager *m) { return m; }
 
-   static TR::CodeCacheManager *instance()  { return _codeCacheManager; }
+   static TR::CodeCacheManager *instance()
+      {
+      TR_ASSERT_FATAL(_codeCacheManager, "CodeCacheManager not yet instantiated");
+      return _codeCacheManager;
+      }
 
    TR::CodeCacheMemorySegment *allocateCodeCacheSegment(size_t segmentSize,
                                                         size_t &codeCacheSizeToAllocate,

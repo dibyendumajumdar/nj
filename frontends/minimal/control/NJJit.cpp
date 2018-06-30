@@ -100,8 +100,8 @@ initializeCodeCache(TR::CodeCacheManager & codeCacheManager)
    codeCacheConfig._largeCodePageFlags = 0;
    codeCacheConfig._maxNumberOfCodeCaches = 96;
    codeCacheConfig._canChangeNumCodeCaches = true;
-   codeCacheConfig._emitExecutableELF = TR::Options::getCmdLineOptions()->getOption(TR_PerfTool)
-	   || TR::Options::getCmdLineOptions()->getOption(TR_EmitExecutableELFFile);
+   codeCacheConfig._emitExecutableELF = TR::Options::getCmdLineOptions()->getOption(TR_PerfTool) 
+                                    ||  TR::Options::getCmdLineOptions()->getOption(TR_EmitExecutableELFFile);
    codeCacheConfig._emitRelocatableELF = TR::Options::getCmdLineOptions()->getOption(TR_EmitRelocatableELFFile);
 
    TR::CodeCache *firstCodeCache = codeCacheManager.initialize(true, 1);
@@ -125,10 +125,11 @@ initializeCodeCache(TR::CodeCacheManager & codeCacheManager)
 
 
 
-// An individual test program is intended to load the JIT as a shared library, then call:
+// An application is intended to load the JIT as a shared library, then call:
 //     initializeNJJit() providing addresses of required helpers (all others will be NULL)
 //     compileMethod() as many times as needed to create compiled code
-//         resolved method passed in must have an IlGenerator responsible for injecting the IL for the compilation
+//         resolved method passed in must have an IlGenerator responsible for 
+//         injecting the IL for the compilation
 //     shuwdownNJJit() when the test is complete
 //
 
@@ -191,7 +192,7 @@ extern "C"
 bool
 initializeJit()
    {
-   return initializeNJJit(0, 0, 0, (char *)"-Xjit:useILValidator");
+   return initializeNJJit(0, 0, 0, (char *)(char *)"-Xjit:acceptHugeMethods,enableBasicBlockHoisting,omitFramePointer,useILValidator");
    }
 
 extern "C"

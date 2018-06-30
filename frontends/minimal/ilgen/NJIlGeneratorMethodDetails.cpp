@@ -33,6 +33,7 @@ namespace NJCompiler
 {
 
 IlGeneratorMethodDetails::IlGeneratorMethodDetails(TR_ResolvedMethod *method) :
+   OMR::IlGeneratorMethodDetailsConnector(),
    _method(static_cast<TR::ResolvedMethod *>(method))
    {
    }

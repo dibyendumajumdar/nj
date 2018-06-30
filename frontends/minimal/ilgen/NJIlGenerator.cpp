@@ -184,18 +184,18 @@ OMR::IlGenerator::loadTemp(TR::SymbolReference *tempSymRef)
  * This function should be removed and tests depending on this should be using
  * OMR::Node::createWithoutSymRef() instead once it is available publicly.
  * */
-TR::Node *
-OMR::IlGenerator::createWithoutSymRef(TR::ILOpCodes opCode, uint16_t numArgs, ...)
-   {
-   TR_ASSERT(numArgs > 0, "Must be called with at least one child, but numChildArgs = %d", numArgs);
-   va_list args;
-   va_start(args, numArgs);
-   TR::Node * result = TR::Node::create(opCode, numArgs);
-   for (int i = 0; i < numArgs; ++i)
-      {
-      TR::Node * child = va_arg(args, TR::Node *);
-      TR_ASSERT(child != NULL, "Child %d must be non NULL", i);
-      result->setAndIncChild(i,child);
-      }
-   return result;
-   }
+// TR::Node *
+// OMR::IlGenerator::createWithoutSymRef(TR::ILOpCodes opCode, uint16_t numArgs, ...)
+//    {
+//    TR_ASSERT(numArgs > 0, "Must be called with at least one child, but numChildArgs = %d", numArgs);
+//    va_list args;
+//    va_start(args, numArgs);
+//    TR::Node * result = TR::Node::create(opCode, numArgs);
+//    for (int i = 0; i < numArgs; ++i)
+//       {
+//       TR::Node * child = va_arg(args, TR::Node *);
+//       TR_ASSERT(child != NULL, "Child %d must be non NULL", i);
+//       result->setAndIncChild(i,child);
+//       }
+//    return result;
+//    }

@@ -27,6 +27,14 @@
 #include "ilgen/NJIlGenerator.hpp"
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 
+/*
+ * Much of the code here is based on JitBuilder implementation
+ * of the ResolvedMethod class. The main changes are to avoid 
+ * depending on some of the JitBuilder classes such as MethodBuilder,
+ * TypeDictionary, ILBuilder, ILInjector, ByteCodeBuilder, etc.
+ */
+
+
 namespace NJCompiler
 {
 
@@ -55,52 +63,55 @@ ResolvedMethod::ResolvedMethod(TR_OpaqueMethodBlock *method)
 	_ilInjector = reinterpret_cast<TR::IlGenerator *>(method);
 
 	TR::ResolvedMethod * resolvedMethod = (TR::ResolvedMethod *)_ilInjector->methodSymbol()->getResolvedMethod();
-	//_fileName = resolvedMethod->classNameChars();
-	snprintf(_name, sizeof _name, "%s", resolvedMethod->nameChars());
+	_fileName = resolvedMethod->classNameChars();
+	_name = resolvedMethod->nameChars();
 	_numParms = resolvedMethod->getNumArgs();
 	_parmTypes = resolvedMethod->_parmTypes;
-	//_lineNumber = resolvedMethod->getLineNumber();
+	_lineNumber = resolvedMethod->getLineNumber();
 	_returnType = resolvedMethod->returnType();
-	snprintf(_signature, sizeof _signature, "%s", resolvedMethod->getSignature());
-	_externalName[0] = 0;
+	_signature = resolvedMethod->getSignature();
+	_externalName = nullptr;
 	_entryPoint = resolvedMethod->getEntryPoint();
 	strncpy(_signatureChars, resolvedMethod->signatureChars(), 62); // TODO: introduce concept of robustness
    }
 
-ResolvedMethod::ResolvedMethod(const char *fileName, const char *lineNumber, const char *name,
-	int32_t numParms, TR::DataType *parmTypes,
-	TR::DataType returnType, void *entryPoint,
-	TR::IlGenerator *ilInjector) {
-	//_fileName = fileName;
-	snprintf(_name, sizeof _name, "%s", name);
-	_numParms = numParms;
-	for (int i = 0; i < numParms; i++)
-		_parmTypes.push_back(parmTypes[i]);
-	//_lineNumber = lineNumber;
-	_returnType = returnType;
-	_signature[0] = 0;
-	_externalName[0] = 0;
-	_entryPoint = entryPoint;
-	_ilInjector = ilInjector;
-	computeSignatureChars(); // TODO: introduce concept of robustness
-}
 
 
 const char *
 ResolvedMethod::signature(TR_Memory * trMemory, TR_AllocationKind allocKind)
    {
-	if (!_signature[0])
-	{
-		snprintf(_signature, sizeof _signature, "%s:%s:%s", ""/*_fileName*/, ""/*_lineNumber*/, _name);
-	}
-	return _signature;
+   if( !_signature )
+      {
+      char * s = (char *)trMemory->allocateMemory(strlen(_fileName) + 1 + strlen(_lineNumber) + 1 + strlen(_name) + 1, allocKind);
+      sprintf(s, "%s:%s:%s", _fileName, _lineNumber, _name);
+
+      if ( allocKind == heapAlloc)
+        _signature = s;
+
+      return s;
+      }
+   else
+      return _signature;
+   }
+
+const char *
+ResolvedMethod::externalName(TR_Memory *trMemory, TR_AllocationKind allocKind)
+{
+   if( !_externalName)
+      {
+
+      // functions must be defined as extern "C"
+      _externalName = _name;
+
+      }
+   return _externalName;
 }
 
 TR::DataType
 ResolvedMethod::parmType(uint32_t slot)
    {
    TR_ASSERT((slot < _numParms), "Invalid slot provided for Parameter Type");
-   return TR::DataTypes::NoType;
+   return _parmTypes[slot];
    }
 
 void
@@ -181,15 +192,10 @@ TR::IlGenerator *ResolvedMethod::getInjector(
 	TR::IlGeneratorMethodDetails * details,
 	TR::ResolvedMethodSymbol *methodSymbol,
 	TR::FrontEnd *fe,
-	TR::SymbolReferenceTable *symRefTab) {
+	TR::SymbolReferenceTable *symRefTab) 
+	{
 	_ilInjector->initialize(details, methodSymbol, fe, symRefTab);
 	return _ilInjector;
-}
+    }
 
-const char *
-ResolvedMethod::externalName(TR_Memory *trMemory, TR_AllocationKind allocKind)
-{
-	return _name;
-}
-
-} // namespace TestCompiler
+} // namespace NJCompiler

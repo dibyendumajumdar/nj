@@ -99,7 +99,7 @@ public:
 
    TR::TreeTop                  * genTreeTop(TR::Node *n);
    
-   TR::Node                     * createWithoutSymRef(TR::ILOpCodes opCode, uint16_t numArgs, ...);
+   //TR::Node                     * createWithoutSymRef(TR::ILOpCodes opCode, uint16_t numArgs, ...);
 
 private:
 
