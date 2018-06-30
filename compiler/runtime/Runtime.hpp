@@ -307,7 +307,8 @@ typedef enum
    TR_NativeMethodAbsolute                = 56,
    TR_NativeMethodRelative                = 57,
    TR_ArbitraryClassAddress               = 58,
-   TR_NumExternalRelocationKinds          = 59,
+   TR_DebugCounter                        = 59,
+   TR_NumExternalRelocationKinds          = 60,
    TR_ExternalRelocationTargetKindMask    = 0xff,
    } TR_ExternalRelocationTargetKind;
 

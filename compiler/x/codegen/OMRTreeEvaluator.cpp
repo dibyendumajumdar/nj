@@ -1782,17 +1782,15 @@ static void arrayCopy16BitPrimitive(TR::Node* node, TR::Register* dstReg, TR::Re
       generateRegMemInstruction(L2RegMem, node, sizeReg, generateX86MemoryReference(srcReg, 0, cg), cg);
       generateMemRegInstruction(S2MemReg, node, generateX86MemoryReference(dstReg, 0, cg), sizeReg, cg);
 
-      TR_OutlinedInstructions* backwardPath = new (cg->trHeapMemory()) TR_OutlinedInstructions(backwardLabel, cg);
-      cg->getOutlinedInstructionsList().push_front(backwardPath);
-      backwardPath->swapInstructionListsWithCompilation();
-      generateLabelInstruction(LABEL, node, backwardLabel, cg);
+      {
+      TR_OutlinedInstructionsGenerator og(backwardLabel, node, cg);
       generateRegMemInstruction(LEARegMem(), node, srcReg, generateX86MemoryReference(srcReg, sizeReg, 0, -2, cg), cg);
       generateRegMemInstruction(LEARegMem(), node, dstReg, generateX86MemoryReference(dstReg, sizeReg, 0, -2, cg), cg);
       generateInstruction(STD, node, cg);
       generateRepMovsInstruction(REPMOVSW, node, sizeReg, NULL, cg);
       generateInstruction(CLD, node, cg);
       generateLabelInstruction(JMP4, node, mainEndLabel, cg);
-      backwardPath->swapInstructionListsWithCompilation();
+      }
       }
    generateLabelInstruction(LABEL, node, mainEndLabel, dependencies, cg);
    }
@@ -1864,17 +1862,15 @@ static void arrayCopyDefault(TR::Node* node, uint8_t elementSize, TR::Register* 
       generateLabelInstruction(JB4, node, backwardLabel, cg);   // jb, skip backward copy setup
       generateRepMovsInstruction(repmovs, node, sizeReg, NULL, cg);
 
-      TR_OutlinedInstructions* backwardPath = new (cg->trHeapMemory()) TR_OutlinedInstructions(backwardLabel, cg);
-      cg->getOutlinedInstructionsList().push_front(backwardPath);
-      backwardPath->swapInstructionListsWithCompilation();
-      generateLabelInstruction(LABEL, node, backwardLabel, cg);
+      {
+      TR_OutlinedInstructionsGenerator og(backwardLabel, node, cg);
       generateRegMemInstruction(LEARegMem(), node, srcReg, generateX86MemoryReference(srcReg, sizeReg, 0, -(intptr_t)elementSize, cg), cg);
       generateRegMemInstruction(LEARegMem(), node, dstReg, generateX86MemoryReference(dstReg, sizeReg, 0, -(intptr_t)elementSize, cg), cg);
       generateInstruction(STD, node, cg);
       generateRepMovsInstruction(repmovs, node, sizeReg, NULL, cg);
       generateInstruction(CLD, node, cg);
       generateLabelInstruction(JMP4, node, mainEndLabel, cg);
-      backwardPath->swapInstructionListsWithCompilation();
+      }
 
       generateLabelInstruction(LABEL, node, mainEndLabel, dependencies, cg);
       }
@@ -4087,8 +4083,8 @@ static const TR_X86OpCodes BinaryArithmeticOpCodes[TR::NumOMRTypes][NumBinaryAri
    { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // Int16
    { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // Int32
    { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // Int64
-   { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // Float
-   { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // Double
+   { BADIA32Op, ADDSSRegReg, SUBSSRegReg, MULSSRegReg,  DIVSSRegReg, BADIA32Op,  BADIA32Op, BADIA32Op  }, // Float
+   { BADIA32Op, ADDSDRegReg, SUBSDRegReg, MULSDRegReg,  DIVSDRegReg, BADIA32Op,  BADIA32Op, BADIA32Op  }, // Double
    { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // Address
    { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // VectorInt8
    { BADIA32Op, BADIA32Op,   BADIA32Op,   BADIA32Op,    BADIA32Op,   BADIA32Op,  BADIA32Op, BADIA32Op  }, // VectorInt16
@@ -4106,15 +4102,23 @@ TR::Register* OMR::X86::TreeEvaluator::FloatingPointAndVectorBinaryArithmeticEva
 
    switch (node->getOpCodeValue())
       {
+      case TR::fadd:
+      case TR::dadd:
       case TR::vadd:
          arithmetic = BinaryArithmeticAdd;
          break;
+      case TR::fsub:
+      case TR::dsub:
       case TR::vsub:
          arithmetic = BinaryArithmeticSub;
          break;
+      case TR::fmul:
+      case TR::dmul:
       case TR::vmul:
          arithmetic = BinaryArithmeticMul;
          break;
+      case TR::fdiv:
+      case TR::ddiv:
       case TR::vdiv:
          arithmetic = BinaryArithmeticDiv;
          break;
@@ -4137,12 +4141,18 @@ TR::Register* OMR::X86::TreeEvaluator::FloatingPointAndVectorBinaryArithmeticEva
    TR::Register* operandReg1 = cg->evaluate(operandNode1);
 
    TR::Register* resultReg = cg->allocateRegister(operandReg0->getKind());
-   generateRegRegInstruction(MOVDQURegReg, node, resultReg, operandReg0, cg);
-
    TR_X86OpCodes opCode = BinaryArithmeticOpCodes[node->getDataType()][arithmetic];
    TR_ASSERT(opCode != BADIA32Op, "FloatingPointAndVectorBinaryArithmeticEvaluator: unsupported data type or arithmetic.");
-   generateRegRegInstruction(opCode, node, resultReg, operandReg1, cg);
 
+   if (TR::CodeGenerator::getX86ProcessorInfo().supportsAVX())
+      {
+      generateRegRegRegInstruction(opCode, node, resultReg, operandReg0, operandReg1, cg);
+      }
+   else
+      {
+      generateRegRegInstruction(MOVDQURegReg, node, resultReg, operandReg0, cg);
+      generateRegRegInstruction(opCode, node, resultReg, operandReg1, cg);
+      }
    node->setRegister(resultReg);
    cg->decReferenceCount(operandNode0);
    cg->decReferenceCount(operandNode1);

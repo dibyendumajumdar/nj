@@ -727,7 +727,7 @@ OMR::Z::Machine::getGPRSize()
 //  Constructor
 
 OMR::Z::Machine::Machine(TR::CodeGenerator * cg)
-   : OMR::Machine(cg, NUM_S390_GPR, NUM_S390_FPR, NUM_S390_VRF), _lastGlobalGPRRegisterNumber(-1), _last8BitGlobalGPRRegisterNumber(-1),
+   : OMR::Machine(cg), _lastGlobalGPRRegisterNumber(-1), _last8BitGlobalGPRRegisterNumber(-1),
    _lastGlobalFPRRegisterNumber(-1), _lastGlobalCCRRegisterNumber(-1), _lastVolatileNonLinkGPR(-1), _lastLinkageGPR(-1),
      _lastVolatileNonLinkFPR(-1), _lastLinkageFPR(-1), _firstGlobalAccessRegisterNumber(-1), _lastGlobalAccessRegisterNumber(-1), _globalEnvironmentRegisterNumber(-1), _globalCAARegisterNumber(-1), _globalParentDSARegisterNumber(-1),
     _globalReturnAddressRegisterNumber(-1),_globalEntryPointRegisterNumber(-1)
@@ -5327,40 +5327,70 @@ OMR::Z::Machine::coerceRegisterAssignment(TR::Instruction                       
          }
       else
          {
-         self()->cg()->traceRegAssigned(currentTargetVirtual, spareReg);
+         // if spareReg is still NULL, then it means we did not find any free Reg, and no
+         // other register is available to spill. So we must spill the target register.
 
-         // virtual register is not assigned yet, copy register
-         cursor = self()->registerCopy(currentInstruction, currentTargetVirtualRK, targetRegister, spareReg, self()->cg(), instFlags);
-
-         spareReg->setState(TR::RealRegister::Assigned);
-         spareReg->setAssignedRegister(currentTargetVirtual);
-         currentTargetVirtual->setAssignedRegister(spareReg);
-
-         if (enableHighWordRA && currentTargetVirtual->is64BitReg())
+         // In general if a register is blocked, the virtual register
+         // associated with a target register would have been assigned as part of that instruction.
+         // So we would not do this (i.e. spill the blocked register). However, in this case all
+         // pre-assigned registers in the dependency are blocked before individiual dependencies are coerced
+         // into their respective target registers (inside TR_S390RegisterDependencyGroup::assignRegisters((..)).
+         // In this situation it's possible that the target register of a register dependency is currently
+         // blocked (as in here) and occupied by another virtual register and that there is no other available
+         // register to free.
+         // Hence, we must spill the blocked target reg as it is the only available candidate.
+         if (spareReg == NULL)
             {
-            //TR_ASSERT(targetRegisterHW->getState() == TR::RealRegister::Blocked,
-            //        "currentTargetVirtual is blocked and is fullsize, but the HW is not blocked?");
+            self()->cg()->setRegisterAssignmentFlag(TR_RegisterSpilled);
+            virtualRegister->block();
 
-            spareReg->getHighWordRegister()->setState(TR::RealRegister::Assigned);
-            spareReg->getHighWordRegister()->setAssignedRegister(currentTargetVirtual);
-            targetRegister->getLowWordRegister()->setState(TR::RealRegister::Unlatched);
-            targetRegister->getLowWordRegister()->setAssignedRegister(NULL);
-            targetRegisterHW->setState(TR::RealRegister::Unlatched);
-            targetRegisterHW->setAssignedRegister(NULL);
-            }
-         if (virtualRegister->getTotalUseCount() != virtualRegister->getFutureUseCount())
-            {
-            self()->cg()->setRegisterAssignmentFlag(TR_RegisterReloaded);
-            self()->reverseSpillState(currentInstruction, virtualRegister, targetRegister);
+            self()->spillRegister(currentInstruction, currentTargetVirtual);
+            targetRegister->setAssignedRegister(virtualRegister);
+            virtualRegister->setAssignedRegister(targetRegister);
+            targetRegister->setState(TR::RealRegister::Assigned);
+
+            if (targetRegister->isHighWordRegister() && currentTargetVirtual->is64BitReg() &&
+                targetRegister->getRegisterNumber() == spareReg->getHighWordRegister()->getRegisterNumber())
+               doNotRegCopy = true;
+            virtualRegister->unblock();
             }
          else
             {
-            if (!comp->getOption(TR_DisableOOL) && self()->cg()->isOutOfLineColdPath())
+            self()->cg()->traceRegAssigned(currentTargetVirtual, spareReg);
+
+            // virtual register is not assigned yet, copy register
+            cursor = self()->registerCopy(currentInstruction, currentTargetVirtualRK, targetRegister, spareReg, self()->cg(), instFlags);
+
+            spareReg->setState(TR::RealRegister::Assigned);
+            spareReg->setAssignedRegister(currentTargetVirtual);
+            currentTargetVirtual->setAssignedRegister(spareReg);
+
+            if (enableHighWordRA && currentTargetVirtual->is64BitReg())
                {
-               self()->cg()->getFirstTimeLiveOOLRegisterList()->push_front(virtualRegister);
+               //TR_ASSERT(targetRegisterHW->getState() == TR::RealRegister::Blocked,
+               //        "currentTargetVirtual is blocked and is fullsize, but the HW is not blocked?");
+
+               spareReg->getHighWordRegister()->setState(TR::RealRegister::Assigned);
+               spareReg->getHighWordRegister()->setAssignedRegister(currentTargetVirtual);
+               targetRegister->getLowWordRegister()->setState(TR::RealRegister::Unlatched);
+               targetRegister->getLowWordRegister()->setAssignedRegister(NULL);
+               targetRegisterHW->setState(TR::RealRegister::Unlatched);
+               targetRegisterHW->setAssignedRegister(NULL);
                }
+            if (virtualRegister->getTotalUseCount() != virtualRegister->getFutureUseCount())
+               {
+               self()->cg()->setRegisterAssignmentFlag(TR_RegisterReloaded);
+               self()->reverseSpillState(currentInstruction, virtualRegister, targetRegister);
+               }
+            else
+               {
+               if (!comp->getOption(TR_DisableOOL) && self()->cg()->isOutOfLineColdPath())
+                  {
+                  self()->cg()->getFirstTimeLiveOOLRegisterList()->push_front(virtualRegister);
+                  }
+               }
+            // spareReg is assigned.
             }
-         // spareReg is assigned.
          }
       }
       // the target reg is assigned
@@ -5945,42 +5975,6 @@ OMR::Z::Machine::coerceRegisterAssignment(TR::Instruction                       
    self()->cg()->clearRegisterAssignmentFlags();
    return cursor;
    }
-
-uint64_t OMR::Z::Machine::filterColouredRegisterConflicts(TR::Register *targetRegister, TR::Register *siblingRegister,
-                                                             TR::Instruction *currInst)
-  {
-  uint64_t mask=0xffffffff;
-  TR::Compilation *comp = self()->cg()->comp();
-  TR::list<TR::Register *> conflictRegs(getTypedAllocator<TR::Register*>(comp->allocator()));
-
-  if(currInst->defsAnyRegister(targetRegister))
-    {
-    currInst->getDefinedRegisters(conflictRegs);
-    for(auto reg = conflictRegs.begin(); reg != conflictRegs.end(); ++reg)
-      {
-      TR::Register *cr=(*reg)->getRealRegister() ? NULL : (*reg)->getAssignedRegister();
-      if (cr && targetRegister != (*reg) && (*reg)->getAssignedRegister() != targetRegister &&
-         (siblingRegister == NULL || (*reg) != siblingRegister))
-         {
-         mask &= ~toRealRegister(cr)->getRealRegisterMask();
-         }
-      }
-    }
-
-  currInst->getUsedRegisters(conflictRegs);
-  for(auto reg = conflictRegs.begin(); reg != conflictRegs.end(); ++reg)
-    {
-    TR::Register *cr=(*reg)->getRealRegister() ? NULL : (*reg)->getAssignedRegister();
-    if (cr && targetRegister != (*reg) && (*reg)->getAssignedRegister() != targetRegister &&
-       (siblingRegister == NULL || (*reg) != siblingRegister))
-       {
-       mask &= ~toRealRegister(cr)->getRealRegisterMask();
-       }
-    }
-
-  return mask;
-
-  }
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6729,7 +6723,6 @@ OMR::Z::Machine::initializeGlobalRegisterTable()
              }
           }
 
-      self()->setLastRealRegisterGlobalRegisterNumber(p-1);
       self()->setLastGlobalCCRRegisterNumber(p-1);
 
       return _globalRegisterNumberToRealRegisterMap;
@@ -6864,8 +6857,6 @@ OMR::Z::Machine::initializeGlobalRegisterTable()
    _globalRegisterNumberToRealRegisterMap[41] = TR::RealRegister::FPR0;  // volatile and 1st param float
    self()->setLastLinkageFPR(41);
 #endif
-
-   self()->setLastRealRegisterGlobalRegisterNumber(41);
 
    self()->setLastGlobalFPRRegisterNumber(41);        // Index of last global FPR
    self()->setLastGlobalCCRRegisterNumber(41);        // Index of last global CCR
@@ -7048,49 +7039,42 @@ OMR::Z::Machine::releaseLiteralPoolRegister()
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setFirstGlobalAccessRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setFirstGlobalRegisterNumber(TR_AR,reg);
    return _firstGlobalAccessRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setLastGlobalAccessRegisterNumber(TR_GlobalRegisterNumber reg)
     {
-    self()->setLastGlobalRegisterNumber(TR_AR,reg);
     return _lastGlobalAccessRegisterNumber = reg;
     }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setLastGlobalGPRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setLastGlobalRegisterNumber(TR_GPR,reg);
    return _lastGlobalGPRRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setLastGlobalHPRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setLastGlobalRegisterNumber(TR_HPR,reg);
    return _lastGlobalHPRRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setFirstGlobalGPRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setFirstGlobalRegisterNumber(TR_GPR,reg);
    return _firstGlobalGPRRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setFirstGlobalHPRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setFirstGlobalRegisterNumber(TR_HPR,reg);
    return _firstGlobalHPRRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setFirstGlobalFPRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setFirstGlobalRegisterNumber(TR_FPR, reg);
    self()->setFirstOverlappedGlobalFPRRegisterNumber(reg);
    return _firstGlobalFPRRegisterNumber = reg;
    }
@@ -7098,7 +7082,6 @@ OMR::Z::Machine::setFirstGlobalFPRRegisterNumber(TR_GlobalRegisterNumber reg)
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setLastGlobalFPRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setLastGlobalRegisterNumber(TR_FPR,reg);
    self()->setLastOverlappedGlobalFPRRegisterNumber(reg);
    return _lastGlobalFPRRegisterNumber = reg;
    }
@@ -7106,21 +7089,18 @@ OMR::Z::Machine::setLastGlobalFPRRegisterNumber(TR_GlobalRegisterNumber reg)
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setFirstGlobalVRFRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setFirstGlobalRegisterNumber(TR_VRF,reg);
    return _firstGlobalVRFRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setLastGlobalVRFRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setLastGlobalRegisterNumber(TR_VRF,reg);
    return _lastGlobalVRFRegisterNumber = reg;
    }
 
 TR_GlobalRegisterNumber
 OMR::Z::Machine::setLastGlobalCCRRegisterNumber(TR_GlobalRegisterNumber reg)
    {
-   self()->setLastGlobalRegisterNumber(TR_CCR,reg);
    return _lastGlobalCCRRegisterNumber=reg;
    }
 

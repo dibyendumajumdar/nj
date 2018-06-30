@@ -33,8 +33,6 @@ set(JITBUILDER_OBJECTS
 	optimizer/JBOptimizer.cpp
 	optimizer/Optimizer.hpp
 	runtime/JBCodeCacheManager.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/VirtualMachineOperandArray.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/VirtualMachineOperandStack.cpp
 	c-api/nj_api.cpp
 )
 

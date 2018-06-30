@@ -15,23 +15,16 @@ set(API_FILES
 # don't need - for now this consists of some of the 
 # JitBuilder code 
 set(FILTER_FILES
-	${omr_SOURCE_DIR}/compiler/ilgen/IlBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlBuilder.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/IlType.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlType.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/IlValue.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlValue.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/IlInjector.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/MethodBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRMethodBuilder.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/BytecodeBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRBytecodeBuilder.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/TypeDictionary.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRTypeDictionary.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/ThunkBuilder.cpp		
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRThunkBuilder.cpp		
-	${omr_SOURCE_DIR}/compiler/ilgen/VirtualMachineOperandArray.cpp		
-	${omr_SOURCE_DIR}/compiler/ilgen/VirtualMachineOperandStack.cpp		
+	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineOperandArray.cpp		
+	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineOperandStack.cpp		
 )
 
 if (NOT OMR_TOOLCONFIG MATCHES "msvc")

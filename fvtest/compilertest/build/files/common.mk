@@ -206,7 +206,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     $(JIT_OMR_DIRTY_DIR)/codegen/OMRRealRegister.cpp \
     $(JIT_OMR_DIRTY_DIR)/codegen/OMRRegisterPair.cpp \
     $(JIT_OMR_DIRTY_DIR)/codegen/OMRInstruction.cpp \
-    $(JIT_OMR_DIRTY_DIR)/codegen/ELFObjectFileGenerator.cpp \
+    $(JIT_OMR_DIRTY_DIR)/codegen/ELFGenerator.cpp \
     $(JIT_OMR_DIRTY_DIR)/codegen/OMRELFRelocationResolver.cpp \
 
 
@@ -251,12 +251,13 @@ JIT_PRODUCT_SOURCE_FILES+=\
     $(JIT_OMR_DIRTY_DIR)/env/Globals.cpp \
     $(JIT_OMR_DIRTY_DIR)/env/OMRCompilerEnv.cpp \
     $(JIT_OMR_DIRTY_DIR)/env/PersistentAllocator.cpp \
-    $(JIT_OMR_DIRTY_DIR)/ilgen/IlBuilder.cpp \
-    $(JIT_OMR_DIRTY_DIR)/ilgen/IlValue.cpp \
+    $(JIT_OMR_DIRTY_DIR)/ilgen/OMRIlBuilder.cpp \
+    $(JIT_OMR_DIRTY_DIR)/ilgen/OMRIlValue.cpp \
     $(JIT_OMR_DIRTY_DIR)/ilgen/IlInjector.cpp \
-    $(JIT_OMR_DIRTY_DIR)/ilgen/MethodBuilder.cpp \
-    $(JIT_OMR_DIRTY_DIR)/ilgen/BytecodeBuilder.cpp \
-    $(JIT_OMR_DIRTY_DIR)/ilgen/TypeDictionary.cpp \
+    $(JIT_OMR_DIRTY_DIR)/ilgen/OMRMethodBuilder.cpp \
+    $(JIT_OMR_DIRTY_DIR)/ilgen/OMRBytecodeBuilder.cpp \
+    $(JIT_OMR_DIRTY_DIR)/ilgen/OMRIlType.cpp \
+    $(JIT_OMR_DIRTY_DIR)/ilgen/OMRTypeDictionary.cpp \
     $(JIT_OMR_DIRTY_DIR)/runtime/Alignment.cpp \
     $(JIT_OMR_DIRTY_DIR)/runtime/CodeCacheTypes.cpp \
     $(JIT_OMR_DIRTY_DIR)/runtime/OMRCodeCache.cpp \
@@ -268,8 +269,7 @@ JIT_PRODUCT_SOURCE_FILES+=\
     $(JIT_PRODUCT_DIR)/env/FrontEnd.cpp \
     $(JIT_PRODUCT_DIR)/ilgen/IlInjector.cpp \
     $(JIT_PRODUCT_DIR)/ilgen/TestIlGeneratorMethodDetails.cpp \
-    $(JIT_PRODUCT_DIR)/runtime/TestCodeCacheManager.cpp \
-    $(JIT_PRODUCT_DIR)/runtime/TestJitConfig.cpp
+    $(JIT_PRODUCT_DIR)/runtime/TestCodeCacheManager.cpp
 
 include $(JIT_MAKE_DIR)/files/host/$(HOST_ARCH).mk
 include $(JIT_MAKE_DIR)/files/target/$(TARGET_ARCH).mk

@@ -215,7 +215,10 @@ uint8_t* OMR::X86::Instruction::generateBinaryEncoding()
       // cursor is NULL when generateOperand() requests to regenerate the binary code, which may happen during encoding of memref with unresolved symbols on 64-bit
       if (cursor)
          {
-         self()->getOpCode().finalize(instructionStart);
+         if (!self()->getSource2ndRegister())
+            {
+            self()->getOpCode().finalize(instructionStart);
+            }
          self()->setBinaryLength(cursor - instructionStart);
          self()->cg()->addAccumulatedInstructionLengthError(self()->getEstimatedBinaryLength() - self()->getBinaryLength());
          return cursor;
@@ -1135,6 +1138,18 @@ TR::X86ImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
                cg()->addAOTRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
                                    (uint8_t *) (staticSym->getStaticAddress()), TR_AbsoluteMethodAddress, cg()),
                                       __FILE__, __LINE__, getNode());
+            else if (sym->isDebugCounter())
+               {
+               TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(getSymbolReference());
+               if (counter == NULL)
+                  {
+                  comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86ImmSymInstruction::addMetaDataForCodeAddress\n");
+                  }
+               TR::DebugCounter::generateRelocation(comp,
+                                                    cursor,
+                                                    getNode(),
+                                                    counter);
+               }
             else
                cg()->addAOTRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
                                    (uint8_t *)getSymbolReference(), getNode() ? (uint8_t *)(uintptr_t)getNode()->getInlinedSiteIndex() : (uint8_t *)-1, TR_DataAddress, cg()),
@@ -1396,6 +1411,26 @@ uint8_t* TR::X86RegRegInstruction::generateOperand(uint8_t* cursor)
 
 
 // -----------------------------------------------------------------------------
+// TR::X86RegRegRegInstruction:: member functions
+
+uint8_t* TR::X86RegRegRegInstruction::generateOperand(uint8_t* cursor)
+   {
+   TR_ASSERT(getOpCode().info().supportsAVX(), "TR::X86RegRegRegInstruction must be an AVX instruction.");
+   uint8_t *modRM = cursor - 1;
+   if (getOpCode().hasTargetRegisterIgnored() == 0)
+      {
+      applyTargetRegisterToModRMByte(modRM);
+      }
+   if (getOpCode().hasSourceRegisterIgnored() == 0)
+      {
+      applySourceRegisterToModRMByte(modRM);
+      }
+   applySource2ndRegisterToVEX(modRM - 2);
+   return cursor;
+   }
+
+
+// -----------------------------------------------------------------------------
 // TR::X86RegImmInstruction:: member functions
 
 void
@@ -1637,6 +1672,19 @@ TR::X86RegImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
                                                            (TR_ExternalRelocationTargetKind)getReloKind(),
                                                            cg()),
                                 __FILE__, __LINE__, getNode());
+         break;
+      case TR_DebugCounter:
+         {
+         TR::DebugCounterBase *counter = cg()->comp()->getCounterFromStaticAddress(getSymbolReference());
+         if (counter == NULL)
+            {
+            cg()->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86RegImmSymInstruction::addMetaDataForCodeAddress\n");
+            }
+         TR::DebugCounter::generateRelocation(cg()->comp(),
+                                              cursor,
+                                              getNode(),
+                                              counter);
+         }
          break;
 
       default:
@@ -2016,6 +2064,18 @@ TR::X86MemImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
       {
       cg()->addAOTRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)getSymbolReference(), getNode() ? (uint8_t *)(uintptr_t)getNode()->getInlinedSiteIndex() : (uint8_t *)-1, TR_MethodObject, cg()),
                               __FILE__, __LINE__, getNode());
+      }
+   else if (symbol->isDebugCounter())
+      {
+      TR::DebugCounterBase *counter = comp->getCounterFromStaticAddress(getSymbolReference());
+      if (counter == NULL)
+         {
+         comp->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::X86MemImmSymInstruction::addMetaDataForCodeAddress\n");
+         }
+      TR::DebugCounter::generateRelocation(comp,
+                                           cursor,
+                                           getNode(),
+                                           counter);
       }
    else
       {
@@ -2644,6 +2704,21 @@ TR::AMD64RegImm64SymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
                }
             break;
             }
+
+         case TR_DebugCounter:
+            {
+            TR::DebugCounterBase *counter = cg()->comp()->getCounterFromStaticAddress(getSymbolReference());
+            if (counter == NULL)
+               {
+               cg()->comp()->failCompilation<TR::CompilationException>("Could not generate relocation for debug counter in TR::AMD64RegImm64SymInstruction::addMetaDataForCodeAddress\n");
+               }
+            TR::DebugCounter::generateRelocation(cg()->comp(),
+                                                 cursor,
+                                                 getNode(),
+                                                 counter);
+            }
+            break;
+
          default:
             ;
          }

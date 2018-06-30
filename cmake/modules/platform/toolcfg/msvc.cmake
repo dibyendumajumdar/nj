@@ -33,7 +33,7 @@ list(APPEND OMR_PLATFORM_COMPILE_OPTIONS
 	# Disable signed/unsigned int conversion warnings.
 	/wd4018
 	# Disable warning about using struct/class for the same symobl.
-    /wd4099
+	/wd4099
 	# Disable performance warning about int-to-bool conversion.
 	/wd4800
 	# Disable signed/unsigned int conversion warnings.
