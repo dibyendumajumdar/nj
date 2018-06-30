@@ -33,6 +33,8 @@
 #include "compile/OMRMethod.hpp"
 #include "compile/ResolvedMethod.hpp"
 
+#include <vector>
+
 namespace TR {
 class IlGeneratorMethodDetails;
 }
@@ -105,15 +107,16 @@ class ResolvedMethodBase : public TR_ResolvedMethod {
 class ResolvedMethod : public ResolvedMethodBase, public Method {
 public:
   ResolvedMethod(TR_OpaqueMethodBlock *method);
-  ResolvedMethod(const char *fileName, const char *lineNumber, char *name,
-                 int32_t numParms, TR::DataType *parmTypes,
-                 TR::DataType returnType, void *entryPoint,
-                 TR::IlGenerator *ilInjector) {}
+  ResolvedMethod(const char *fileName, const char *lineNumber, const char *name,
+	  int32_t numParms, TR::DataType *parmTypes,
+	  TR::DataType returnType, void *entryPoint,
+	  TR::IlGenerator *ilInjector);
 
   virtual TR_Method *convertToMethod() { return this; }
 
   virtual const char *signature(TR_Memory *, TR_AllocationKind);
-  char *localName(uint32_t slot, uint32_t bcIndex, int32_t &nameLength,
+  virtual const char *externalName(TR_Memory *, TR_AllocationKind);
+  virtual char *localName(uint32_t slot, uint32_t bcIndex, int32_t &nameLength,
                   TR_Memory *trMemory);
 
   virtual char *classNameChars() { return ""; }
@@ -141,24 +144,26 @@ public:
   int32_t                       getNumArgs() { return _numParms; }
   void                          setEntryPoint(void *ep) { _entryPoint = ep; }
   void                        * getEntryPoint() { return _entryPoint; }
+  const char                        * getSignature() { return _signature; }
 
   TR::IlGenerator *getInjector(
 	  TR::IlGeneratorMethodDetails * details,
 	  TR::ResolvedMethodSymbol *methodSymbol,
 	  TR::FrontEnd *fe,
 	  TR::SymbolReferenceTable *symRefTab);
+  void computeSignatureChars();
 
 protected:
-  char *_name;
-  char *_signature;
+  char _name[128];
+  char _externalName[64];
   char _signatureChars[64];
+  char _signature[64];
 
   int32_t          _numParms;
-  TR::DataType     *_parmTypes;
+  std::vector<TR::DataType> _parmTypes;
   TR::DataType     _returnType;
   void           * _entryPoint;
   TR::IlGenerator * _ilInjector;
-
 };
 
 } // namespace NJCompiler

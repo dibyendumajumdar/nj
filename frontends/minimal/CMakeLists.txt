@@ -35,3 +35,10 @@ create_omr_compiler_library(
 
 target_link_libraries(njmin
 )
+
+install(FILES ilgen/nj_api.h
+        DESTINATION include/nj)
+install(TARGETS njmin
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib)
