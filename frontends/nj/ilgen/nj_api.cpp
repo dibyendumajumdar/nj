@@ -99,6 +99,10 @@ struct Context {
 static std::mutex s_jitlock;
 static volatile int s_ctxcount;
 
+/*
+This is a cutdown version of JitBuilder's ILInjector
+class.
+*/
 struct SimpleILInjector : public TR::IlGenerator
 {
   SimpleILInjector(FunctionBuilder *function_builder)
@@ -541,48 +545,6 @@ JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
   return wrap_node(TR::Node::createWithSymRef(TR::loadaddr, 0, symref));
 }
 
-#if 0
-// This is based on code in ILBuilder 
-// Array offset is logical - actual byte offset is computed from element size
-static TR::Node *
-IndexAt(SimpleILInjector *injector, TR::DataType elemType, TR::Node *baseNode, TR::Node *indexNode)
-{
-	TR_ASSERT(baseNode->getDataType() == TR::Address, "IndexAt must be called with a pointer base");
-	TR_ASSERT(elemType != TR::NoType, "Cannot use IndexAt with pointer to NoType.");
-	TR::Node *elemSizeNode;
-	TR::ILOpCodes addOp, mulOp;
-	TR::DataType indexType = indexNode->getDataType();
-	if (TR::Compiler->target.is64Bit())
-	{
-		if (indexType != TR::Int64)
-		{
-			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, TR::Int64);
-			indexNode = TR::Node::create(op, 1, indexNode);
-		}
-		elemSizeNode = TR::Node::lconst(TR::DataType::getSize(elemType));
-		addOp = TR::aladd;
-		mulOp = TR::lmul;
-	}
-	else
-	{
-		TR::DataType targetType = TR::Int32;
-		if (indexType != targetType)
-		{
-			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, targetType);
-			indexNode = TR::Node::create(op, 1, indexNode);
-		}
-		elemSizeNode = TR::Node::iconst(TR::DataType::getSize(elemType));
-		addOp = TR::aiadd;
-		mulOp = TR::imul;
-	}
-
-	TR::Node *offsetNode = TR::Node::create(mulOp, 2, indexNode, elemSizeNode);
-	TR::Node *addrNode = TR::Node::create(addOp, 2, baseNode, offsetNode);
-
-	return addrNode;
-}
-#endif
-
 /**
  * Given base array address and an offset, return address+offset
  */
@@ -622,22 +584,13 @@ JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   auto base = unwrap_node(basenode);
   auto index = unwrap_node(indexnode);
   auto type = TR::DataType((TR::DataTypes)dt);
-  auto aoffset = get_array_element_address(injector, type, base, index);
+  auto array_offset = get_array_element_address(injector, type, base, index);
   auto loadOp = TR::ILOpCode::indirectLoadOpCode(type);
-#if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *load = TR::Node::createWithSymRef(
       loadOp, 1,
-      aoffset, 0, symRef);
-#else
-  TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
-  TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory())
-	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
-  TR::Node *load = TR::Node::createWithSymRef(
-	  loadOp, 1,
-	  aoffset, 0, symRef);
-#endif
+      array_offset, 0, symRef);
   return wrap_node(load);
 }
 
@@ -651,19 +604,12 @@ void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
 
   TR::ILOpCodes storeOp =
 	  injector->comp()->il.opCodeForIndirectArrayStore(type);
-  auto aoffset = get_array_element_address(injector, type, base, index);
-#if 1
+  auto array_offset = get_array_element_address(injector, type, base, index);
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *store = TR::Node::createWithSymRef(
-      storeOp, 2, aoffset, value,
+      storeOp, 2, array_offset, value,
       0, symRef);
-#else
-  TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
-  TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory()) 
-	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
-  auto store = TR::Node::createWithSymRef(storeOp, 2, aoffset, value, 0, symRef);
-#endif
   injector->genTreeTop(store);
 }
 
