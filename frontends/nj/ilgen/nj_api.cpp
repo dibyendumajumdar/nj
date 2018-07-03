@@ -816,4 +816,10 @@ JIT_Type JIT_GetSymbolType(JIT_SymbolRef sym) {
   return (JIT_Type)symbolref->getSymbol()->getDataType().getDataType();
 }
 
+bool JIT_IsTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef sym) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto symbolref = unwrap_symbolref(sym);
+	return symbolref->isTemporary(injector->comp());
+}
+
 } // extern "C"

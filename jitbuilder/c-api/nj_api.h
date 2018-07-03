@@ -1309,10 +1309,16 @@ extern JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector,
 
 
 /**
- * C style switch
+ * C style switch; CFG will be updated to add edge from current block
+ * to each of the case blocks, and the default block.
  */
 extern JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
 	JIT_BlockRef default_branch, int num_cases, JIT_BlockRef *case_branches, int32_t *case_values);
+
+/**
+ * Checks if the symbol is a temporary
+ */
+extern bool JIT_IsTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef sym);
 
 #ifdef __cplusplus
 }
