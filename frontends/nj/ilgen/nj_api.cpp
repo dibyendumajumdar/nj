@@ -541,7 +541,10 @@ void JIT_StoreToTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbol,
 
 JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
                             JIT_SymbolRef symbol) {
+  auto injector = unwrap_ilinjector(ilinjector);
   auto symref = unwrap_symbolref(symbol);
+  if (symref->isTemporary(injector->comp()))
+	  symref->getSymbol()->setAutoAddressTaken();
   return wrap_node(TR::Node::createWithSymRef(TR::loadaddr, 0, symref));
 }
 
@@ -622,9 +625,10 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
     return nullptr;
   }
   auto type = TR::DataType(function_builder->args_[slot]);
-  auto node =
-      TR::Node::createLoad(injector->symRefTab()->findOrCreateAutoSymbol(
-          injector->methodSymbol(), slot, type, true, false, true));
+  auto symbol = injector->symRefTab()->findOrCreateAutoSymbol(
+	  injector->methodSymbol(), slot, type, true, false, true);
+  symbol->getSymbol()->setNotCollected();
+  auto node = TR::Node::createLoad(symbol);
   return wrap_node(node);
 }
 

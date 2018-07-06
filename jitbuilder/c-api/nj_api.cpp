@@ -484,51 +484,12 @@ void JIT_StoreToTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbol,
 
 JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
                             JIT_SymbolRef symbol) {
+  auto injector = unwrap_ilinjector(ilinjector);
   auto symref = unwrap_symbolref(symbol);
+  if (symref->isTemporary(injector->comp()))
+	  symref->getSymbol()->setAutoAddressTaken();
   return wrap_node(TR::Node::createWithSymRef(TR::loadaddr, 0, symref));
 }
-
-#if 0
-// This is based on code in ILBuilder 
-// Array offset is logical - actual byte offset is computed from element size
-static TR::Node *
-IndexAt(SimpleILInjector *injector, TR::DataType elemType, TR::Node *baseNode, TR::Node *indexNode)
-{
-	TR_ASSERT(baseNode->getDataType() == TR::Address, "IndexAt must be called with a pointer base");
-	TR_ASSERT(elemType != TR::NoType, "Cannot use IndexAt with pointer to NoType.");
-	TR::Node *elemSizeNode;
-	TR::ILOpCodes addOp, mulOp;
-	TR::DataType indexType = indexNode->getDataType();
-	if (TR::Compiler->target.is64Bit())
-	{
-		if (indexType != TR::Int64)
-		{
-			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, TR::Int64);
-			indexNode = TR::Node::create(op, 1, indexNode);
-		}
-		elemSizeNode = TR::Node::lconst(TR::DataType::getSize(elemType));
-		addOp = TR::aladd;
-		mulOp = TR::lmul;
-	}
-	else
-	{
-		TR::DataType targetType = TR::Int32;
-		if (indexType != targetType)
-		{
-			TR::ILOpCodes op = TR::DataType::getDataTypeConversion(indexType, targetType);
-			indexNode = TR::Node::create(op, 1, indexNode);
-		}
-		elemSizeNode = TR::Node::iconst(TR::DataType::getSize(elemType));
-		addOp = TR::aiadd;
-		mulOp = TR::imul;
-	}
-
-	TR::Node *offsetNode = TR::Node::create(mulOp, 2, indexNode, elemSizeNode);
-	TR::Node *addrNode = TR::Node::create(addOp, 2, baseNode, offsetNode);
-
-	return addrNode;
-}
-#endif
 
 /**
  * Given base array address and an offset, return address+offset
@@ -623,9 +584,10 @@ JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
     return nullptr;
   }
   auto type = TR::DataType(function_builder->args_[slot]);
-  auto node =
-      TR::Node::createLoad(injector->symRefTab()->findOrCreateAutoSymbol(
-          injector->methodSymbol(), slot, type, true, false, true));
+  auto symbol = injector->symRefTab()->findOrCreateAutoSymbol(
+	  injector->methodSymbol(), slot, type, true, false, true);
+  symbol->getSymbol()->setNotCollected();
+  auto node = TR::Node::createLoad(symbol);
   return wrap_node(node);
 }
 
