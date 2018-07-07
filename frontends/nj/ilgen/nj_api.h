@@ -1324,6 +1324,23 @@ extern JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
  */
 extern bool JIT_IsTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef sym);
 
+/**
+ * Gets the Opcode for this node
+ */
+extern JIT_NodeOpCode JIT_GetOpCode(JIT_NodeRef noderef);
+
+/**
+ * If the opcode for the node has a symbol reference then
+ * gets the symbol reference for the node else returns NULL.
+ */
+extern JIT_SymbolRef JIT_GetSymbolForNode(JIT_NodeRef noderef);
+
+/**
+ * Optimizer hints
+ */
+extern void JIT_SetMayHaveLoops(JIT_ILInjectorRef ilinjector);
+extern void JIT_SetMayHaveNestedLoops(JIT_ILInjectorRef ilinjector);
+
 #ifdef __cplusplus
 }
 #endif

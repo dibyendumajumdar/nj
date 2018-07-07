@@ -942,4 +942,30 @@ bool JIT_IsTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef sym) {
 	return symbolref->isTemporary(injector->comp());
 }
 
+JIT_NodeOpCode JIT_GetOpCode(JIT_NodeRef noderef) {
+	auto node = unwrap_node(noderef);
+	return (JIT_NodeOpCode) node->getOpCodeValue();
+}
+
+JIT_SymbolRef JIT_GetSymbolForNode(JIT_NodeRef noderef) {
+	auto node = unwrap_node(noderef);
+	if (node->getOpCode().hasSymbolReference()) {
+		auto symref = node->getSymbolReference();
+		return wrap_symbolref(symref);
+	}
+	else {
+		return wrap_symbolref(nullptr);
+	}
+}
+
+void JIT_SetMayHaveLoops(JIT_ILInjectorRef ilinjector) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	injector->comp()->getMethodSymbol()->setMayHaveLoops(true);
+}
+
+void JIT_SetMayHaveNestedLoops(JIT_ILInjectorRef ilinjector) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	injector->comp()->getMethodSymbol()->setMayHaveNestedLoops(true);
+}
+
 } // extern "C"
