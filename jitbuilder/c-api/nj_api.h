@@ -1222,6 +1222,8 @@ extern JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
 extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
                                  JIT_NodeRef address, JIT_NodeRef byte_offset,
                                  JIT_Type value_type);
+extern JIT_NodeRef JIT_ArrayLoadAt(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	int64_t idx, JIT_Type dt);
 
 /**
  * Store a value at specific array offset; note offset must be exact byte
@@ -1229,6 +1231,8 @@ extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
  */
 extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
                            JIT_NodeRef byte_offset, JIT_NodeRef valuenode);
+extern void JIT_ArrayStoreAt(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	int64_t idx, JIT_NodeRef valuenode);
 
 /**
  * Load the specified parameter, slots start at 0.

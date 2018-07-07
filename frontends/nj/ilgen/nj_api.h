@@ -1222,6 +1222,8 @@ extern JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
 extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
                                  JIT_NodeRef address, JIT_NodeRef byte_offset,
                                  JIT_Type value_type);
+extern JIT_NodeRef JIT_ArrayLoadAt(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	int64_t idx, JIT_Type dt);
 
 /**
  * Store a value at specific array offset; note offset must be exact byte
@@ -1229,6 +1231,8 @@ extern JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector,
  */
 extern void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef address,
                            JIT_NodeRef byte_offset, JIT_NodeRef valuenode);
+extern void JIT_ArrayStoreAt(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	int64_t idx, JIT_NodeRef valuenode);
 
 /**
  * Load the specified parameter, slots start at 0.
@@ -1309,15 +1313,15 @@ extern JIT_NodeRef JIT_IfZeroValue(JIT_ILInjectorRef ilinjector,
 
 
 /**
-* C style switch; CFG will be updated to add edge from current block
-* to each of the case blocks, and the default block.
-*/
+ * C style switch; CFG will be updated to add edge from current block
+ * to each of the case blocks, and the default block.
+ */
 extern JIT_NodeRef JIT_Switch(JIT_ILInjectorRef ilinjector, JIT_NodeRef expr,
 	JIT_BlockRef default_branch, int num_cases, JIT_BlockRef *case_branches, int32_t *case_values);
 
 /**
-* Checks if the symbol is a temporary
-*/
+ * Checks if the symbol is a temporary
+ */
 extern bool JIT_IsTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef sym);
 
 #ifdef __cplusplus

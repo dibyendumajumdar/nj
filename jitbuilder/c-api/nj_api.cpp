@@ -530,24 +530,71 @@ JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   auto base = unwrap_node(basenode);
   auto index = unwrap_node(indexnode);
   auto type = TR::DataType((TR::DataTypes)dt);
-  auto aoffset = get_array_element_address(injector, type, base, index);
+  auto array_offset = get_array_element_address(injector, type, base, index);
   auto loadOp = TR::ILOpCode::indirectLoadOpCode(type);
 #if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *load = TR::Node::createWithSymRef(
       loadOp, 1,
-      aoffset, 0, symRef);
+      array_offset, 0, symRef);
 #else
   TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
   TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory())
 	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+  
+  // conservative aliasing
+  int32_t refNum = symRef->getReferenceNumber();
+  if (type == TR::Address)
+	  injector->comp()->getSymRefTab()->aliasBuilder.addressShadowSymRefs().set(refNum);
+  else if (type == TR::Int32)
+	  injector->comp()->getSymRefTab()->aliasBuilder.intShadowSymRefs().set(refNum);
+  else
+	  injector->comp()->getSymRefTab()->aliasBuilder.nonIntPrimitiveShadowSymRefs().set(refNum);
   TR::Node *load = TR::Node::createWithSymRef(
 	  loadOp, 1,
-	  aoffset, 0, symRef);
+	  array_offset, 0, symRef);
 #endif
   return wrap_node(load);
 }
+
+JIT_NodeRef JIT_ArrayLoadAt(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	int64_t idx, JIT_Type dt) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto base = unwrap_node(basenode);
+	auto index = TR::Node::lconst(idx);
+	auto type = TR::DataType((TR::DataTypes)dt);
+	auto aoffset = get_array_element_address(injector, type, base, index);
+	auto loadOp = TR::ILOpCode::indirectLoadOpCode(type);
+#if 1
+	TR::SymbolReference *symRef =
+		injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
+	TR::Node *load = TR::Node::createWithSymRef(
+		loadOp, 1,
+		aoffset, 0, symRef);
+#else
+	TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
+	TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory())
+		TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+	symRef->setOffset(idx);
+	symRef->setReallySharesSymbol();
+
+	// conservative aliasing
+	int32_t refNum = symRef->getReferenceNumber();
+	if (type == TR::Address)
+		injector->comp()->getSymRefTab()->aliasBuilder.addressShadowSymRefs().set(refNum);
+	else if (type == TR::Int32)
+		injector->comp()->getSymRefTab()->aliasBuilder.intShadowSymRefs().set(refNum);
+	else
+		injector->comp()->getSymRefTab()->aliasBuilder.nonIntPrimitiveShadowSymRefs().set(refNum);
+	//injector->comp()->getSymRefTab()->aliasBuilder.addressShadowSymRefs().set(refNum);
+	TR::Node *load = TR::Node::createWithSymRef(
+		loadOp, 1,
+		aoffset, 0, symRef);
+#endif
+	return wrap_node(load);
+}
+
 
 void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
                     JIT_NodeRef indexnode, JIT_NodeRef valuenode) {
@@ -559,21 +606,74 @@ void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
 
   TR::ILOpCodes storeOp =
 	  injector->comp()->il.opCodeForIndirectArrayStore(type);
-  auto aoffset = get_array_element_address(injector, type, base, index);
+  auto array_offset = get_array_element_address(injector, type, base, index);
 #if 1
   TR::SymbolReference *symRef =
       injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
   TR::Node *store = TR::Node::createWithSymRef(
-      storeOp, 2, aoffset, value,
+      storeOp, 2, array_offset, value,
       0, symRef);
 #else
   TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
   TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory()) 
 	  TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
-  auto store = TR::Node::createWithSymRef(storeOp, 2, aoffset, value, 0, symRef);
+	symRef->setReallySharesSymbol();
+
+  // conservative aliasing
+  int32_t refNum = symRef->getReferenceNumber();
+  if (type == TR::Address)
+	  injector->comp()->getSymRefTab()->aliasBuilder.addressShadowSymRefs().set(refNum);
+  else if (type == TR::Int32)
+	  injector->comp()->getSymRefTab()->aliasBuilder.intShadowSymRefs().set(refNum);
+  else
+	  injector->comp()->getSymRefTab()->aliasBuilder.nonIntPrimitiveShadowSymRefs().set(refNum);
+  TR::Node *store = TR::Node::createWithSymRef(
+	  storeOp, 2, array_offset, value,
+	  0, symRef);
 #endif
   injector->genTreeTop(store);
 }
+
+void JIT_ArrayStoreAt(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
+	int64_t idx, JIT_NodeRef valuenode) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto base = unwrap_node(basenode);
+	auto index = TR::Node::lconst(idx);
+	auto value = unwrap_node(valuenode);
+	auto type = value->getDataType();
+
+	TR::ILOpCodes storeOp =
+		injector->comp()->il.opCodeForIndirectArrayStore(type);
+	auto aoffset = get_array_element_address(injector, type, base, index);
+#if 1
+	TR::SymbolReference *symRef =
+		injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
+	TR::Node *store = TR::Node::createWithSymRef(
+		storeOp, 2, aoffset, value,
+		0, symRef);
+#else
+	TR::Symbol *sym = TR::Symbol::createShadow(injector->comp()->trHeapMemory(), type, TR::DataType::getSize(type));
+	TR::SymbolReference *symRef = new (injector->comp()->trHeapMemory())
+		TR::SymbolReference(injector->comp()->getSymRefTab(), sym, injector->comp()->getMethodSymbol()->getResolvedMethodIndex(), -1);
+	symRef->setOffset(idx);
+	symRef->setReallySharesSymbol();
+
+	// conservative aliasing
+	int32_t refNum = symRef->getReferenceNumber();
+	if (type == TR::Address)
+		injector->comp()->getSymRefTab()->aliasBuilder.addressShadowSymRefs().set(refNum);
+	else if (type == TR::Int32)
+		injector->comp()->getSymRefTab()->aliasBuilder.intShadowSymRefs().set(refNum);
+	else
+		injector->comp()->getSymRefTab()->aliasBuilder.nonIntPrimitiveShadowSymRefs().set(refNum);
+	//injector->comp()->getSymRefTab()->aliasBuilder.addressShadowSymRefs().set(refNum);
+	TR::Node *store = TR::Node::createWithSymRef(
+		storeOp, 2, aoffset, value,
+		0, symRef);
+#endif
+	injector->genTreeTop(store);
+}
+
 
 JIT_NodeRef JIT_LoadParameter(JIT_ILInjectorRef ilinjector, int32_t slot) {
   auto injector = unwrap_ilinjector(ilinjector);
