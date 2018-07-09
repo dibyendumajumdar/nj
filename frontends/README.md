@@ -1,3 +1,4 @@
-## Example Front-ends
+## NJ Front-end
 
-* minimal: This is an attempt to create a minimal set of components you need to compile/build a standalone front-end. Note that it doesn't have any functionality - its goal is to be the starting point.
+* nj: This is an attempt to create a minimal set of components you need to use the OMR JIT engine. It removes some of the JitBuilder
+  classes and provides a C api to interact directly with the OMR IL layer.
