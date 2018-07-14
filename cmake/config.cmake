@@ -50,6 +50,15 @@ if(OMR_JITBUILDER OR OMR_TEST_COMPILER)
 	set(OMR_JIT ON CACHE BOOL "" FORCE)
 endif()
 
+## Enable OMR_JITBUILDER_TEST if OMR_JITBUILDER AND OMR_ENV_DATA64 are enabled.
+## Do NOT force it since it is explicitly disabled on Windows for now.
+if(OMR_JITBUILDER)
+	set(OMR_JITBUILDER_TEST ON CACHE BOOL "")
+else()
+    # if JitBuilder isn't enabled, the tests can't be built
+    set(OMR_JITBUILDER_TEST OFF CACHE BOOL "" FORCE)
+endif()
+
 ###
 ### Tooling
 ###
@@ -162,4 +171,4 @@ set(OMR_ENV_GCC OFF CACHE BOOL "TODO: Document")
 
 set(OMR_OPT_CUDA OFF CACHE BOOL "TODO: Document")
 
-set(OMR_SANITIZE OFF CACHE STRING "Sanitizer selection. Only has an effect on GNU or Clang") 
+set(OMR_SANITIZE OFF CACHE STRING "Sanitizer selection. Only has an effect on GNU or Clang")

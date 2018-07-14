@@ -186,7 +186,6 @@ OMR::CodeGenerator::CodeGenerator() :
       _ialoadUnneeded(self()->comp()->trMemory()),
      _symRefTab(self()->comp()->getSymRefTab()),
      _vmThreadRegister(NULL),
-     _vmThreadSpillInstr(NULL),
      _stackAtlas(NULL),
      _methodStackMap(NULL),
      _binaryBufferStart(NULL),
@@ -278,7 +277,7 @@ OMR::CodeGenerator::CodeGenerator() :
    _machine = new (self()->trHeapMemory()) TR::Machine(self());
    _disableInternalPointers = self()->comp()->getOption(TR_MimicInterpreterFrameShape) ||
                                self()->comp()->getOptions()->realTimeGC() ||
-                               self()->comp()->getOptions()->getOption(TR_DisableInternalPointers);
+                               self()->comp()->getOption(TR_DisableInternalPointers);
 
    uintptrj_t maxSize = TR::Compiler->vm.getOverflowSafeAllocSize(self()->comp());
    int32_t i;
@@ -862,8 +861,8 @@ OMR::CodeGenerator::use64BitRegsOn32Bit()
       return false;
    else
       {
-      bool longReg = self()->comp()->getOptions()->getOption(TR_Enable64BitRegsOn32Bit);
-      bool longRegHeur = self()->comp()->getOptions()->getOption(TR_Enable64BitRegsOn32BitHeuristic);
+      bool longReg = self()->comp()->getOption(TR_Enable64BitRegsOn32Bit);
+      bool longRegHeur = self()->comp()->getOption(TR_Enable64BitRegsOn32BitHeuristic);
       bool use64BitRegs = (longReg && !longRegHeur && self()->comp()->getJittedMethodSymbol()->mayHaveLongOps()) ||
                           (longReg && longRegHeur && self()->comp()->useLongRegAllocation());
       return use64BitRegs;
@@ -1129,22 +1128,6 @@ bool OMR::CodeGenerator::needGuardSitesEvenWhenGuardRemoved() { return self()->c
 bool OMR::CodeGenerator::supportVMInternalNatives() { return !self()->comp()->compileRelocatableCode(); }
 
 bool OMR::CodeGenerator::supportsNativeLongOperations() { return (TR::Compiler->target.is64Bit() || self()->use64BitRegsOn32Bit()); }
-
-void
-OMR::CodeGenerator::setVMThreadSpillInstruction(TR::Instruction *i)
-   {
-   if (_vmThreadSpillInstr == NULL)
-      {
-      _vmThreadSpillInstr = i;
-      }
-   else
-      {
-      _vmThreadSpillInstr = (TR::Instruction *)0xffffffff; // set to sentinel to indicate that
-                                                          // more than one location is needed and
-                                                          // should therefore simply spill in the prologue
-      }
-   }
-
 
 bool OMR::CodeGenerator::supportsInternalPointers()
    {
@@ -1969,7 +1952,7 @@ OMR::CodeGenerator::convertMultiplyToShift(TR::Node * node)
 bool
 OMR::CodeGenerator::isMemoryUpdate(TR::Node *node)
    {
-   if (self()->comp()->getOptions()->getOption(TR_DisableDirectMemoryOps))
+   if (self()->comp()->getOption(TR_DisableDirectMemoryOps))
       return false;
 
    // See if the given store node can be represented by a direct operation on the
@@ -2950,7 +2933,7 @@ OMR::CodeGenerator::canNullChkBeImplicit(TR::Node *node)
 bool
 OMR::CodeGenerator::canNullChkBeImplicit(TR::Node *node, bool doChecks)
    {
-   if (self()->comp()->getOptions()->getOption(TR_DisableTraps))
+   if (self()->comp()->getOption(TR_DisableTraps))
       return false;
 
    if (!doChecks)

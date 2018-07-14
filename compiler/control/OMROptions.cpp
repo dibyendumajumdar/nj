@@ -424,7 +424,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"disableMarkingOfHotFields",          "O\tdisable marking of Hot Fields",                  SET_OPTION_BIT(TR_DisableMarkingOfHotFields), "F"},
    {"disableMarshallingIntrinsics",       "O\tDisable packed decimal to binary marshalling and un-marshalling optimization. They will not be inlined.", SET_OPTION_BIT(TR_DisableMarshallingIntrinsics), "F"},
    {"disableMaskVFTPointers",             "O\tdisable masking of VFT Pointers",                SET_OPTION_BIT(TR_DisableMaskVFTPointers), "F"},
-   {"disableMaxMinOptimization",          "O\tdisable masking of VFT Pointers",                SET_OPTION_BIT(TR_DisableMaxMinOptimization), "F"},
+   {"disableMaxMinOptimization",          "O\tdisable max and min optimizations",                 SET_OPTION_BIT(TR_DisableMaxMinOptimization), "F"},
    {"disableMccFreeBlockRecycling",       "O\tdo not reuse code cache freed blocks",           SET_OPTION_BIT(TR_DisableFreeCodeCacheBlockRecycling), "F", NOT_IN_SUBSET},
    {"disableMCSBypass",                   "O\tdisable allocating JNI global references to skip some levels of indirection when accessing a MutableCallSite's target MethodHandle in jitted code", SET_OPTION_BIT(TR_DisableMCSBypass), "F"},
    {"disableMergeNew",                    "O\tdisable merge new",                              SET_OPTION_BIT(TR_DisableMergeNew), "F"},
@@ -889,6 +889,10 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
 
    {"jitMethodEntryAlignmentBoundary=",      "C<nnn>\tAlignment boundary (in bytes) for JIT method entry",
         TR::Options::set32BitSignedNumeric, offsetof(OMR::Options,_jitMethodEntryAlignmentBoundary), 0, "F%d"},
+   {"jProfilingLoopRecompThreshold=",      "C<nnn>\tLoop recompilation threshold for jProfiling",
+        TR::Options::set32BitSignedNumeric, offsetof(OMR::Options,_jProfilingLoopRecompThreshold), 0, "F%d"},
+   {"jProfilingMethodRecompThreshold=",      "C<nnn>\tMethod invocations for jProfiling body",
+        TR::Options::set32BitSignedNumeric, offsetof(OMR::Options,_jProfilingMethodRecompThreshold), 0, "F%d"},
    {"keepBCDWidening",       "O\tstress testing option -- do not remove widening BCD operations", SET_OPTION_BIT(TR_KeepBCDWidening), "F" },
 
    {"labelTargetNOPLimit=", "C<nnn>\t(labelTargetAddress&0xff) > _labelTargetNOPLimit are padded out with NOPs until the next 256 byte boundary",
@@ -992,8 +996,6 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
                    TR::Options::set32BitNumeric, offsetof(OMR::Options,_numInterfaceCallStaticSlots), 1, "F%d"},
    {"numIProfiledCallsToTriggerLowPriComp=", "M<nnn>",
         TR::Options::setStaticNumeric, (intptrj_t)&OMR::Options::_numIProfiledCallsToTriggerLowPriComp, 0, "F%d", NOT_IN_SUBSET },
-   {"numRestrictedGPRs=",      "O<nnn>\tnumber of restricted GPRS (0-5). Currently 390 only",
-        TR::Options::set32BitNumeric, offsetof(OMR::Options,_numRestrictedGPRs), 0, "F%d"},
    {"objectFile=", "L<filename>\twrite object file to filename", TR::Options::setString, offsetof(OMR::Options,_objectFileName), 0, "P%s", NOT_IN_SUBSET},
    {"oldDataCacheImplementation",         "I\trevert to old data cache implementation.", SET_OPTION_BIT(TR_OldDataCacheImplementation),"F", NOT_IN_SUBSET},
    {"oldJVMPI",           "D\told way of determining which jit options to use with JVMPI",    SET_OPTION_BIT(TR_OldJVMPI), "P" },
@@ -1175,6 +1177,10 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"traceInvariantArgumentPreexistence", "L\ttrace invariable argument preexistence",     TR::Options::traceOptimization, invariantArgumentPreexistence, 0, "P"},
    {"traceIsolatedSE",                  "L\ttrace isolated store elimination",             TR::Options::traceOptimization, isolatedStoreElimination, 0, "P"},
    {"traceIVTT",                        "L\ttrace IV Type transformation",                 TR::Options::traceOptimization, IVTypeTransformation, 0, "P"},
+#ifdef J9_PROJECT_SPECIFIC
+   {"traceJProfilingBlock",             "L\ttrace generation of block frequency counters",               TR::Options::traceOptimization, jProfilingBlock, 0, "P"},
+   {"traceJProfilingValue",             "L\ttrace insertion of jProfiling trees for value profiling",    TR::Options::traceOptimization, jProfilingValue, 0, "P"},
+#endif
    {"traceKnownObjectGraph",            "L\ttrace the relationships between objects in the known-object table", SET_OPTION_BIT(TR_TraceKnownObjectGraph), "P" },
    {"traceLabelTargetNOPs",             "L\ttrace inserting of NOPs before label targets", SET_OPTION_BIT(TR_TraceLabelTargetNOPs), "F"},
    {"traceLastOpt",                     "L\textra tracing for the opt corresponding to lastOptIndex; usually used with traceFull", SET_OPTION_BIT(TR_TraceLastOpt), "F"},
@@ -2574,6 +2580,8 @@ OMR::Options::jitPreProcess()
 #else
    _jitMethodEntryAlignmentBoundary = 0;
 #endif
+   _jProfilingMethodRecompThreshold = 4000;
+   _jProfilingLoopRecompThreshold = 2000;
    _blockShufflingSequence = "S";
    _delayCompile = 0;
    _largeNumberOfLoops = 6500;

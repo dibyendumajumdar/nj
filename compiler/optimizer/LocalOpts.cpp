@@ -2276,7 +2276,7 @@ bool TR_CompactNullChecks::replaceNullCheckIfPossible(TR::Node *cursorNode, TR::
       if (isEquivalent)
          {
          bool canBeRemoved = true; //comp()->cg()->canNullChkBeImplicit(cursorNode);
-         if (TR::comp()->getOptions()->getOption(TR_DisableTraps) ||
+         if (TR::comp()->getOption(TR_DisableTraps) ||
              TR::Compiler->om.offsetOfObjectVftField() >= comp()->cg()->getNumberBytesReadInaccessible())
            canBeRemoved = false;
 
@@ -5309,18 +5309,14 @@ bool TR_Rematerialization::examineNode(TR::TreeTop *treeTop, TR::Node *parent, T
 
     if (!shouldOnlyRunLongRegHeuristic())
        {
-       // need to consider restricted registers pressure
-       int8_t restrictedGPRNum = 0;
-
-
        if (trace() && !shouldOnlyRunLongRegHeuristic())
           {
-          traceMsg(comp(), "At node %p parent %p GPR pressure is %d (child adjust %d parent adjust %d) limit is %d\n", node, parent, numRegisters + childAdjustment + adjustments.adjustmentFromParent +restrictedGPRNum, childAdjustment, adjustments.adjustmentFromParent, (cg()->getMaximumNumbersOfAssignableGPRs()-1));
+          traceMsg(comp(), "At node %p parent %p GPR pressure is %d (child adjust %d parent adjust %d) limit is %d\n", node, parent, numRegisters + childAdjustment + adjustments.adjustmentFromParent, childAdjustment, adjustments.adjustmentFromParent, (cg()->getMaximumNumbersOfAssignableGPRs()-1));
           traceMsg(comp(), "candidate nodes size %d candidate loads size %d\n", state->_currentlyCommonedCandidates.getSize(), state->_currentlyCommonedLoads.getSize());
           }
 
        if ((!considerRegPressure ||
-           ((state->_currentlyCommonedNodes.getSize() + childAdjustment + adjustments.adjustmentFromParent + restrictedGPRNum) > (cg()->getMaximumNumbersOfAssignableGPRs() /* -1 */ ))) &&
+           ((state->_currentlyCommonedNodes.getSize() + childAdjustment + adjustments.adjustmentFromParent) > (cg()->getMaximumNumbersOfAssignableGPRs() /* -1 */ ))) &&
            (!state->_currentlyCommonedCandidates.isEmpty() || !state->_currentlyCommonedLoads.isEmpty()))
           {
           //_counter++;
@@ -5987,7 +5983,7 @@ int8_t TR_Rematerialization::getLoopNestingLevel(int32_t weight)
 
 void TR_Rematerialization::makeEarlyLongRegDecision()
    {
-   if (comp()->getOptions()->getOption(TR_Disable64BitRegsOn32Bit) ||
+   if (comp()->getOption(TR_Disable64BitRegsOn32Bit) ||
        !cg()->supportsLongRegAllocation() ||
        !comp()->getJittedMethodSymbol()->mayHaveLongOps())
       {
@@ -5997,8 +5993,8 @@ void TR_Rematerialization::makeEarlyLongRegDecision()
       return;
       }
 
-   if (!comp()->getOptions()->getOption(TR_Disable64BitRegsOn32Bit) &&
-        comp()->getOptions()->getOption(TR_Disable64BitRegsOn32BitHeuristic))
+   if (!comp()->getOption(TR_Disable64BitRegsOn32Bit) &&
+        comp()->getOption(TR_Disable64BitRegsOn32BitHeuristic))
        {
        comp()->setUseLongRegAllocation(true);
        setLongRegDecision(true);

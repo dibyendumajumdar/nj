@@ -5311,10 +5311,12 @@ TR::Node *constrainCall(OMR::ValuePropagation *vp, TR::Node *node)
 
    vp->constrainRecognizedMethod(node);
 
-   // Return if the node is not a regular call (xcall/xcalli) anymore
-   if (!node->getOpCode().isCall() || node->getSymbol()->castToMethodSymbol()->isHelper())
+   // Return if the node is not a call anymore
+   if (!node->getOpCode().isCall())
       return node;
 
+   // Symbol might have been changed, get it from node again
+   symbol = node->getSymbol()->castToMethodSymbol();
    if ( symbol )
       {
 #ifdef J9_PROJECT_SPECIFIC
@@ -5729,8 +5731,8 @@ TR::Node *constrainAcall(OMR::ValuePropagation *vp, TR::Node *node)
    {
    constrainCall(vp, node);
 
-   // Return if the node is not a regular call (xcall/xcalli) anymore
-   if (!node->getOpCode().isCall() || node->getSymbol()->castToMethodSymbol()->isHelper())
+   // Return if the node is not a call anymore
+   if (!node->getOpCode().isCall())
       return node;
 
    // This node can be constrained by the return type of the method.
@@ -7134,25 +7136,36 @@ TR::Node *constrainIabs(OMR::ValuePropagation *vp, TR::Node *node)
 
    bool isGlobal;
    TR::VPConstraint *child = vp->getConstraint(node->getFirstChild(), isGlobal);
-   if (child)
+   if (child == NULL)
       {
-      if (child->asIntConst())
+      vp->addGlobalConstraint(
+         node,
+         TR::VPMergedConstraints::create(
+            vp,
+            TR::VPIntConst::create(vp, TR::getMinSigned<TR::Int32>()),
+            TR::VPIntRange::create(vp, 0, TR::getMaxSigned<TR::Int32>())));
+      }
+   else
+      {
+      int32_t low = child->getLowInt();
+      int32_t high = child->getHighInt();
+      if (low == high)
          {
-         if (child->asIntConst()->getInt() < 0)
-          {
-          TR::VPConstraint *constraint = TR::VPIntConst::create(vp, -child->asIntConst()->getInt());
-          vp->replaceByConstant(node, constraint, isGlobal);
-          }
-         else
-          {
-          TR::VPConstraint *constraint = TR::VPIntConst::create(vp, child->asIntConst()->getInt());
-          vp->replaceByConstant(node, constraint, isGlobal);
-          }
+         int32_t value = low;
+         if (value < 0)
+            value = -(uint32_t)value;
+
+         TR::VPConstraint *constraint = TR::VPIntConst::create(vp, value);
+         vp->replaceByConstant(node, constraint, isGlobal);
          }
       else
          {
-         int32_t high = child->getHighInt();
-         int32_t low = child->getLowInt();
+         TR::VPConstraint *minConstraint = NULL;
+         if (low == TR::getMinSigned<TR::Int32>())
+            {
+            minConstraint = TR::VPIntConst::create(vp, low);
+            low++;
+            }
 
          if (low < 0 && high <= 0)
           {
@@ -7173,16 +7186,18 @@ TR::Node *constrainIabs(OMR::ValuePropagation *vp, TR::Node *node)
             return vp->replaceNode(node, node->getFirstChild(), vp->_curTree);
             }
 
-         if (low == high)
-          {
-           TR::VPConstraint *constraint = TR::VPIntConst::create(vp, low);
-           vp->replaceByConstant(node, constraint, isGlobal);
-          }
+         if (low != high || minConstraint != NULL)
+            {
+            TR::VPConstraint *constraint = TR::VPIntRange::create(vp, low, high);
+            if (minConstraint != NULL)
+               constraint = TR::VPMergedConstraints::create(vp, minConstraint, constraint);
+            vp->addBlockOrGlobalConstraint(node, constraint ,isGlobal);
+            }
          else
-          {
-           TR::VPConstraint *constraint = TR::VPIntRange::create(vp, low, high);
-             vp->addBlockOrGlobalConstraint(node, constraint ,isGlobal);
-          }
+            {
+            TR::VPConstraint *constraint = TR::VPIntConst::create(vp, low);
+            vp->replaceByConstant(node, constraint, isGlobal);
+            }
          }
        }
 
@@ -7198,26 +7213,36 @@ TR::Node *constrainLabs(OMR::ValuePropagation *vp, TR::Node *node)
 
    bool isGlobal;
    TR::VPConstraint *child = vp->getConstraint(node->getFirstChild(), isGlobal);
-
-   if (child)
+   if (child == NULL)
       {
-      if (child->asLongConst())
+      vp->addGlobalConstraint(
+         node,
+         TR::VPMergedConstraints::create(
+            vp,
+            TR::VPLongConst::create(vp, TR::getMinSigned<TR::Int64>()),
+            TR::VPLongRange::create(vp, 0, TR::getMaxSigned<TR::Int64>())));
+      }
+   else
+      {
+      int64_t low = child->getLowLong();
+      int64_t high = child->getHighLong();
+      if (low == high)
          {
-         if (child->asLongConst()->getLong() < 0)
-          {
-          TR::VPConstraint *constraint = TR::VPLongConst::create(vp, -child->asLongConst()->getLong());
-          vp->replaceByConstant(node, constraint, isGlobal);
-          }
-      else
-          {
-          TR::VPConstraint *constraint = TR::VPLongConst::create(vp, child->asLongConst()->getLong());
-          vp->replaceByConstant(node, constraint, isGlobal);
-          }
+         int64_t value = low;
+         if (value < 0)
+            value = -(uint64_t)value;
+
+         TR::VPConstraint *constraint = TR::VPLongConst::create(vp, value);
+         vp->replaceByConstant(node, constraint, isGlobal);
          }
       else
          {
-         int64_t high = child->getHighLong();
-         int64_t low = child->getLowLong();
+         TR::VPConstraint *minConstraint = NULL;
+         if (low == TR::getMinSigned<TR::Int64>())
+            {
+            minConstraint = TR::VPLongConst::create(vp, low);
+            low++;
+            }
 
          if (low < 0 && high <= 0)
           {
@@ -7238,20 +7263,22 @@ TR::Node *constrainLabs(OMR::ValuePropagation *vp, TR::Node *node)
             return vp->replaceNode(node, node->getFirstChild(), vp->_curTree);
             }
 
-         if (low == high)
-          {
-           TR::VPConstraint *constraint = TR::VPLongConst::create(vp, low);
-           vp->replaceByConstant(node, constraint, isGlobal);
-          }
-         else
-          {
-           TR::VPConstraint *constraint = TR::VPLongRange::create(vp, low, high);
-           bool didReduction = reduceLongOpToIntegerOp(vp, node, constraint);
-             vp->addBlockOrGlobalConstraint(node, constraint ,isGlobal);
+         if (low != high || minConstraint != NULL)
+            {
+            TR::VPConstraint *constraint = TR::VPLongRange::create(vp, low, high);
+            if (minConstraint != NULL)
+               constraint = TR::VPMergedConstraints::create(vp, minConstraint, constraint);
+            bool didReduction = reduceLongOpToIntegerOp(vp, node, constraint);
+            vp->addBlockOrGlobalConstraint(node, constraint ,isGlobal);
 
-             if (didReduction)
-            return node;
-          }
+            if (didReduction)
+               return node;
+            }
+         else
+            {
+            TR::VPConstraint *constraint = TR::VPLongConst::create(vp, low);
+            vp->replaceByConstant(node, constraint, isGlobal);
+            }
           }
       }
 
@@ -12744,7 +12771,7 @@ TR::Node *constrainArrayStoreChk(OMR::ValuePropagation *vp, TR::Node *node)
                   }
 
               else if ( !vp->comp()->compileRelocatableCode() &&
-                        !(TR::Options::getCmdLineOptions()->getOption(TR_DisableArrayStoreCheckOpts))  &&
+                        !(vp->comp()->getOption(TR_DisableArrayStoreCheckOpts))  &&
                         arrayComponentClass &&
                         objectClass  &&
                         vp->fe()->isInstanceOf(objectClass, arrayComponentClass,true,true)

@@ -641,9 +641,6 @@ OMR::Z::CodeGenerator::CodeGenerator()
 
    self()->setIsOutOfLineHotPath(false);
 
-   if (comp->getOption(TR_DisableRegisterPressureSimulation))
-      self()->machine()->initializeGlobalRegisterTable();
-
    self()->setUsesRegisterPairsForLongs();
    self()->setSupportsDivCheck();
    self()->setSupportsLoweringConstIDiv();
@@ -690,7 +687,7 @@ OMR::Z::CodeGenerator::CodeGenerator()
       self()->setSupportsBCDToDFPReduction();
       self()->setSupportsIntDFPConversions();
 
-      if (!comp->getOptions()->getOption(TR_DisableTraps) && TR::Compiler->vm.hasResumableTrapHandler(comp))
+      if (!comp->getOption(TR_DisableTraps) && TR::Compiler->vm.hasResumableTrapHandler(comp))
          {
          self()->setHasResumableTrapHandler();
          }
@@ -765,8 +762,6 @@ OMR::Z::CodeGenerator::CodeGenerator()
 
    // This enables the tactical GRA
    self()->setSupportsGlRegDeps();
-   if (comp->getOption(TR_DisableRegisterPressureSimulation))
-      self()->prepareForGRA();
 
    self()->addSupportedLiveRegisterKind(TR_GPR);
    self()->addSupportedLiveRegisterKind(TR_FPR);
@@ -6129,8 +6124,8 @@ OMR::Z::CodeGenerator::getSupportsEncodeUtf16BigWithSurrogateTest()
    {
    if (self()->getS390ProcessorInfo()->supportsArch(TR_S390ProcessorInfo::TR_z196))
       {
-      return (!self()->comp()->getOptions()->getOption(TR_DisableUTF16BEEncoder) ||
-               (self()->getSupportsVectorRegisters() && !self()->comp()->getOptions()->getOption(TR_DisableSIMDUTF16BEEncoder)));
+      return (!self()->comp()->getOption(TR_DisableUTF16BEEncoder) ||
+               (self()->getSupportsVectorRegisters() && !self()->comp()->getOption(TR_DisableSIMDUTF16BEEncoder)));
       }
 
    return false;
@@ -6888,8 +6883,6 @@ OMR::Z::CodeGenerator::getMaximumNumberOfGPRsAllowedAcrossEdge(TR::Node * node)
    bool isFloat = false;
    bool isBCD = false;
 
-   int32_t numRestrictedRegs = self()->comp()->getOptions()->getNumRestrictedGPRs();
-   maxGPRs -= numRestrictedRegs;
    bool longNeeds1Reg = TR::Compiler->target.is64Bit() || self()->use64BitRegsOn32Bit();
 
 
@@ -7011,8 +7004,6 @@ OMR::Z::CodeGenerator::getMaximumNumbersOfAssignableGPRs()
    return self()->getMaximumNumberOfAssignableGPRs();
 
    //int32_t maxNumberOfAssignableGPRS = (8 + (self()->isLiteralPoolOnDemandOn() ? 1 : 0));
-   //int32_t numRestrictedRegs = comp()->getOptions()->getNumRestrictedGPRs();
-   //maxNumberOfAssignableGPRS -= numRestrictedRegs;
    //return maxNumberOfAssignableGPRS;
    }
 
@@ -9459,26 +9450,6 @@ OMR::Z::CodeGenerator::buildRegisterMapForInstruction(TR_GCStackMap * map)
 
    map->setInternalPointerMap(internalPtrMap);
    }
-
-TR::Register*
-OMR::Z::CodeGenerator::copyRestrictedVirtual(TR::Register * virtReg, TR::Node *node, TR::Instruction ** preced)
-      {
-      TR::Register *copyReg;
-      TR::Instruction *i = NULL;
-      if (virtReg->getKind() == TR_GPR64)
-         {
-         copyReg = self()->allocate64bitRegister();
-         i = generateRRInstruction(self(), TR::InstOpCode::LGR, node, copyReg, virtReg, preced ? *preced : NULL);
-         }
-      else
-         {
-         copyReg = self()->allocateRegister();
-         i = generateRRInstruction(self(), TR::InstOpCode::LR, node, copyReg, virtReg, preced ? *preced : NULL);
-         }
-      if (preced && *preced)
-         *preced = i;
-      return copyReg;
-      }
 
 ////////////////////////////////////////////////////////////////////////////////
 // OMR::Z::CodeGenerator::dumpDataSnippets

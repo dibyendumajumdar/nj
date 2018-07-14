@@ -264,7 +264,7 @@ enum TR_CompilationOptions
    TR_enableProfiledDevirtualization      = 0x00001000 + 5,
    TR_EnableValueTracing                  = 0x00002000 + 5, // run-time value tracing
    TR_IgnoreAssert                        = 0x00004000 + 5, // ignore failing assertions
-   TR_Enable390FreeVMThreadReg            = 0x00008000 + 5,
+   // AVAILABLE                           = 0x00008000 + 5,
    TR_EnableNewAllocationProfiling        = 0x00010000 + 5, // enable tracing of fields load and store
    TR_IgnoreIEEERestrictions              = 0x00020000 + 5, // enable more aggressive, nonIEEE compliant xforms
    TR_ProcessHugeMethods                  = 0x00040000 + 5, // allow processing of huge methods
@@ -1575,7 +1575,6 @@ public:
    int32_t   getNumInterfaceCallCacheSlots()     {return _numInterfaceCallCacheSlots;}
    int32_t   getNumInterfaceCallStaticSlots()    {return _numInterfaceCallStaticSlots;}
    int32_t   getStoreSinkingLastOpt()          {return _storeSinkingLastOpt;}
-   int32_t   getNumRestrictedGPRs()            {return _numRestrictedGPRs;}
    int32_t   getFirstOptTransformationIndex()  {return _firstOptTransformationIndex;}
    int32_t   getLastOptTransformationIndex()   {return _lastOptTransformationIndex;}
    int32_t   getMinFirstOptTransformationIndex()  {return -1;}
@@ -1945,6 +1944,12 @@ public:
 
    int32_t getJitMethodEntryAlignmentBoundary(TR::CodeGenerator *cg);
    void setJitMethodEntryAlignmentBoundary(int32_t boundary) { _jitMethodEntryAlignmentBoundary = boundary; }
+/**   \brief Returns a threshold on the profiling method invocations to trip recompilation
+ */
+   int32_t getJProfilingMethodRecompThreshold() { return _jProfilingMethodRecompThreshold; }
+/**   \brief Returns a base threshold for loop to trip recompilation
+ */
+   int32_t getJProfilingLoopRecompThreshold() { return _jProfilingLoopRecompThreshold; }
 
    inline static float getMinProfiledCheckcastFrequency() { return _minProfiledCheckcastFrequency/((float)100.0); }
    static bool isQuickstartDetected() { return _quickstartDetected; }
@@ -2337,7 +2342,6 @@ private:
    char *                      _osVersionString;
    bool                        _allowRecompilation;
    bool                        _anOptionSetContainsACountValue;
-   int32_t                     _numRestrictedGPRs;
    int32_t                     _numInterfaceCallCacheSlots;
    int32_t                     _numInterfaceCallStaticSlots;
    int32_t                     _storeSinkingLastOpt;
@@ -2413,6 +2417,8 @@ private:
    bool                        _isAOTCompile;
 
    int32_t                     _jitMethodEntryAlignmentBoundary; /* Alignment boundary for JIT method entry */
+   int32_t                     _jProfilingMethodRecompThreshold;
+   int32_t                     _jProfilingLoopRecompThreshold;
    char *                      _blockShufflingSequence;
    int32_t                     _randomSeed;
    TR_MCTLogs *                _logListForOtherCompThreads;

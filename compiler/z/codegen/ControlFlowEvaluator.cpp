@@ -893,19 +893,89 @@ lcmpHelper(TR::Node * node, TR::CodeGenerator * cg)
    return targetRegister;
    }
 
+/**
+ *  \brief
+ *     Compares 2 numbers are returns the greater of the 2.
+ *     ONLY SUPPORTS imax, imin, lmax, lmin
+ *
+ *  \detail
+ *     Uses a load and conditional store to select the correct value.
+ *     ONLY SUPPORTS imax, imin, lmax, lmin
+ *
+ *  \param node
+ *     The node representing a call to max or min.
+ *
+ *  \param cg
+ *     The code generator used to generate the instructions.
+ *
+ *  \param isMax
+ *     Boolean representing the type of function, either a max or min call.
+ *
+ *  \return
+ *     A register containing the return value of the Java call. The return value
+ *     will be the greater or lesser of the 2 children for max and min functions, respectively.
+ */
+static TR::Register * maxMinHelper(TR::Node *node, TR::CodeGenerator *cg, bool isMax)
+   {
+   TR::Register *registerA = cg->gprClobberEvaluate(node->getFirstChild());
+   TR::Register *registerB = cg->evaluate(node->getSecondChild());
+   // Mask is 4 to pick b when a is Lower for max, 2 to pick b when a is higher for min
+   const uint8_t mask = isMax ? 0x4 : 0x2;
+
+   if (node->getOpCodeValue() == TR::imax || node->getOpCodeValue() == TR::imin)
+      {
+      generateRRInstruction(cg, TR::InstOpCode::CR, node, registerA, registerB);
+      generateRRFInstruction(cg, TR::InstOpCode::LOCR, node, registerA, registerB, mask, true);
+      }
+   else if (node->getOpCodeValue() == TR::lmax || node->getOpCodeValue() == TR::lmin)
+      {
+      if (TR::Compiler->target.is64Bit() || cg->use64BitRegsOn32Bit())
+         {
+         generateRREInstruction(cg, TR::InstOpCode::CGR, node, registerA, registerB);
+         generateRRFInstruction(cg, TR::InstOpCode::LOCGR, node, registerA, registerB, mask, true);
+         }
+      else
+         {
+         TR::LabelSymbol * done = TR::LabelSymbol::create(cg->trHeapMemory(),cg);
+         TR::Instruction* cursor = NULL;
+
+         generateRRInstruction(cg, TR::InstOpCode::CR, node, registerA->getHighOrder(), registerB->getHighOrder());
+         generateRRFInstruction(cg, TR::InstOpCode::LOCR, node, registerA->getHighOrder(), registerB->getHighOrder(), mask, true);
+         generateRRFInstruction(cg, TR::InstOpCode::LOCR, node, registerA->getLowOrder(), registerB->getLowOrder(), mask, true);
+         cursor = generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BRNE, node, done);
+         cursor->setStartInternalControlFlow();
+
+         generateRRInstruction(cg, TR::InstOpCode::CR, node, registerA->getLowOrder(), registerB->getLowOrder());
+         generateRRFInstruction(cg, TR::InstOpCode::LOCR, node, registerA->getHighOrder(), registerB->getHighOrder(), mask, true);
+         generateRRFInstruction(cg, TR::InstOpCode::LOCR, node, registerA->getLowOrder(), registerB->getLowOrder(), mask, true);
+
+         cursor = generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, done);
+         cursor->setEndInternalControlFlow();
+         }
+      }
+   else
+      {
+      TR_ASSERT_FATAL(node->getOpCodeValue(), "Opcode %s cannot be evaluated by maxMinHelper\n", node->getOpCode().getName());
+      }
+
+   node->setRegister(registerA);
+
+   cg->decReferenceCount(node->getFirstChild());
+   cg->decReferenceCount(node->getSecondChild());
+
+   return registerA;
+   }
 
 TR::Register *
 OMR::Z::TreeEvaluator::maxEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR_ASSERT( false,"Max opcode should have been expanded by TR_OpCodeExpansion\n");
-   return NULL;
+   return maxMinHelper(node, cg, true);
    }
 
 TR::Register *
 OMR::Z::TreeEvaluator::minEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   TR_ASSERT( false,"Min opcode should have been expanded by TR_OpCodeExpansion\n");
-   return NULL;
+   return maxMinHelper(node, cg, false);
    }
 
 
@@ -1241,13 +1311,13 @@ bool OMR::Z::TreeEvaluator::isSingleRefUnevalAndCompareOrBu2iOverCompare(TR::Nod
 
 
 /**
- * This helper is for generating a VGNOP for HCR guard when the guard it was merged with cannot be NOPed.
- * 1. HCR guard is merged with ProfiledGuard
+ * This helper is for generating a VGNOP for HCR or OSR guard when the guard it was merged with cannot be NOPed.
+ * 1. HCR or OSR guard is merged with ProfiledGuard
  * 2. Any NOPable guards when node is switched from icmpne to icmpeq (can potentially happen during block reordering)
  *
- * When the condition is switched on node from eq to ne, HCR guard has to be patch to go to the fall through path
+ * When the condition is switched on node from eq to ne, HCR or OSR guard has to be patch to go to the fall through path
  */
-static inline void generateMergedHCRGuardCodeIfNeeded(TR::Node *node, TR::CodeGenerator *cg)
+static inline void generateMergedGuardCodeIfNeeded(TR::Node *node, TR::CodeGenerator *cg)
    {
 #ifdef J9_PROJECT_SPECIFIC
    TR::Compilation *comp = cg->comp();
@@ -1255,12 +1325,12 @@ static inline void generateMergedHCRGuardCodeIfNeeded(TR::Node *node, TR::CodeGe
       {
       TR_VirtualGuard *virtualGuard = comp->findVirtualGuardInfo(node);
 
-      if (virtualGuard && virtualGuard->mergedWithHCRGuard())
+      if (virtualGuard && (virtualGuard->mergedWithOSRGuard() || virtualGuard->mergedWithHCRGuard()))
          {
-         TR::RegisterDependencyConditions  *mergedHCRDeps = NULL;
+         TR::RegisterDependencyConditions  *mergedGuardDeps = NULL;
          TR::Instruction *instr = cg->getAppendInstruction();
          if (instr && instr->getNode() == node && instr->getDependencyConditions())
-            mergedHCRDeps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(instr->getDependencyConditions(), 1, 0, cg);
+            mergedGuardDeps = new (cg->trHeapMemory()) TR::RegisterDependencyConditions(instr->getDependencyConditions(), 1, 0, cg);
 
          TR_VirtualGuardSite *site = virtualGuard->addNOPSite();
          if (node->getOpCodeValue() == TR::ificmpeq ||
@@ -1276,18 +1346,18 @@ static inline void generateMergedHCRGuardCodeIfNeeded(TR::Node *node, TR::CodeGe
             TR::Instruction *vgnopInstr = generateVirtualGuardNOPInstruction(cg, node, site, deps, fallThroughLabel, instr ? instr->getPrev() : NULL);
             vgnopInstr->setNext(instr);
             cg->setAppendInstruction(instr);
-            generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, fallThroughLabel, mergedHCRDeps);
+            generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, fallThroughLabel, mergedGuardDeps);
             }
          else
             {
             TR::LabelSymbol *label = node->getBranchDestination()->getNode()->getLabel();
 
-            TR::Instruction *vgnopInstr = generateVirtualGuardNOPInstruction(cg, node, site, mergedHCRDeps, label, instr ? instr->getPrev() : NULL);
+            TR::Instruction *vgnopInstr = generateVirtualGuardNOPInstruction(cg, node, site, mergedGuardDeps, label, instr ? instr->getPrev() : NULL);
             vgnopInstr->setNext(instr);
             cg->setAppendInstruction(instr);
             }
-         traceMsg(comp, "generateMergedHCRGuardCodeIfNeeded for %s %s\n",
-                  comp->getDebug()?comp->getDebug()->getVirtualGuardKindName(virtualGuard->getKind()):"???Guard" , virtualGuard->mergedWithHCRGuard()?"merged with HCRGuard":"");
+         traceMsg(comp, "generateMergedGuardCodeIfNeeded for %s %s\n",
+                  comp->getDebug()?comp->getDebug()->getVirtualGuardKindName(virtualGuard->getKind()):"???Guard" , virtualGuard->mergedWithHCRGuard()?"merged with HCRGuard": virtualGuard->mergedWithOSRGuard() ? "merged with OSRGuard" : "");
 
          }
       }
@@ -1356,14 +1426,14 @@ OMR::Z::TreeEvaluator::ificmpeqEvaluator(TR::Node * node, TR::CodeGenerator * cg
    reg = TR::TreeEvaluator::inlineIfArraycmpEvaluator(node, cg, inlined);
    if (inlined)
       {
-      generateMergedHCRGuardCodeIfNeeded(node, cg);
+      generateMergedGuardCodeIfNeeded(node, cg);
       return reg;
       }
 
    reg = TR::TreeEvaluator::inlineIfTestDataClassHelper(node, cg, inlined);
    if(inlined)
       {
-      generateMergedHCRGuardCodeIfNeeded(node, cg);
+      generateMergedGuardCodeIfNeeded(node, cg);
       return reg;
       }
 
@@ -1391,7 +1461,7 @@ OMR::Z::TreeEvaluator::ificmpeqEvaluator(TR::Node * node, TR::CodeGenerator * cg
       {
       reg = generateS390CompareBranch(node, cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BNE, TR::InstOpCode::COND_BNE);
       }
-   generateMergedHCRGuardCodeIfNeeded(node, cg);
+   generateMergedGuardCodeIfNeeded(node, cg);
    return reg;
    }
 
@@ -1524,7 +1594,7 @@ OMR::Z::TreeEvaluator::iflcmpeqEvaluator(TR::Node * node, TR::CodeGenerator * cg
       {
       generateS390lcmpEvaluator(node, cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BNE, TR::InstOpCode::COND_NOP, TR::InstOpCode::COND_BE, CMP4CONTROLFLOW);
       }
-   generateMergedHCRGuardCodeIfNeeded(node, cg);
+   generateMergedGuardCodeIfNeeded(node, cg);
    return NULL;
    }
 
@@ -1550,7 +1620,7 @@ OMR::Z::TreeEvaluator::iflcmpneEvaluator(TR::Node * node, TR::CodeGenerator * cg
       generateS390lcmpEvaluator(node, cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_NOP, TR::InstOpCode::COND_BNE, TR::InstOpCode::COND_BNE, CMP4CONTROLFLOW);
       }
 
-   generateMergedHCRGuardCodeIfNeeded(node, cg);
+   generateMergedGuardCodeIfNeeded(node, cg);
 
    return NULL;
    }
