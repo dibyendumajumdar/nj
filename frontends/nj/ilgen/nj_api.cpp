@@ -81,7 +81,7 @@ struct ResolvedMethodWrapper {
 };
 
 struct Context {
-  Context() {}
+  Context(): function_id_(0) {}
   FunctionBuilder *newFunctionBuilder(const char *name, JIT_Type return_type,
                                       JIT_ILBuilder ilbuilder, void *userdata);
   FunctionBuilder *newFunctionBuilder(const char *name, JIT_Type return_type,
@@ -95,6 +95,7 @@ struct Context {
   typedef std::map<std::string, std::shared_ptr<ResolvedMethodWrapper>>
       FunctionMap;
   FunctionMap functions_;
+  unsigned int function_id_;	/* For generating names for indirect calls TODO needs to be atomic */
 };
 
 static std::mutex s_jitlock;
@@ -661,34 +662,6 @@ JIT_NodeRef JIT_ArrayLoad(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
   return wrap_node(load);
 }
 
-#if 0
-JIT_NodeRef JIT_ArrayLoadAt(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbolReference, JIT_NodeRef basenode,
-	int64_t idx, JIT_Type dt) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto base = unwrap_node(basenode);
-	auto index = TR::Node::lconst(idx);
-	auto type = TR::DataType((TR::DataTypes)dt);
-	auto aoffset = get_array_element_address(injector, type, base, index);
-	auto loadOp = TR::ILOpCode::indirectLoadOpCode(type);
-	auto baseSym = unwrap_symbolref(symbolReference);
-	TR::SymbolReference *symRef = nullptr;
-	if (!baseSym && base->getOpCode().hasSymbolReference())
-		baseSym = base->getSymbolReference();
-#if 1
-	if (baseSym) {
-		if (baseSym->getSymbol()->getDataType() == TR::Aggregate) {
-			symRef = injector->findOrCreateShadowSymRef(baseSym, type, (int32_t)idx);
-		}
-	}
-#endif
-	if (!symRef)
-		symRef =
-		injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
-	TR::Node *load = TR::Node::createWithSymRef(loadOp, 1, aoffset, 0, symRef);
-	return wrap_node(load);
-}
-#endif
-
 JIT_NodeRef JIT_ArrayLoadAt(JIT_ILInjectorRef ilinjector, uint64_t symbolId,
                             JIT_NodeRef basenode, int64_t idx, JIT_Type dt) {
   auto injector = unwrap_ilinjector(ilinjector);
@@ -747,38 +720,6 @@ void JIT_ArrayStore(JIT_ILInjectorRef ilinjector, JIT_NodeRef basenode,
 #endif
   injector->genTreeTop(store);
 }
-
-#if 0
-void JIT_ArrayStoreAt(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbolReference, JIT_NodeRef basenode,
-	int64_t idx, JIT_NodeRef valuenode) {
-	auto injector = unwrap_ilinjector(ilinjector);
-	auto base = unwrap_node(basenode);
-	auto index = TR::Node::lconst(idx);
-	auto value = unwrap_node(valuenode);
-	auto type = value->getDataType();
-	auto baseSym = unwrap_symbolref(symbolReference);
-	TR::SymbolReference *symRef = nullptr;
-	if (!baseSym && base->getOpCode().hasSymbolReference())
-		baseSym = base->getSymbolReference();
-	TR::ILOpCodes storeOp =
-		injector->comp()->il.opCodeForIndirectArrayStore(type);
-	auto aoffset = get_array_element_address(injector, type, base, index);
-#if 1
-	if (baseSym) {
-		if (baseSym->getSymbol()->getDataType() == TR::Aggregate) {
-			symRef = injector->findOrCreateShadowSymRef(baseSym, type, (int32_t)idx);
-		}
-	}
-#endif
-	if (!symRef)
-		symRef =
-		injector->symRefTab()->findOrCreateArrayShadowSymbolRef(type, base);
-	TR::Node *store = TR::Node::createWithSymRef(
-		storeOp, 2, aoffset, value,
-		0, symRef);
-	injector->genTreeTop(store);
-}
-#endif
 
 void JIT_ArrayStoreAt(JIT_ILInjectorRef ilinjector, uint64_t symbolId,
                       JIT_NodeRef basenode, int64_t idx,
@@ -880,6 +821,65 @@ JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector, const char *functionName,
   injector->genTreeTop(callNode);
   return wrap_node(callNode);
 }
+
+JIT_SymbolRef JIT_GetFunctionSymbol(JIT_ILInjectorRef ilinjector, const char *name) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto resolvedMethod = injector->function_builder_->context_->getFunction(name);
+	if (resolvedMethod) {
+		auto symref = injector->symRefTab()->findOrCreateComputedStaticMethodSymbol(
+			JITTED_METHOD_INDEX, -1, resolvedMethod);
+		return wrap_symbolref(symref);
+	}
+	return nullptr;
+}
+
+JIT_NodeRef JIT_IndirectCall(JIT_ILInjectorRef ilinjector, JIT_NodeRef funcptr,
+	JIT_Type return_type, int32_t numArgs, JIT_NodeRef* args) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto function_builder = injector->function_builder_;
+	auto function_pointer = unwrap_node(funcptr);
+	TR::DataType returnType = TR::DataType((TR::DataTypes)return_type);
+
+	TR::DataType targetType = TR::Int32;
+	if (TR::Compiler->target.is64Bit())
+		targetType = TR::Int64;
+	std::vector<TR::DataType> argtypes;
+	for (int i = 0; i < numArgs; i++) {
+		JIT_NodeRef arg = args[i];
+		TR::Node *node = unwrap_node(arg);
+		TR::DataType type = node->getDataType();
+		if (type == TR::Int8 || type == TR::Int16 ||
+			(targetType == TR::Int64 && type == TR::Int32))
+			type = targetType;
+		argtypes.push_back(type);
+	}
+	char function_name[80];
+	snprintf(function_name, sizeof function_name,
+		"__fpr_%d__", function_builder->context_->function_id_++); //FIXME increment must be atomic
+	function_builder->context_->registerFunction(function_name, returnType, argtypes, nullptr);
+
+	TR::ResolvedMethod *resolvedMethod =
+		function_builder->context_->getFunction(function_name);
+	TR::SymbolReference *methodSymRef =
+		injector->symRefTab()->findOrCreateComputedStaticMethodSymbol(
+			JITTED_METHOD_INDEX, -1, resolvedMethod);
+	TR::Node *callNode = TR::Node::createWithSymRef(
+		TR::ILOpCode::getIndirectCall(returnType), numArgs, methodSymRef);
+	int32_t childIndex = 0;
+	callNode->setAndIncChild(childIndex++, function_pointer);
+	for (int32_t a = 0; a < numArgs; a++) {
+		JIT_NodeRef arg = args[a];
+		TR::Node *node = unwrap_node(arg);
+		if (node->getDataType() == TR::Int8 || node->getDataType() == TR::Int16 ||
+			(targetType == TR::Int64 && node->getDataType() == TR::Int32))
+			node = convertTo(injector, targetType, node);
+		callNode->setAndIncChild(childIndex++, node);
+	}
+	// callNode must be anchored by itself
+	injector->genTreeTop(callNode);
+	return wrap_node(callNode);
+}
+
 
 JIT_NodeRef JIT_Goto(JIT_ILInjectorRef ilinjector, JIT_BlockRef block) {
   auto injector = unwrap_ilinjector(ilinjector);

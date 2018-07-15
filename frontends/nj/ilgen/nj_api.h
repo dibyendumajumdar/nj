@@ -1249,10 +1249,23 @@ extern JIT_NodeRef JIT_ConvertTo(JIT_ILInjectorRef ilinjector,
                                  bool needUnsigned);
 
 /**
+ * Obtain a symbol for a known function
+ */
+JIT_SymbolRef JIT_GetFunctionSymbol(JIT_ILInjectorRef ilinjector,
+                                    const char *name);
+
+/**
  * Call a function; function must be registered already
  */
 extern JIT_NodeRef JIT_Call(JIT_ILInjectorRef ilinjector,
                             const char *functionName, int32_t numArgs, JIT_NodeRef* args);
+
+/**
+ * Call a function via a runtime function ptr
+ */
+extern JIT_NodeRef JIT_IndirectCall(JIT_ILInjectorRef ilinjector,
+                                    JIT_NodeRef funcptr, JIT_Type return_type,
+                                    int32_t numArgs, JIT_NodeRef *args);
 
 /**
  * Generate unconditional jump to given block; CFG will be updated to add an
