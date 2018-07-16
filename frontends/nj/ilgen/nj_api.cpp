@@ -864,7 +864,7 @@ JIT_NodeRef JIT_IndirectCall(JIT_ILInjectorRef ilinjector, JIT_NodeRef funcptr,
 		injector->symRefTab()->findOrCreateComputedStaticMethodSymbol(
 			JITTED_METHOD_INDEX, -1, resolvedMethod);
 	TR::Node *callNode = TR::Node::createWithSymRef(
-		TR::ILOpCode::getIndirectCall(returnType), numArgs, methodSymRef);
+		TR::ILOpCode::getIndirectCall(returnType), numArgs+1, methodSymRef);
 	int32_t childIndex = 0;
 	callNode->setAndIncChild(childIndex++, function_pointer);
 	for (int32_t a = 0; a < numArgs; a++) {
