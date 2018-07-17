@@ -592,6 +592,19 @@ JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
   auto symref = unwrap_symbolref(symbol);
   if (symref->isTemporary(injector->comp()))
 	  symref->getSymbol()->setAutoAddressTaken();
+  if (symref->getSymbol()->isResolvedMethod()) {
+	  /* Special handling of function symbols */
+	  auto rsm = symref->getSymbol()->getResolvedMethodSymbol();
+	  auto m = rsm->getResolvedMethod();
+	  if (m) {
+		  void *ep = m->startAddressForJittedMethod();
+		  if (ep) {
+			  return wrap_node(TR::Node::aconst((uintptrj_t) ep));
+		  }
+	  }
+	  TR_ASSERT(false,
+		  "Function Symbol must resolve to a static address");
+  }
   return wrap_node(TR::Node::createWithSymRef(TR::loadaddr, 0, symref));
 }
 
