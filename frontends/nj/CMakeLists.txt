@@ -7,6 +7,7 @@ set(API_FILES
 	ilgen/NJIlGeneratorMethodDetails.cpp
 	ilgen/NJIlGenerator.cpp
 	ilgen/nj_api.cpp
+	optimizer/NJOptimizer.cpp
 	runtime/NJCodeCacheManager.cpp
 	runtime/NJJitConfig.cpp
 )
