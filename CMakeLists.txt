@@ -125,8 +125,11 @@ endif()
 ###
 add_subdirectory(third_party)
 add_subdirectory(compiler)
-add_subdirectory(jitbuilder)
 add_subdirectory(frontends)
-add_subdirectory(util)
-add_subdirectory(fvtest)
+
+# Disable following to speed up builds
+# TODO should be controlled via an option
+#add_subdirectory(jitbuilder)
+#add_subdirectory(util)
+#add_subdirectory(fvtest)
 
