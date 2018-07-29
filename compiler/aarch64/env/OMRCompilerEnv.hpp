@@ -19,53 +19,44 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef TR_INSTRUCTION_INCL
-#define TR_INSTRUCTION_INCL
+#ifndef OMR_ARM64_COMPILER_ENV_INCL
+#define OMR_ARM64_COMPILER_ENV_INCL
 
-#include "codegen/OMRInstruction.hpp"
+/*
+ * The following #define and typedef must appear before any #includes in this file
+ */
+#ifndef OMR_COMPILER_ENV_CONNECTOR
+#define OMR_COMPILER_ENV_CONNECTOR
+namespace OMR { namespace ARM64 { class CompilerEnv; } }
+namespace OMR { typedef OMR::ARM64::CompilerEnv CompilerEnvConnector; }
+#else
+#error OMR::ARM64::CompilerEnv expected to be a primary connector, but an OMR connector is already defined
+#endif
 
-namespace TR
+#include "compiler/env/OMRCompilerEnv.hpp"
+#include "infra/Annotations.hpp"  // for OMR_EXTENSIBLE
+#include "env/RawAllocator.hpp"
+
+namespace OMR
 {
-class Instruction;
 
-class OMR_EXTENSIBLE Instruction : public OMR::InstructionConnector
+namespace ARM64
+{
+
+class OMR_EXTENSIBLE CompilerEnv : public OMR::CompilerEnv
    {
-   public:
+public:
 
-   /**
-    * @brief Constructor
-    * @param[in] op : opcode
-    * @param[in] node : node
-    * @param[in] precedingInstruction : preceding instruction
-    * @param[in] cg : CodeGenerator
-    */
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::Instruction *precedingInstruction, TR::CodeGenerator *cg) :
-      OMR::InstructionConnector(cg, precedingInstruction, op, node)
-      {
-      }
+   CompilerEnv(TR::RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
+         OMR::CompilerEnv(raw, persistentAllocatorKit)
+      {}
 
-   /**
-    * @brief Constructor
-    * @param[in] op : opcode
-    * @param[in] node : node
-    * @param[in] cg : CodeGenerator
-    */
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::CodeGenerator *cg) :
-      OMR::InstructionConnector(cg, op, node)
-      {
-      }
-
+   // Initialize 'target' environment for this compilation
+   void initializeTargetEnvironment();
    };
 
-} // TR
+}
 
-#include "codegen/OMRInstruction_inlines.hpp"
+}
 
-/**
- * @brief Type cast for instruction cursor
- * @param[in] i : instruction cursor
- * @return instruction cursor
- */
-inline uint32_t *toARM64Cursor(uint8_t *i) { return (uint32_t *)i; }
-
-#endif
+#endif //OMR_ARM64_COMPILER_ENV_INCL

@@ -1544,9 +1544,7 @@ OMR::Z::Machine::assignBestRegisterSingle(TR::Register    *targetRegister,
      }
 
    // Bookkeeping to update the future use count
-      if (doBookKeeping &&
-         (assignedRegister->getState() != TR::RealRegister::Locked ||
-         self()->supportLockedRegisterAssignment()))
+      if (doBookKeeping && (assignedRegister->getState() != TR::RealRegister::Locked))
       {
       targetRegister->decFutureUseCount();
       targetRegister->setIsLive();
@@ -2032,7 +2030,7 @@ OMR::Z::Machine::assignBestRegisterPair(TR::Register    *regPair,
       if (((firstReg->decFutureUseCount() == 0) ||
            ((comp->getOption(TR_EnableTrueRegisterModel)) && currInst->startOfLiveRange(firstReg)) ||
            (self()->cg()->isOutOfLineHotPath() && firstReg->getStartOfRange() == currInst)) &&
-           (freeRegisterHigh->getState() != TR::RealRegister::Locked || self()->supportLockedRegisterAssignment()))
+           (freeRegisterHigh->getState() != TR::RealRegister::Locked))
          {
          firstReg->resetIsLive();
          firstReg->setAssignedRegister(NULL);
@@ -2049,7 +2047,7 @@ OMR::Z::Machine::assignBestRegisterPair(TR::Register    *regPair,
       if (((lastReg->decFutureUseCount() == 0) ||
            ((comp->getOption(TR_EnableTrueRegisterModel)) && currInst->startOfLiveRange(lastReg)) ||
            (self()->cg()->isOutOfLineHotPath() && lastReg->getStartOfRange() == currInst)) &&
-          (freeRegisterLow->getState() != TR::RealRegister::Locked || self()->supportLockedRegisterAssignment()))
+          (freeRegisterLow->getState() != TR::RealRegister::Locked))
          {
          lastReg->resetIsLive();
          lastReg->setAssignedRegister(NULL);
@@ -5307,73 +5305,43 @@ OMR::Z::Machine::coerceRegisterAssignment(TR::Instruction                       
          }
       else
          {
-         // if spareReg is still NULL, then it means we did not find any free Reg, and no
-         // other register is available to spill. So we must spill the target register.
+         self()->cg()->traceRegAssigned(currentTargetVirtual, spareReg);
 
-         // In general if a register is blocked, the virtual register
-         // associated with a target register would have been assigned as part of that instruction.
-         // So we would not do this (i.e. spill the blocked register). However, in this case all
-         // pre-assigned registers in the dependency are blocked before individiual dependencies are coerced
-         // into their respective target registers (inside TR_S390RegisterDependencyGroup::assignRegisters((..)).
-         // In this situation it's possible that the target register of a register dependency is currently
-         // blocked (as in here) and occupied by another virtual register and that there is no other available
-         // register to free.
-         // Hence, we must spill the blocked target reg as it is the only available candidate.
-         if (spareReg == NULL)
+         // virtual register is not assigned yet, copy register
+         cursor = self()->registerCopy(currentInstruction, currentTargetVirtualRK, targetRegister, spareReg, self()->cg(), instFlags);
+
+         spareReg->setState(TR::RealRegister::Assigned);
+         spareReg->setAssignedRegister(currentTargetVirtual);
+         currentTargetVirtual->setAssignedRegister(spareReg);
+
+         if (enableHighWordRA && currentTargetVirtual->is64BitReg())
             {
-            self()->cg()->setRegisterAssignmentFlag(TR_RegisterSpilled);
-            virtualRegister->block();
+            //TR_ASSERT(targetRegisterHW->getState() == TR::RealRegister::Blocked,
+            //        "currentTargetVirtual is blocked and is fullsize, but the HW is not blocked?");
 
-            self()->spillRegister(currentInstruction, currentTargetVirtual);
-            targetRegister->setAssignedRegister(virtualRegister);
-            virtualRegister->setAssignedRegister(targetRegister);
-            targetRegister->setState(TR::RealRegister::Assigned);
-
-            if (targetRegister->isHighWordRegister() && currentTargetVirtual->is64BitReg() &&
-                targetRegister->getRegisterNumber() == spareReg->getHighWordRegister()->getRegisterNumber())
-               doNotRegCopy = true;
-            virtualRegister->unblock();
+            spareReg->getHighWordRegister()->setState(TR::RealRegister::Assigned);
+            spareReg->getHighWordRegister()->setAssignedRegister(currentTargetVirtual);
+            targetRegister->getLowWordRegister()->setState(TR::RealRegister::Unlatched);
+            targetRegister->getLowWordRegister()->setAssignedRegister(NULL);
+            targetRegisterHW->setState(TR::RealRegister::Unlatched);
+            targetRegisterHW->setAssignedRegister(NULL);
+            }
+         if (virtualRegister->getTotalUseCount() != virtualRegister->getFutureUseCount())
+            {
+            self()->cg()->setRegisterAssignmentFlag(TR_RegisterReloaded);
+            self()->reverseSpillState(currentInstruction, virtualRegister, targetRegister);
             }
          else
             {
-            self()->cg()->traceRegAssigned(currentTargetVirtual, spareReg);
-
-            // virtual register is not assigned yet, copy register
-            cursor = self()->registerCopy(currentInstruction, currentTargetVirtualRK, targetRegister, spareReg, self()->cg(), instFlags);
-
-            spareReg->setState(TR::RealRegister::Assigned);
-            spareReg->setAssignedRegister(currentTargetVirtual);
-            currentTargetVirtual->setAssignedRegister(spareReg);
-
-            if (enableHighWordRA && currentTargetVirtual->is64BitReg())
+            if (!comp->getOption(TR_DisableOOL) && self()->cg()->isOutOfLineColdPath())
                {
-               //TR_ASSERT(targetRegisterHW->getState() == TR::RealRegister::Blocked,
-               //        "currentTargetVirtual is blocked and is fullsize, but the HW is not blocked?");
-
-               spareReg->getHighWordRegister()->setState(TR::RealRegister::Assigned);
-               spareReg->getHighWordRegister()->setAssignedRegister(currentTargetVirtual);
-               targetRegister->getLowWordRegister()->setState(TR::RealRegister::Unlatched);
-               targetRegister->getLowWordRegister()->setAssignedRegister(NULL);
-               targetRegisterHW->setState(TR::RealRegister::Unlatched);
-               targetRegisterHW->setAssignedRegister(NULL);
+               self()->cg()->getFirstTimeLiveOOLRegisterList()->push_front(virtualRegister);
                }
-            if (virtualRegister->getTotalUseCount() != virtualRegister->getFutureUseCount())
-               {
-               self()->cg()->setRegisterAssignmentFlag(TR_RegisterReloaded);
-               self()->reverseSpillState(currentInstruction, virtualRegister, targetRegister);
-               }
-            else
-               {
-               if (!comp->getOption(TR_DisableOOL) && self()->cg()->isOutOfLineColdPath())
-                  {
-                  self()->cg()->getFirstTimeLiveOOLRegisterList()->push_front(virtualRegister);
-                  }
-               }
-            // spareReg is assigned.
             }
+         // spareReg is assigned.
          }
       }
-      // the target reg is assigned
+   // the target reg is assigned
    else if (targetRegister->getState() == TR::RealRegister::Assigned)
       {
       //  Since target is assigned, it must have a virtReg associated to it
@@ -5909,38 +5877,6 @@ OMR::Z::Machine::coerceRegisterAssignment(TR::Instruction                       
             }
          currentAssignedRegister->setState(TR::RealRegister::Free);
          currentAssignedRegister->setAssignedRegister(NULL);
-         }
-
-      if (self()->supportLockedRegisterAssignment())
-      	 {
-      	 // the AR check is to avoid false errors for biit call
-      	 // like "LAM(R1,R1,...)" and needs to be re-visited
-
-      	 if (!self()->cg()->getRAPassAR() &&
-      	 	   targetRegister->getAssignedRegister() != NULL &&
-      	 	   targetRegister->getAssignedRegister() != targetRegister)
-      	 	   {
-      	     TR::Register * toFreeRegister = targetRegister->getAssignedRegister();
-             // register is locked but assigned to a VR, need to re-assign VR to another reg via reg copy or spill it
-             self()->cg()->traceRegisterAssignment(" Freeing locked register %R ", targetRegister);
-             uint64_t availRegMask = 0xffffffff;
-             if (toFreeRegister->isUsedInMemRef())
-                {
-                availRegMask &= ~TR::RealRegister::GPR0Mask;
-                }
-
-             TR::RealRegister * bestRegister = NULL;
-             if ((bestRegister = self()->findBestFreeRegister(currentInstruction, toFreeRegister->getKind(), toFreeRegister, availRegMask)) == NULL)
-                {
-                bestRegister = self()->freeBestRegister(currentInstruction, toFreeRegister, toFreeRegister->getKind(), availRegMask);
-                }
-             self()->registerCopy(currentInstruction, toFreeRegister->getKind(), toRealRegister(targetRegister), bestRegister, self()->cg(), 0);
-             toFreeRegister->setAssignedRegister(bestRegister);
-             bestRegister->setAssignedRegister(toFreeRegister);
-             bestRegister->setState(TR::RealRegister::Assigned);
-
-             }
-      	 targetRegister->setAssignedRegister(virtualRegister);
          }
       }
 
@@ -6730,44 +6666,6 @@ OMR::Z::Machine::initGlobalVectorRegisterMap(uint32_t vectorOffset)
 #undef addToGRAMap
    }
 
-
-void
-OMR::Z::Machine::lockGlobalRegister(int32_t globalRegisterTableIndex)
-   {
-   TR::Compilation *comp = self()->cg()->comp();
-   if (comp->getOption(TR_DisableRegisterPressureSimulation))
-      {
-      _globalRegisterNumberToRealRegisterMap[globalRegisterTableIndex] = (uint32_t) (-1);
-      }
-   else
-      {
-      // TODO: make sure this method is not called without TR_DisableRegisterPressureSimulation
-      // TR_ASSERTC( false,comp, "lockGlobalRegister() does not work with new pickRegister\n");
-      }
-   }
-
-void
-OMR::Z::Machine::releaseGlobalRegister(int32_t globalRegisterTableIndex, TR::RealRegister::RegNum gReg)
-   {
-   _globalRegisterNumberToRealRegisterMap[globalRegisterTableIndex] = gReg;
-   }
-
-int
-OMR::Z::Machine::findGlobalRegisterIndex(TR::RealRegister::RegNum gReg)
-   {
-   int32_t index = -1;
-   int32_t last = self()->getLastGlobalCCRRegisterNumber();
-   for (int32_t i = 0; i < last; i++)
-      {
-      if (_globalRegisterNumberToRealRegisterMap[i] == gReg)
-         {
-         index = i;
-         break;
-         }
-      }
-   return index;
-   }
-
 // call this if optimizer run TR_DynamicLiteralPool pass
 void
 OMR::Z::Machine::releaseLiteralPoolRegister()
@@ -7014,12 +6912,6 @@ OMR::Z::Machine::setVirtualAssociatedWithReal(TR::RealRegister::RegNum regNum, T
       }
 
    return _registerAssociations[regNum] = virtReg;
-   }
-
-bool
-OMR::Z::Machine::supportLockedRegisterAssignment()
-   {
-   return false; // TODO : Identity needs folding
    }
 
 TR::RealRegister *

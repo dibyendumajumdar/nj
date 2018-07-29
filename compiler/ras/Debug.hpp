@@ -132,9 +132,9 @@ namespace TR { class X86MemInstruction;                    }
 namespace TR { class X86MemImmInstruction;                 }
 namespace TR { class X86MemRegInstruction;                 }
 namespace TR { class X86MemRegImmInstruction;              }
-namespace TR { class X86MemRegRegInstruction;              }
 namespace TR { class X86RegMemInstruction;                 }
 namespace TR { class X86RegMemImmInstruction;              }
+namespace TR { class X86RegRegMemInstruction;              }
 namespace TR { class X86FPRegInstruction;                  }
 namespace TR { class X86FPRegRegInstruction;               }
 namespace TR { class X86FPMemRegInstruction;               }
@@ -143,8 +143,6 @@ class TR_X86RegisterDependencyGroup;
 namespace TR { class X86RestartSnippet; }
 namespace TR { class S390LookupSwitchSnippet; }
 namespace TR { class X86PicDataSnippet; }
-namespace TR { class IA32ConstantDataSnippet; }
-namespace TR { class IA32DataSnippet; }
 namespace TR { class X86DivideCheckSnippet; }
 namespace TR { class X86FPConvertToIntSnippet; }
 namespace TR { class X86FPConvertToLongSnippet; }
@@ -594,6 +592,9 @@ public:
    virtual void printRegisterDependencies(TR::FILE *pOutFile, TR_S390RegisterDependencyGroup *rgd, int numberOfRegisters);
    const char * getName(TR::RealRegister *, TR_RegisterSizes size = TR_WordReg);
 #endif
+#if defined(TR_TARGET_ARM64)
+   void print(TR::FILE *pOutFile, TR::UnresolvedDataSnippet * snippet);
+#endif
 
 #if defined(AIXPPC)
    virtual void setupDebugger(void *);
@@ -765,9 +766,9 @@ public:
    void print(TR::FILE *, TR::X86MemImmInstruction *);
    void print(TR::FILE *, TR::X86MemRegInstruction *);
    void print(TR::FILE *, TR::X86MemRegImmInstruction *);
-   void print(TR::FILE *, TR::X86MemRegRegInstruction *);
    void print(TR::FILE *, TR::X86RegMemInstruction *);
    void print(TR::FILE *, TR::X86RegMemImmInstruction *);
+   void print(TR::FILE *, TR::X86RegRegMemInstruction *);
    void print(TR::FILE *, TR::X86FPRegInstruction *);
    void print(TR::FILE *, TR::X86FPRegRegInstruction *);
    void print(TR::FILE *, TR::X86FPMemRegInstruction *);
@@ -786,8 +787,8 @@ public:
    void printReferencedRegisterInfo(TR::FILE *, TR::X86RegRegInstruction *);
    void printReferencedRegisterInfo(TR::FILE *, TR::X86MemInstruction *);
    void printReferencedRegisterInfo(TR::FILE *, TR::X86MemRegInstruction *);
-   void printReferencedRegisterInfo(TR::FILE *, TR::X86MemRegRegInstruction *);
    void printReferencedRegisterInfo(TR::FILE *, TR::X86RegMemInstruction *);
+   void printReferencedRegisterInfo(TR::FILE *, TR::X86RegRegMemInstruction *);
 
    void printFullRegisterDependencyInfo(TR::FILE *, TR::RegisterDependencyConditions * conditions);
    void printDependencyConditions(TR_X86RegisterDependencyGroup *, uint8_t, char *, TR::FILE *);
@@ -832,8 +833,6 @@ public:
    void print(TR::FILE *, TR::X86RecompilationSnippet *);
 #endif
 
-   void print(TR::FILE *, TR::IA32ConstantDataSnippet *);
-   void print(TR::FILE *, TR::IA32DataSnippet *);
    void print(TR::FILE *, TR::X86DivideCheckSnippet *);
    void print(TR::FILE *, TR::X86FPConvertToIntSnippet *);
    void print(TR::FILE *, TR::X86FPConvertToLongSnippet *);

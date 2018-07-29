@@ -531,8 +531,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    TR::IA32DataSnippet *create8ByteData(TR::Node *, int64_t c);
    TR::IA32DataSnippet *create16ByteData(TR::Node *, void *c);
 
-   bool supportsCMOV() {return (_targetProcessorInfo.supportsCMOVInstructions());}
-
    static TR_X86ProcessorInfo _targetProcessorInfo;
 
    // The core "clobberEvaluate" logic for single registers (not register
@@ -594,7 +592,26 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    bool nodeIsFoldableMemOperand(TR::Node *node, TR::Node *parent, TR_RegisterPressureState *state);
 
-   TR::IA32ConstantDataSnippet     *findOrCreateConstant(TR::Node *, void *c, uint8_t size);
+   /*
+    * \brief create a data snippet.
+    *
+    * \param[in] n : the node which this data snippet belongs to
+    * \param[in] c : a pointer to initial data or NULL for skipping initialization
+    * \param[in] s : the size of this data snippet
+    *
+    * \return : a data snippet with size s
+    */
+   TR::IA32DataSnippet         *createDataSnippet(TR::Node *n, void *c, uint8_t s);
+   /*
+    * \brief find or create a constant data snippet.
+    *
+    * \param[in] n : the node which this constant data snippet belongs to
+    * \param[in] c : a pointer to initial data or NULL for skipping initialization
+    * \param[in] s : the size of this constant data snippet
+    *
+    * \return : a constant data snippet with size s
+    */
+   TR::IA32ConstantDataSnippet *findOrCreateConstantDataSnippet(TR::Node *n, void *c, uint8_t s);
 
    TR::RealRegister             *_frameRegister;
 
@@ -606,7 +623,7 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    TR::Instruction                 *_lastCatchAppendInstruction;
    TR_BetterSpillPlacement        *_betterSpillPlacements;
 
-   TR::list<TR::IA32DataSnippet*>          _dataSnippetList;
+   TR::vector<TR::IA32DataSnippet*>      _dataSnippetList;
    TR::list<TR::Register*>               _spilledIntRegisters;
    TR::list<TR::Register*>               _liveDiscardableRegisters;
    TR::list<TR::Register*>               _dependentDiscardableRegisters;
