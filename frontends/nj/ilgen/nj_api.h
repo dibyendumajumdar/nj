@@ -174,10 +174,15 @@ typedef struct JIT_Symbol *JIT_SymbolRef;
  * JIT_ILBuilder callback will be invoked. If that succeeds then the
  * function will be compiled.
  *
+ * opt_level controls optimizations.
+ * 0 = no opt
+ * 1 = warm
+ * 2 = hot
+ *
  * This function returns pointer to compiled code on success
  * Or else a NULL is returned.
  */
-extern void *JIT_Compile(JIT_FunctionBuilderRef fb);
+extern void *JIT_Compile(JIT_FunctionBuilderRef fb, int opt_level);
 
 /**
  * Allocates given number of blocks, and leaves the current block pointer

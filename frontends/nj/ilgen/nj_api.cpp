@@ -242,7 +242,7 @@ struct FunctionBuilder
     }
   }
 
-  void *compile()
+  void *compile(int opt_level)
   {
     // construct a `TR::ResolvedMethod` instance from the IL generator and use
     // to compile the method
@@ -256,8 +256,9 @@ struct FunctionBuilder
         return_type_, 0, &ilgenerator_);
     TR::IlGeneratorMethodDetails methodDetails(&resolvedMethod);
     int32_t rc = 0;
+	auto hotness = opt_level == 0 ? TR_Hotness::noOpt : (opt_level == 1 ? TR_Hotness::warm : TR_Hotness::hot);
     uint8_t *entry_point =
-        compileMethodFromDetails(NULL, methodDetails, warm, rc);
+        compileMethodFromDetails(NULL, methodDetails, hotness, rc);
     if (entry_point)
     {
       context_->registerFunction(name_, return_type_, argIlTypes, entry_point);
@@ -444,9 +445,9 @@ void JIT_DestroyFunctionBuilder(JIT_FunctionBuilderRef fb) {
   delete function_builder;
 }
 
-void *JIT_Compile(JIT_FunctionBuilderRef fb) {
+void *JIT_Compile(JIT_FunctionBuilderRef fb, int opt_level) {
   FunctionBuilder *function_builder = unwrap_function_builder(fb);
-  return function_builder->compile();
+  return function_builder->compile(opt_level);
 }
 
 void JIT_CreateBlocks(JIT_ILInjectorRef ilinjector, int32_t num) {

@@ -94,19 +94,34 @@ static const OptimizationStrategy cheapTacticalGlobalRegisterAllocatorOpts[] =
    { OMR::endGroup                        }
    };
 
-static const OptimizationStrategy JBcoldStrategyOpts[] =
+static const OptimizationStrategy noOptStrategyOpts[] =
    {
-   { OMR::deadTreesElimination                                                     },
-   { OMR::treeSimplification                                                       },
-   { OMR::localCSE                                                                 },
-   { OMR::basicBlockExtension                                                      },
-   { OMR::cheapTacticalGlobalRegisterAllocatorGroup                                },
+   { OMR::endOpts },
    };
 
-static const OptimizationStrategy JBwarmStrategyOpts[] =
+static const OptimizationStrategy coldStrategyOpts[] =
    {
-   { OMR::deadTreesElimination                                                     },
-   { OMR::inlining                                                                 },
+   { OMR::basicBlockExtension                  },
+   { OMR::localCSE                             },
+   { OMR::treeSimplification                   },
+   { OMR::localCSE                             },
+   { OMR::endOpts },
+   };
+
+static const OptimizationStrategy warmStrategyOpts[] =
+   {
+   { OMR::basicBlockExtension                                                      },
+   { OMR::localCSE                                                                 },
+   { OMR::treeSimplification                                                       },
+   { OMR::localCSE                             },
+   { OMR::localDeadStoreElimination            },
+   { OMR::globalDeadStoreGroup                 },
+   { OMR::cheapTacticalGlobalRegisterAllocatorGroup                                },
+   { OMR::endOpts },
+   };
+
+static const OptimizationStrategy hotStrategyOpts[] =
+   {
    { OMR::treeSimplification                                                       },
    { OMR::localCSE                                                                 },
    { OMR::basicBlockOrdering                                                       }, // straighten goto's
@@ -193,8 +208,6 @@ Optimizer::Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymb
       new (comp->allocator()) TR::OptimizationManager(self(), TR_GlobalRegisterAllocator::create, OMR::tacticalGlobalRegisterAllocator);
    _opts[OMR::regDepCopyRemoval] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR::RegDepCopyRemoval::create, OMR::regDepCopyRemoval);
-   _opts[OMR::inlining] =
-      new (comp->allocator()) TR::OptimizationManager(self(), TR_TrivialInliner::create, OMR::inlining);
 
    // Initialize optimization groups
    _opts[OMR::cheapTacticalGlobalRegisterAllocatorGroup] =
@@ -208,10 +221,10 @@ Optimizer::Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymb
    self()->setRequestOptimization(OMR::tacticalGlobalRegisterAllocator, true);
 
 
-   omrCompilationStrategies[noOpt] = JBcoldStrategyOpts;
-   omrCompilationStrategies[cold]  = JBcoldStrategyOpts;
-   omrCompilationStrategies[warm]  = JBwarmStrategyOpts;
-   omrCompilationStrategies[hot]   = JBwarmStrategyOpts;
+   omrCompilationStrategies[noOpt] = noOptStrategyOpts;
+   omrCompilationStrategies[cold]  = coldStrategyOpts;
+   omrCompilationStrategies[warm]  = warmStrategyOpts;
+   omrCompilationStrategies[hot]   = hotStrategyOpts;
 
    }
 
