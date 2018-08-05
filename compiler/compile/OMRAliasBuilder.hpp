@@ -107,6 +107,8 @@ public:
    TR_BitVector & refinedAddressArrayShadows() { return _refinedAddressArrayShadows; }
    TR_BitVector & refinedIntArrayShadows() { return _refinedIntArrayShadows; }
 
+   TR_BitVector & addressTakenAutos() { return _addressTakenAutos; }
+
    bool litPoolGenericIntShadowHasBeenCreated(){ return _litPoolGenericIntShadowHasBeenCreated; }
    void setLitPoolGenericIntShadowHasBeenCreated(){ _litPoolGenericIntShadowHasBeenCreated = true; }
 
@@ -183,6 +185,8 @@ protected:
    TR_BitVector _refinedAddressArrayShadows;
    TR_BitVector _refinedIntArrayShadows;
    TR_BitVector _refinedNonIntPrimitiveArrayShadows;
+
+   TR_BitVector _addressTakenAutos;
 
    bool _litPoolGenericIntShadowHasBeenCreated;
 

@@ -1359,6 +1359,14 @@ extern JIT_SymbolRef JIT_GetSymbolForNode(JIT_NodeRef noderef);
 extern void JIT_SetMayHaveLoops(JIT_ILInjectorRef ilinjector);
 extern void JIT_SetMayHaveNestedLoops(JIT_ILInjectorRef ilinjector);
 
+/**
+ * Inform the compiler that the automatic variable had its 
+ * address taken, hence the variable should be considered as aliased
+ * when calling functions etc.
+ */
+extern void JIT_SetAutoAddressTaken(JIT_ILInjectorRef ilinjector,
+	JIT_SymbolRef symbol);
+
 #ifdef __cplusplus
 }
 #endif

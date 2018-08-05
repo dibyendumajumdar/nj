@@ -587,12 +587,19 @@ void JIT_StoreToTemporary(JIT_ILInjectorRef ilinjector, JIT_SymbolRef symbol,
   return injector->storeToTemp(unwrap_symbolref(symbol), unwrap_node(value));
 }
 
+void JIT_SetAutoAddressTaken(JIT_ILInjectorRef ilinjector,
+	JIT_SymbolRef symbol) {
+	auto injector = unwrap_ilinjector(ilinjector);
+	auto symref = unwrap_symbolref(symbol);
+	if (symref->isTemporary(injector->comp())) {
+		injector->comp()->getSymRefTab()->aliasBuilder.addressTakenAutos().set(symref->getReferenceNumber());
+	}
+}
+
 JIT_NodeRef JIT_LoadAddress(JIT_ILInjectorRef ilinjector,
                             JIT_SymbolRef symbol) {
   auto injector = unwrap_ilinjector(ilinjector);
   auto symref = unwrap_symbolref(symbol);
-  if (symref->isTemporary(injector->comp()))
-	  symref->getSymbol()->setAutoAddressTaken();
   if (symref->getSymbol()->isResolvedMethod()) {
 	  /* Special handling of function symbols */
 	  auto rsm = symref->getSymbol()->getResolvedMethodSymbol();
