@@ -186,36 +186,6 @@ TR::S390SystemLinkage::initParamOffset(TR::ResolvedMethodSymbol * method, int32_
 }
 
 /**
- * Non-Java use
- */
-TR::SymbolReference *
-TR::S390SystemLinkage::createAutoMarkerSymbol(TR_S390AutoMarkers markerType)
-   {
-   char *name = NULL;
-   switch (markerType)
-      {
-      case TR_AutoMarker_EndOfParameterBlock:
-         name = "end of parameter block";
-         break;
-      default:
-         TR_ASSERT(false, "invalid auto marker symbol type");
-         break;
-      }
-
-   TR::AutomaticSymbol *sym = TR::AutomaticSymbol::createMarker(trHeapMemory(),name);
-   TR::SymbolReference *symRef = new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), sym);
-
-   TR_Array<TR::SymbolReference*> *symbols = _autoMarkerSymbols;
-   if (symbols == NULL)
-      {
-      symbols = new (trHeapMemory()) TR_Array<TR::SymbolReference*>(trMemory(), TR_AutoMarker_NumAutoMarkers, true);
-      setAutoMarkerSymbols(symbols);
-      }
-   (*symbols)[markerType] = symRef;
-   return symRef;
-   }
-
-/**
  * General utility
  * Perform a save or a restore operation of preserved FPRs from automatic
  * The operation depends on supplied opcode
@@ -249,48 +219,6 @@ TR::S390SystemLinkage::getputFPRs(TR::InstOpCode::Mnemonic opcode, TR::Instructi
          rsa = generateS390MemoryReference(spReg, offset, cg());
          cursor = generateRXInstruction(cg(), opcode,
                node, getS390RealRegister(REGNUM(i+TR::RealRegister::FirstFPR)), rsa, cursor);
-         j++;
-         }
-      }
-
-   return cursor;
-   }
-
-/**
- * General utility
- * Perform a save or a restore operation of preserved ARs from automatic
- * The operation depends on supplied opcode
- */
-TR::Instruction *
-TR::S390SystemLinkage::getputARs(TR::InstOpCode::Mnemonic opcode, TR::Instruction * cursor, TR::Node *node, TR::RealRegister *spReg)
-   {
-   int16_t ARSaveMask;
-   int32_t offset, firstSaved, lastSaved, beginSaveOffset;
-   TR::MemoryReference *rsa;
-   int32_t i,j, arSize;
-
-   if (spReg == NULL)
-      {
-      spReg = getNormalStackPointerRealRegister();
-      }
-
-   ARSaveMask = getARSaveMask();
-   beginSaveOffset = getARSaveAreaEndOffset(); // end offset is really begin offset -- see mapStack()
-
-   lastSaved = TR::Linkage::getLastMaskedBit(ARSaveMask);
-   firstSaved = TR::Linkage::getFirstMaskedBit(ARSaveMask);
-   arSize = cg()->machine()->getGPRSize();
-
-   j = 0;
-   for (i = firstSaved; i <= lastSaved; ++i)
-      {
-      if (ARSaveMask & (1 << (i)))
-         {
-         offset =  beginSaveOffset + (j*arSize);
-         rsa = generateS390MemoryReference(spReg, offset, cg());
-         cursor = generateRSInstruction(cg(), opcode,
-               node, getS390RealRegister(REGNUM(i+TR::RealRegister::FirstAR)),
-               getS390RealRegister(REGNUM(i+TR::RealRegister::FirstAR)), rsa, cursor);
          j++;
          }
       }
@@ -433,7 +361,6 @@ TR::S390zOSSystemLinkage::S390zOSSystemLinkage(TR::CodeGenerator * codeGen)
       {
       setProperty(FloatParmDescriptors);
       }
-   setNumSpecialArgumentRegisters(0);  // could be changed by ilgen
 
    setRegisterFlag(TR::RealRegister::GPR4, Preserved);
 
@@ -522,7 +449,6 @@ TR::S390zOSSystemLinkage::S390zOSSystemLinkage(TR::CodeGenerator * codeGen)
    setNumberOfDependencyGPRegisters(32);
    setFrameType(TR_XPLinkUnknownFrame);
    setLargestOutgoingArgumentAreaSize(0);
-   setAutoMarkerSymbols(0);
    setOffsetToLongDispSlot(0);
    }
 
@@ -1430,8 +1356,6 @@ TR::S390zLinuxSystemLinkage::mapSingleAutomatic(TR::AutomaticSymbol * p, uint32_
       // we have some stacks that are getting very close
       TR_ASSERT( (-stackIndex + size) >= (-stackIndex), "Stack index growing too big");
       }
-
-   setStrictestAutoSymbolAlignment(align); // API affected if (align > current strictest)
    }
 #endif
 
@@ -1460,8 +1384,6 @@ TR::S390SystemLinkage::mapStack(TR::ResolvedMethodSymbol * method, uint32_t stac
 //     -  item layout is done in a reverse order : those things mapped first here are at higher addresses
 //        end offsets are really begin offsets and vice versa.
 // ====== COMPLEXITY ALERT
-
-   setStrictestAutoSymbolAlignment(TR::Compiler->target.is64Bit() ? 8 : 8, true); // initial setting
 
    setStackSizeCheckNeeded(true);
 
@@ -1525,30 +1447,10 @@ TR::S390SystemLinkage::mapStack(TR::ResolvedMethodSymbol * method, uint32_t stac
 
       if (FPRSaveMask != 0 && isOSLinkageType())
          {
-         // PPA1 offset in multiple of 16 bytes - so align
-         setStrictestAutoSymbolAlignment(16);
          #define DELTA_ALIGN(x, align) ((x & (align-1)) ? (align -((x)&(align-1))) : 0)
          stackIndex -= DELTA_ALIGN(stackIndex, 16);
          }
       setFPRSaveAreaEndOffset(stackIndex);
-
-      //Save used Preserved ARs
-      if(!TR::Compiler->target.isLinux() ) //zLinux linkage doesn't deal with ARs
-         {
-         setARSaveAreaBeginOffset(stackIndex);
-         int16_t ARSaveMask = 0;
-         for (i = TR::RealRegister::FirstAR; i <= TR::RealRegister::LastAR; ++i)
-           {
-           if (getPreserved(REGNUM(i)) && (getS390RealRegister(REGNUM(i)))->getHasBeenAssignedInMethod())
-              {
-              ARSaveMask |= 1 << (i - TR::RealRegister::FirstAR);
-              stackIndex -= cg()->machine()->getGPRSize();
-              }
-           }
-         setARSaveMask(ARSaveMask);
-         setARSaveAreaEndOffset(stackIndex);
-         }
-
       }
 
    //  Map slot for Long Disp
@@ -1608,8 +1510,6 @@ void TR::S390SystemLinkage::mapSingleAutomatic(TR::AutomaticSymbol * p, uint32_t
    int32_t roundup = align - 1;
    stackIndex = (stackIndex-size) & (~roundup);
    p->setOffset(stackIndex);
-
-   setStrictestAutoSymbolAlignment(align); // API affected if (align > current strictest)
    }
 
 bool TR::S390SystemLinkage::hasToBeOnStack(TR::ParameterSymbol * parm)
@@ -1815,31 +1715,23 @@ TR::S390zLinuxSystemLinkage::checkLeafRoutine(int32_t stackFrameSize, TR::Instru
       return ft;
       }
 
-   // b) no alloca
-   if (getNotifiedOfAlloca())
-      {
-      if(comp()->getOption(TR_TraceCG))
-         traceMsg(comp(), "LeafRoutine: Alloca's present\n");
-      return ft;
-      }
-
-   // c) not var arg
+   // b) not var arg
    TR::MethodSymbol *methodSymbol = comp()->getMethodSymbol();
 
 
-   //e) ensure stack pointer isn't used.
+   // c) ensure stack pointer isn't used.
    TR::RealRegister * spReg = getStackPointerRealRegister();
 
-   if(spReg->isUsedInMemRef() || getARSaveMask() || getHPRSaveMask())       //don't need to check gprmask or hpr mask as these are saved in caller stack.
+   if(spReg->isUsedInMemRef() || getHPRSaveMask())       //don't need to check gprmask or hpr mask as these are saved in caller stack.
       {
       if(comp()->getOption(TR_TraceCG))
-         traceMsg(comp(), "LeafRoutine: stack pointer isUsedInMemRef = %d  or arsavemask = %d  or hprsavemask = %d is set to 1\n",spReg->isUsedInMemRef(),getARSaveMask(),getHPRSaveMask());
+         traceMsg(comp(), "LeafRoutine: stack pointer isUsedInMemRef = %d or hprsavemask = %d is set to 1\n",spReg->isUsedInMemRef(),getHPRSaveMask());
 
       return ft;
       }
 
 
-   // g) no calls
+   // d) no calls
 
 
    // For no calls we check if method contains possible branch instruction
@@ -1939,7 +1831,6 @@ void TR::S390SystemLinkage::createPrologue(TR::Instruction * cursor)
    TR::Snippet * firstSnippet = NULL;
 
    int16_t FPRSaveMask = 0;
-   int16_t ARSaveMask = 0;
 
    int32_t localSize; // Auto + Spill size
 
@@ -2061,29 +1952,6 @@ void TR::S390SystemLinkage::createPrologue(TR::Instruction * cursor)
          cursor = generateRXInstruction(cg(), TR::InstOpCode::STD,
                firstNode, getS390RealRegister(REGNUM(i+TR::RealRegister::FirstFPR)), retAddrMemRef, cursor);
          }
-      }
-
-   //Save preserved ARs
-   ARSaveMask = getARSaveMask();
-   firstSaved = TR::Linkage::getFirstMaskedBit(ARSaveMask);
-   lastSaved = TR::Linkage::getLastMaskedBit(ARSaveMask);
-   offset =  getARSaveAreaBeginOffset();
-   retAddrMemRef = generateS390MemoryReference(spReg, offset, cg());
-   for (i = firstSaved; i <= lastSaved; ++i)
-      {
-      if (ARSaveMask & (1 << (i)))
-         {
-         offset += cg()->machine()->getARSize();
-         cursor = generateRSInstruction(cg(), TR::InstOpCode::STAM,
-               firstNode, getS390RealRegister(REGNUM(i+TR::RealRegister::FirstAR)),
-               getS390RealRegister(REGNUM(i+TR::RealRegister::FirstAR)), retAddrMemRef, cursor);
-         }
-      }
-
-   if (_notifiedOfalloca)
-      {
-      cursor = generateRRInstruction(cg(), TR::InstOpCode::getLoadRegOpCode(), firstNode,
-         getS390RealRegister(getAlternateStackPointerRegister()), spReg, cursor);
       }
 
    cursor = (TR::Instruction *) saveArguments(cursor, false);
@@ -2245,7 +2113,6 @@ void TR::S390SystemLinkage::createEpilogue(TR::Instruction * cursor)
    int32_t i, offset = 0, firstSaved, lastSaved ;
    int16_t GPRSaveMask = getGPRSaveMask();
    int16_t FPRSaveMask = getFPRSaveMask();
-   int16_t ARSaveMask = getARSaveMask();
    int32_t stackFrameSize = getStackFrameSize();
 
    TR::MemoryReference * retAddrMemRef ;
@@ -2253,14 +2120,7 @@ void TR::S390SystemLinkage::createEpilogue(TR::Instruction * cursor)
    TR::LabelSymbol * epilogBeginLabel = generateLabelSymbol(cg());
 
    cursor = generateS390LabelInstruction(cg(), TR::InstOpCode::LABEL, nextNode, epilogBeginLabel, cursor);
-
-
-   if (_notifiedOfalloca)
-      {
-      cursor = generateRRInstruction(cg(), TR::InstOpCode::getLoadRegOpCode(), nextNode,
-         spReg, getS390RealRegister(getAlternateStackPointerRegister()), cursor);
-      }
-
+   
    //Restore preserved FPRs
    firstSaved = TR::Linkage::getFirstMaskedBit(FPRSaveMask);
    lastSaved = TR::Linkage::getLastMaskedBit(FPRSaveMask);
@@ -2279,21 +2139,6 @@ void TR::S390SystemLinkage::createEpilogue(TR::Instruction * cursor)
            nextNode, getS390RealRegister(REGNUM(i+TR::RealRegister::FirstFPR)), retAddrMemRef, cursor);
 
         offset +=  cg()->machine()->getFPRSize();
-        }
-     }
-
-   //Restore preserved ARs
-   firstSaved = TR::Linkage::getFirstMaskedBit(ARSaveMask);
-   lastSaved = TR::Linkage::getLastMaskedBit(ARSaveMask);
-   offset =  getARSaveAreaBeginOffset();
-   retAddrMemRef = generateS390MemoryReference(spReg, offset, cg());
-   for (i = firstSaved; i <= lastSaved; ++i)
-     {
-     if (ARSaveMask & (1 << (i)))
-        {
-        cursor = generateRSInstruction(cg(), TR::InstOpCode::LAM,
-           nextNode, getS390RealRegister(REGNUM(i+TR::RealRegister::FirstAR)),
-           getS390RealRegister(REGNUM(i+TR::RealRegister::FirstAR)), retAddrMemRef, cursor);
         }
      }
 

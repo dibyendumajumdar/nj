@@ -483,14 +483,11 @@ OMR::X86::CodeGenerator::initialize(TR::Compilation *comp)
 
 OMR::X86::CodeGenerator::CodeGenerator() :
    OMR::CodeGenerator(),
-   _wordConversionTemp(NULL),
-   _doubleWordConversionTemp(NULL),
-   _currentTimeMillisTemp(NULL),
    _nanoTimeTemp(NULL),
    _assignmentDirection(Backward),
    _lastCatchAppendInstruction(NULL),
    _betterSpillPlacements(NULL),
-   _dataSnippetList(getTypedAllocator<TR::IA32DataSnippet*>(TR::comp()->allocator())),
+   _dataSnippetList(getTypedAllocator<TR::X86DataSnippet*>(TR::comp()->allocator())),
    _spilledIntRegisters(getTypedAllocator<TR::Register*>(TR::comp()->allocator())),
    _liveDiscardableRegisters(getTypedAllocator<TR::Register*>(TR::comp()->allocator())),
    _dependentDiscardableRegisters(getTypedAllocator<TR::Register*>(TR::comp()->allocator())),
@@ -591,8 +588,7 @@ OMR::X86::CodeGenerator::beginInstructionSelection()
    //
    if (self()->enableSinglePrecisionMethods() && comp->getJittedMethodSymbol()->usesSinglePrecisionMode())
       {
-      TR::IA32ConstantDataSnippet * cds = self()->findOrCreate2ByteConstant(startNode, SINGLE_PRECISION_ROUND_TO_NEAREST);
-      generateMemInstruction(LDCWMem, startNode, generateX86MemoryReference(cds, self()), self());
+      generateMemInstruction(LDCWMem, startNode, generateX86MemoryReference(self()->findOrCreate2ByteConstant(startNode, SINGLE_PRECISION_ROUND_TO_NEAREST), self()), self());
       }
    }
 
@@ -615,9 +611,7 @@ OMR::X86::CodeGenerator::endInstructionSelection()
       {
       TR_ASSERT(self()->getLastCatchAppendInstruction(),
              "endInstructionSelection() ==> Could not find the dummy finally block!\n");
-
-      TR::IA32ConstantDataSnippet * cds = self()->findOrCreate2ByteConstant(self()->getLastCatchAppendInstruction()->getNode(), DOUBLE_PRECISION_ROUND_TO_NEAREST);
-      generateMemInstruction(self()->getLastCatchAppendInstruction(), LDCWMem, generateX86MemoryReference(cds, self()), self());
+      generateMemInstruction(self()->getLastCatchAppendInstruction(), LDCWMem, generateX86MemoryReference(self()->findOrCreate2ByteConstant(self()->getLastCatchAppendInstruction()->getNode(), DOUBLE_PRECISION_ROUND_TO_NEAREST), self()), self());
       }
    }
 
@@ -730,7 +724,7 @@ void OMR::X86::CodeGenerator::removeLiveDiscardableRegister(TR::Register * reg)
 
 bool OMR::X86::CodeGenerator::canNullChkBeImplicit(TR::Node * node)
    {
-   return self()->comp()->cg()->canNullChkBeImplicit(node, true);
+   return self()->canNullChkBeImplicit(node, true);
    }
 
 void OMR::X86::CodeGenerator::clobberLiveDiscardableRegisters(
@@ -1077,47 +1071,6 @@ TR::RealRegister *
 OMR::X86::CodeGenerator::getMethodMetaDataRegister()
    {
    return toRealRegister(self()->getVMThreadRegister());
-   }
-
-TR::SymbolReference *
-OMR::X86::CodeGenerator::getWordConversionTemp()
-   {
-   if (_wordConversionTemp == NULL)
-      {
-      _wordConversionTemp = self()->allocateLocalTemp();
-      }
-   return _wordConversionTemp;
-   }
-
-TR::SymbolReference *
-OMR::X86::CodeGenerator::getDoubleWordConversionTemp()
-   {
-   if (_doubleWordConversionTemp == NULL)
-      {
-      _doubleWordConversionTemp = self()->allocateLocalTemp(TR::Int64);
-      }
-   return _doubleWordConversionTemp;
-   }
-
-TR::SymbolReference *
-OMR::X86::CodeGenerator::findOrCreateCurrentTimeMillisTempSymRef()
-   {
-   if (_currentTimeMillisTemp == NULL)
-      {
-      int32_t symSize;
-
-#if defined(LINUX) || defined(OSX)
-      symSize = sizeof(struct timeval);
-#else
-      symSize = 8;
-#endif
-
-      TR::AutomaticSymbol *sym = TR::AutomaticSymbol::create(self()->trHeapMemory(),TR::Aggregate,symSize);
-      self()->comp()->getMethodSymbol()->addAutomatic(sym);
-      _currentTimeMillisTemp = new (self()->trHeapMemory()) TR::SymbolReference(self()->comp()->getSymRefTab(), sym);
-      }
-
-   return _currentTimeMillisTemp;
    }
 
 TR::SymbolReference *
@@ -1668,9 +1621,9 @@ bool OMR::X86::CodeGenerator::isAlignmentInstruction(TR::Instruction *instr)
    return (instr->getKind() == TR::Instruction::IsAlignment);
    }
 
-struct DescendingSortIA32DataSnippetByDataSize
+struct DescendingSortX86DataSnippetByDataSize
    {
-   inline bool operator()(TR::IA32DataSnippet* const& a, TR::IA32DataSnippet* const& b)
+   inline bool operator()(TR::X86DataSnippet* const& a, TR::X86DataSnippet* const& b)
       {
       return a->getDataSize() > b->getDataSize();
       }
@@ -1730,7 +1683,7 @@ void OMR::X86::CodeGenerator::doBinaryEncoding()
 
    // Sort data snippets before encoding to compact spaces
    //
-   std::sort(_dataSnippetList.begin(), _dataSnippetList.end(), DescendingSortIA32DataSnippetByDataSize());
+   std::sort(_dataSnippetList.begin(), _dataSnippetList.end(), DescendingSortX86DataSnippetByDataSize());
 
    /////////////////////////////////////////////////////////////////
    //
@@ -2183,14 +2136,14 @@ TR_OutlinedInstructions * OMR::X86::CodeGenerator::findOutlinedInstructionsFromM
    return NULL;
    }
 
-TR::IA32DataSnippet * OMR::X86::CodeGenerator::createDataSnippet(TR::Node * n, void * c, uint8_t s)
+TR::X86DataSnippet * OMR::X86::CodeGenerator::createDataSnippet(TR::Node * n, void * c, size_t s)
    {
-   auto snippet = new (self()->trHeapMemory()) TR::IA32DataSnippet(self(), n, c, s);
+   auto snippet = new (self()->trHeapMemory()) TR::X86DataSnippet(self(), n, c, s);
    _dataSnippetList.push_back(snippet);
    return snippet;
    }
 
-TR::IA32ConstantDataSnippet * OMR::X86::CodeGenerator::findOrCreateConstantDataSnippet(TR::Node * n, void * c, uint8_t s)
+TR::X86ConstantDataSnippet * OMR::X86::CodeGenerator::findOrCreateConstantDataSnippet(TR::Node * n, void * c, size_t s)
    {
    // A simple linear search should suffice for now since the number of data constants
    // produced is typically very small.  Eventually, this should be implemented as an
@@ -2202,14 +2155,14 @@ TR::IA32ConstantDataSnippet * OMR::X86::CodeGenerator::findOrCreateConstantDataS
          {
          if (!memcmp((*iterator)->getRawData(), c, s))
             {
-            return (TR::IA32ConstantDataSnippet*)(*iterator);
+            return (TR::X86ConstantDataSnippet*)(*iterator);
             }
          }
       }
 
    // Constant was not found: create a new snippet for it and add it to the constant list.
    //
-   auto snippet = new (self()->trHeapMemory()) TR::IA32ConstantDataSnippet(self(), n, c, s);
+   auto snippet = new (self()->trHeapMemory()) TR::X86ConstantDataSnippet(self(), n, c, s);
    _dataSnippetList.push_back(snippet);
    return snippet;
    }
@@ -2235,42 +2188,42 @@ void OMR::X86::CodeGenerator::emitDataSnippets()
       }
    }
 
-TR::IA32ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate2ByteConstant(TR::Node * n, int16_t c)
+TR::X86ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate2ByteConstant(TR::Node * n, int16_t c)
    {
    return self()->findOrCreateConstantDataSnippet(n, &c, 2);
    }
 
-TR::IA32ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate4ByteConstant(TR::Node * n, int32_t c)
+TR::X86ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate4ByteConstant(TR::Node * n, int32_t c)
    {
    return self()->findOrCreateConstantDataSnippet(n, &c, 4);
    }
 
-TR::IA32ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate8ByteConstant(TR::Node * n, int64_t c)
+TR::X86ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate8ByteConstant(TR::Node * n, int64_t c)
    {
    return self()->findOrCreateConstantDataSnippet(n, &c, 8);
    }
 
-TR::IA32ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate16ByteConstant(TR::Node * n, void *c)
+TR::X86ConstantDataSnippet *OMR::X86::CodeGenerator::findOrCreate16ByteConstant(TR::Node * n, void *c)
    {
    return self()->findOrCreateConstantDataSnippet(n, c, 16);
    }
 
-TR::IA32DataSnippet *OMR::X86::CodeGenerator::create2ByteData(TR::Node *n, int16_t c)
+TR::X86DataSnippet *OMR::X86::CodeGenerator::create2ByteData(TR::Node *n, int16_t c)
    {
    return self()->createDataSnippet(n, &c, 2);
    }
 
-TR::IA32DataSnippet *OMR::X86::CodeGenerator::create4ByteData(TR::Node *n, int32_t c)
+TR::X86DataSnippet *OMR::X86::CodeGenerator::create4ByteData(TR::Node *n, int32_t c)
    {
    return self()->createDataSnippet(n, &c, 4);
    }
 
-TR::IA32DataSnippet *OMR::X86::CodeGenerator::create8ByteData(TR::Node *n, int64_t c)
+TR::X86DataSnippet *OMR::X86::CodeGenerator::create8ByteData(TR::Node *n, int64_t c)
    {
    return self()->createDataSnippet(n, &c, 8);
    }
 
-TR::IA32DataSnippet *OMR::X86::CodeGenerator::create16ByteData(TR::Node *n, void *c)
+TR::X86DataSnippet *OMR::X86::CodeGenerator::create16ByteData(TR::Node *n, void *c)
    {
    return self()->createDataSnippet(n, c, 16);
    }
@@ -2279,7 +2232,6 @@ static uint32_t registerBitMask(int32_t reg)
    {
    return 1 << (reg-1); // TODO:AMD64: Use the proper mask value
    }
-
 
 void OMR::X86::CodeGenerator::buildRegisterMapForInstruction(TR_GCStackMap * map)
    {
@@ -2712,7 +2664,7 @@ int32_t OMR::X86::CodeGenerator::computeRegisterSaveDescription(TR_BitVector *re
    // metadata for the method
    //
    if (populateInfo)
-      self()->comp()->cg()->setLowestSavedRegister(rsd & 0xFFFF);
+      self()->setLowestSavedRegister(rsd & 0xFFFF);
 
    return rsd;
    }
@@ -3535,7 +3487,7 @@ void OMR::X86::CodeGenerator::dumpPreGPRegisterAssignment(TR::Instruction * inst
 
       if (debug("dumpGPRegStatus"))
          {
-         self()->machine()->printGPRegisterStatus(self()->fe(), self()->machine()->getRegisterFile(), self()->comp()->getOutFile());
+         self()->machine()->printGPRegisterStatus(self()->fe(), self()->machine()->registerFile(), self()->comp()->getOutFile());
          }
       }
    }
@@ -3565,7 +3517,7 @@ void OMR::X86::CodeGenerator::dumpPostGPRegisterAssignment(TR::Instruction * ins
 
       if (debug("dumpGPRegStatus"))
          {
-         self()->machine()->printGPRegisterStatus(self()->fe(), self()->machine()->getRegisterFile(), self()->comp()->getOutFile());
+         self()->machine()->printGPRegisterStatus(self()->fe(), self()->machine()->registerFile(), self()->comp()->getOutFile());
          }
       }
    }

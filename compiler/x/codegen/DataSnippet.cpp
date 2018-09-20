@@ -31,28 +31,41 @@
 #include "env/jittypes.h"             // for intptrj_t
 #include "il/symbol/LabelSymbol.hpp"  // for LabelSymbol
 #include "ras/Debug.hpp"              // for TR_Debug
+#include "codegen/Relocation.hpp"     // for TR::ExternalRelocation
 
 namespace TR { class Node; }
 
-TR::IA32DataSnippet::IA32DataSnippet(TR::CodeGenerator *cg, TR::Node * n, void *c, uint8_t size)
+TR::X86DataSnippet::X86DataSnippet(TR::CodeGenerator *cg, TR::Node * n, void *c, size_t size)
    : TR::Snippet(cg, n, TR::LabelSymbol::create(cg->trHeapMemory(),cg), false),
-     _data(size, 0, getTypedAllocator<uint8_t>(TR::comp()->allocator()))
+     _data(size, 0, getTypedAllocator<uint8_t>(TR::comp()->allocator())),
+     _isClassAddress(false)
    {
    if (c)
       memcpy(_data.data(), c, size);
-   _isClassAddress = false;
+   else
+      memset(_data.data(), 0, size);
    }
 
 
 void
-TR::IA32DataSnippet::addMetaDataForCodeAddress(uint8_t *cursor)
+TR::X86DataSnippet::addMetaDataForCodeAddress(uint8_t *cursor)
    {
    // add dummy class unload/redefinition assumption.
    if (_isClassAddress)
       {
+      bool needRelocation = TR::Compiler->cls.classUnloadAssumptionNeedsRelocation(cg()->comp());
+      if (needRelocation)
+         {
+         TR_ASSERT(!cg()->comp()->compileRelocatableCode(), "ClassUnloadAssumption relocation should not be used during AOT compilation");
+         cg()->addExternalRelocation(new (TR::comp()->trHeapMemory())
+                                  TR::ExternalRelocation(cursor, NULL, TR_ClassUnloadAssumption, cg()),
+                                  __FILE__, __LINE__, self()->getNode());
+         }
+
       if (TR::Compiler->target.is64Bit())
          {
-         cg()->jitAddPicToPatchOnClassUnload((void*)-1, (void *) cursor);
+         if (!needRelocation)
+            cg()->jitAddPicToPatchOnClassUnload((void*)-1, (void *) cursor);
          if (cg()->wantToPatchClassPointer(NULL, cursor)) // unresolved
             {
             cg()->jitAddPicToPatchOnClassRedefinition(((void *) -1), (void *) cursor, true);
@@ -60,7 +73,8 @@ TR::IA32DataSnippet::addMetaDataForCodeAddress(uint8_t *cursor)
          }
       else
          {
-         cg()->jitAdd32BitPicToPatchOnClassUnload((void*)-1, (void *) cursor);
+         if (!needRelocation)
+            cg()->jitAdd32BitPicToPatchOnClassUnload((void*)-1, (void *) cursor);
          if (cg()->wantToPatchClassPointer(NULL, cursor)) // unresolved
             {
             cg()->jitAdd32BitPicToPatchOnClassRedefinition(((void *) -1), (void *) cursor, true);
@@ -70,7 +84,7 @@ TR::IA32DataSnippet::addMetaDataForCodeAddress(uint8_t *cursor)
    }
 
 
-uint8_t *TR::IA32DataSnippet::emitSnippetBody()
+uint8_t *TR::X86DataSnippet::emitSnippetBody()
    {
    uint8_t *cursor = cg()->getBinaryBufferCursor();
 
@@ -92,7 +106,7 @@ uint8_t *TR::IA32DataSnippet::emitSnippetBody()
    return cursor;
    }
 
-void TR::IA32DataSnippet::printValue(TR::FILE* pOutFile, TR_Debug* debug)
+void TR::X86DataSnippet::printValue(TR::FILE* pOutFile, TR_Debug* debug)
    {
    if (pOutFile == NULL)
       return;
@@ -122,7 +136,7 @@ void TR::IA32DataSnippet::printValue(TR::FILE* pOutFile, TR_Debug* debug)
       }
    }
 
-void TR::IA32DataSnippet::print(TR::FILE* pOutFile, TR_Debug* debug)
+void TR::X86DataSnippet::print(TR::FILE* pOutFile, TR_Debug* debug)
    {
    if (pOutFile == NULL)
       return;

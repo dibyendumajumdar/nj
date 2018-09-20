@@ -59,17 +59,13 @@ OMR::Z::InstOpCode::hasBypass()
 uint32_t
 OMR::Z::InstOpCode::isAdmin()
    {
-   return (_mnemonic == DIRECTIVE ||
-           _mnemonic == RET ||
+   return (_mnemonic == RET ||
            _mnemonic == ASSOCREGS ||
            _mnemonic == DEPEND ||
            _mnemonic == FENCE ||
-           _mnemonic == SCHEDFENCE ||
            _mnemonic == PROC ||
            _mnemonic == DC ||
            _mnemonic == DC2 ||
-           _mnemonic == ASM ||
-           _mnemonic == DS ||
            _mnemonic == DCB);
    }
 
@@ -131,66 +127,67 @@ OMR::Z::InstOpCode::isOperandHW(uint32_t i)
    return metadata[_mnemonic].properties & mask;
    }
 
-uint64_t
-OMR::Z::InstOpCode::isOperandLW(uint32_t i)
-    {
-    uint64_t mask = ((i==1)? S390OpProp_TargetLW : 0) | ((i==2)? S390OpProp_SrcLW : 0) | ((i==3)? S390OpProp_Src2LW : 0);
-    return metadata[_mnemonic].properties & mask;
-    }
-
-
-
 /* Static Methods */
 
 void
 OMR::Z::InstOpCode::copyBinaryToBufferWithoutClear(uint8_t *cursor, TR::InstOpCode::Mnemonic i_opCode)
   {
   cursor[0] = metadata[i_opCode].opcode[0];
-  if( metadata[i_opCode].opcode[1] ) //Two byte opcode
-    {
-    switch (getInstructionFormat(i_opCode))
-      {
-      case RXE_FORMAT:
-      case RXY_FORMAT:
-      case RXF_FORMAT:
-      case RSE_FORMAT:
-      case RSY_FORMAT:
-      case RSL_FORMAT:
-      case RIE_FORMAT:
-      case SIY_FORMAT:
-      case RRS_FORMAT:
-      case RIS_FORMAT:
-      case VRIa_FORMAT:
-      case VRIb_FORMAT:
-      case VRIc_FORMAT:
-      case VRId_FORMAT:
-      case VRIe_FORMAT:
-      case VRIf_FORMAT:
-      case VRIg_FORMAT:
-      case VRIh_FORMAT:
-      case VRIi_FORMAT:
-      case VRRa_FORMAT:
-      case VRRb_FORMAT:
-      case VRRc_FORMAT:
-      case VRRd_FORMAT:
-      case VRRe_FORMAT:
-      case VRRf_FORMAT:
-      case VRRg_FORMAT:
-      case VRRh_FORMAT:
-      case VRRi_FORMAT:
-      case VRSa_FORMAT:
-      case VRSb_FORMAT:
-      case VRSc_FORMAT:
-      case VRSd_FORMAT:
-      case VRV_FORMAT:
-      case VRX_FORMAT:
-      case VSI_FORMAT:
-         cursor[5] = metadata[i_opCode].opcode[1];
-         //second byte of opcode begins at bit 47 (sixth byte)
-         break;
-       default:
-         cursor[1] = metadata[i_opCode].opcode[1];
-         break;
+
+  // Second opcode being non-zero indicates a two-byte opcode the second of which is always the last byte of the instruction
+  if (metadata[i_opCode].opcode[1] != 0)
+     {
+     switch (getInstructionFormat(i_opCode))
+        {
+        case RIEa_FORMAT:
+        case RIEb_FORMAT:
+        case RIEc_FORMAT:
+        case RIEd_FORMAT:
+        case RIEe_FORMAT:
+        case RIEf_FORMAT:
+        case RIEg_FORMAT:
+        case RIS_FORMAT:
+        case RRS_FORMAT:
+        case RSLa_FORMAT:
+        case RSLb_FORMAT:
+        case RSYa_FORMAT:
+        case RSYb_FORMAT:
+        case RXE_FORMAT:
+        case RXF_FORMAT:
+        case RXYa_FORMAT:
+        case RXYb_FORMAT:
+        case SIY_FORMAT:
+        case VRIa_FORMAT:
+        case VRIb_FORMAT:
+        case VRIc_FORMAT:
+        case VRId_FORMAT:
+        case VRIe_FORMAT:
+        case VRIf_FORMAT:
+        case VRIg_FORMAT:
+        case VRIh_FORMAT:
+        case VRIi_FORMAT:
+        case VRRa_FORMAT:
+        case VRRb_FORMAT:
+        case VRRc_FORMAT:
+        case VRRd_FORMAT:
+        case VRRe_FORMAT:
+        case VRRf_FORMAT:
+        case VRRg_FORMAT:
+        case VRRh_FORMAT:
+        case VRRi_FORMAT:
+        case VRSa_FORMAT:
+        case VRSb_FORMAT:
+        case VRSc_FORMAT:
+        case VRSd_FORMAT:
+        case VRV_FORMAT:
+        case VRX_FORMAT:
+        case VSI_FORMAT:
+           cursor[5] = metadata[i_opCode].opcode[1];
+           break;
+
+        default:
+           cursor[1] = metadata[i_opCode].opcode[1];
+           break;
        }
     }
   }
@@ -373,9 +370,6 @@ TR::InstOpCode::Mnemonic
 OMR::Z::InstOpCode::getCmpTrapOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::CGRT : TR::InstOpCode::CRT; }
 
 TR::InstOpCode::Mnemonic
-OMR::Z::InstOpCode::getCmpWidenTrapOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::CGFRT : TR::InstOpCode::CRT; }
-
-TR::InstOpCode::Mnemonic
 OMR::Z::InstOpCode::getCmpImmOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::CGFI : TR::InstOpCode::CFI; }
 
 TR::InstOpCode::Mnemonic
@@ -386,9 +380,6 @@ OMR::Z::InstOpCode::getCmpImmBranchRelOpCode() { return TR::Compiler->target.is6
 
 TR::InstOpCode::Mnemonic
 OMR::Z::InstOpCode::getCmpLogicalTrapOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::CLGRT : TR::InstOpCode::CLRT; }
-
-TR::InstOpCode::Mnemonic
-OMR::Z::InstOpCode::getCmpLogicalWidenTrapOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::CLGFRT : TR::InstOpCode::CLRT; }
 
 TR::InstOpCode::Mnemonic
 OMR::Z::InstOpCode::getCmpLogicalImmTrapOpCode() { return TR::Compiler->target.is64Bit() ? TR::InstOpCode::CLGIT : TR::InstOpCode::CLFIT; }

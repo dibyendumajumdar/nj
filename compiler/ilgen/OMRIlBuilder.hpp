@@ -38,6 +38,7 @@ namespace TR { class IlBuilder; }
 namespace TR { class ResolvedMethodSymbol; } 
 namespace TR { class SymbolReference; }
 namespace TR { class SymbolReferenceTable; }
+namespace TR { class VirtualMachineState; }
 
 namespace TR { class IlType; }
 namespace TR { class TypeDictionary; }
@@ -84,6 +85,63 @@ protected:
 public:
    TR_ALLOC(TR_Memory::IlGenerator)
 
+   /**
+    * @brief A class encapsulating the information needed for a switch-case
+    *
+    * This class encapsulates the different pieces needed to construct a Case
+    * for IlBuilder's Switch() service. It's constructor is private, so instances
+    * can only be created by calling IlBuilder::MakeCase().
+    */
+   class JBCase
+      {
+      private:
+         /**
+          * @brief Construct a new JBCase object.
+          *
+          * This constructor should not be called directly outside of this classs.
+          * A call to `MakeCase()` should be used instead.
+          *
+          * @param v the value matched by the case
+          * @param b the builder implementing the case body
+          * @param f whether the case falls-through or not
+          */
+         JBCase(int32_t v, TR::IlBuilder *b, int32_t f)
+             : _value(v), _builder(b), _fallsThrough(f) {}
+
+         int32_t _value;          // value matched by the case
+         TR::IlBuilder *_builder; // builder for the case body
+         int32_t _fallsThrough;   // whether the case falls-through
+
+         friend class OMR::IlBuilder;
+      };
+
+   /**
+    * @brief A class encapsulating the information needed for IfAnd and IfOr.
+    *
+    * This class encapsulates the value of the condition and the builder
+    * object used generate the value (used to evaluate the condition).
+    */
+   class JBCondition
+      {
+      private:
+         /**
+          * @brief Construct a new JBCondition object.
+          *
+          * This constructor should not be called directly outside of the JitBuilder
+          * implementation. A call to `MakeCondition()` should be used instead.
+          *
+          * @param conditionBuilder pointer to the builder used to generate the condition value
+          * @param conditionValue the IlValue representing value for the condition
+          */
+         JBCondition(TR::IlBuilder *conditionBuilder, TR::IlValue *conditionValue)
+            : _builder(conditionBuilder), _condition(conditionValue) {}
+
+         TR::IlBuilder *_builder; // builder used to generate the condition value
+         TR::IlValue *_condition; // value for the condition
+
+         friend class OMR::IlBuilder;
+      };
+
    friend class OMR::MethodBuilder;
 
    IlBuilder(TR::MethodBuilder *methodBuilder, TR::TypeDictionary *types)
@@ -112,6 +170,10 @@ public:
    virtual TR::MethodBuilder *asMethodBuilder() { return NULL; }
 
    virtual bool isBytecodeBuilder()             { return false; }
+
+   virtual TR::VirtualMachineState *initialVMState()         { return NULL; }
+   virtual TR::VirtualMachineState *vmState()                { return NULL; }
+   virtual void setVMState(TR::VirtualMachineState *vmState) { }
 
    //char *getName();
 
@@ -192,6 +254,19 @@ public:
    TR::IlValue *UnsignedGreaterOrEqualTo(TR::IlValue *left, TR::IlValue *right);
    TR::IlValue *ConvertTo(TR::IlType *t, TR::IlValue *v);
    TR::IlValue *UnsignedConvertTo(TR::IlType *t, TR::IlValue *v);
+   TR::IlValue *Negate(TR::IlValue *v);
+
+   /**
+    * @brief Convert the bit representation of an IlValue to a given type
+    * @param type is the target type of the conversion
+    * @param value is the value to be converted
+    * @return the IlValue converted to the specified type
+    *
+    * This service allows the bit representation of a floating-point
+    * IlValue to be converted to an integer IlValue and vice versa.
+    * The floating-point and integer types must be of the same bit-width.
+    */
+   TR::IlValue* ConvertBitsTo(TR::IlType* type, TR::IlValue* value);
 
    // memory
    TR::IlValue *CreateLocalArray(int32_t numElements, TR::IlType *elementType);
@@ -227,10 +302,61 @@ public:
 
    // control
    void AppendBuilder(TR::IlBuilder *builder);
+
+   /**
+    * @brief Call a function via a TR::MethodBuilder object, possibly inlining it
+    * @param calleeMB the target function's TR::MethodBuilder object
+    * @param numArgs the number of actual arguments for the method
+    * @param ... arguments to pass to the function, provided as TR::IlValue pointers
+    * @returns the TR::IlValue corresponding to the called function's return value or NULL if return type is None
+    */
+   TR::IlValue *Call(TR::MethodBuilder *calleeMB, int32_t numArgs, ...);
+
+   /**
+    * @brief Call a function via a TR::MethodBuilder object, possibly inlining it
+    * @param calleeMB the target function's TR::MethodBuilder object
+    * @param numArgs the number of actual arguments for the method
+    * @param argValues array of arguments to pass to the function
+    * @returns the TR::IlValue corresponding to the called function's return value or NULL if return type is None
+    */
+   TR::IlValue *Call(TR::MethodBuilder *calleeMB, int32_t numArgs, TR::IlValue **argValues);
+
+   /**
+    * @brief Call a function via its name using a list of arguments
+    * @param name the name of the target function
+    * @param numArgs the number of actual arguments for the method
+    * @param ... arguments to pass to the function, provided as TR::IlValue pointers
+    * @returns the TR::IlValue corresponding to the called function's return value or NULL if return type is None
+    */
    TR::IlValue *Call(const char *name, int32_t numArgs, ...);
+
+   /**
+    * @brief Call a function via its name using an array of arguments
+    * @param name the name of the target function
+    * @param numArgs the number of actual arguments for the method
+    * @param argValues array of arguments to pass to the function
+    * @returns the TR::IlValue corresponding to the called function's return value or NULL if return type is None
+    */
    TR::IlValue *Call(const char *name, int32_t numArgs, TR::IlValue **argValues);
+
+   /**
+    * @brief Call a function by address using a list of arguments (and providing a name)
+    * @param name the name of the target function (used primarily in logs)
+    * @param numArgs the number of actual arguments for the method
+    * @param ... arguments to pass to the function, provided as TR::IlValue pointers, with the first argument providing the function address
+    * @returns the TR::IlValue corresponding to the called function's return value or NULL if return type is None
+    */
    TR::IlValue *ComputedCall(const char *name, int32_t numArgs, ...);
+
+   /**
+    * @brief Call a function by address using an array of arguments (and providing a name)
+    * @param name the name of the target function
+    * @param numArgs the number of actual arguments for the method
+    * @param argValues array of arguments to pass to the function, with the first argument providing the function address
+    * @returns the TR::IlValue corresponding to the called function's return value or NULL if return type is None
+    */
    TR::IlValue *ComputedCall(const char *name, int32_t numArgs, TR::IlValue **args);
+
    TR::IlValue *genCall(TR::SymbolReference *methodSymRef, int32_t numArgs, TR::IlValue ** paramValues, bool isDirectCall = true);
    void Goto(TR::IlBuilder **dest);
    void Goto(TR::IlBuilder *dest);
@@ -306,10 +432,21 @@ public:
       DoWhileLoop(exitCondition, body, NULL, continueBuilder);
       }
 
-   /* @brief creates an AND nest of short-circuited conditions, for each term pass an IlBuilder containing the condition and the IlValue that computes the condition */
+   /* @brief creates an AND nest of short-circuited conditions, for each term pass a JBCondition instance */
+   void IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBuilder, int32_t numTerms, JBCondition **terms);
    void IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBuilder, int32_t numTerms, ... );
-   /* @brief creates an OR nest of short-circuited conditions, for each term pass an IlBuilder containing the condition and the IlValue that computes the condition */
+   /* @brief creates an OR nest of short-circuited conditions, for each term pass a JBCondition instance */
+   void IfOr(TR::IlBuilder **anyTrueBuilder, TR::IlBuilder **allFalseBuilder, int32_t numTerms, JBCondition **terms);
    void IfOr(TR::IlBuilder **anyTrueBuilder, TR::IlBuilder **allFalseBuilder, int32_t numTerms, ... );
+
+   /**
+    * @brief Construct an Instance of JBCondition.
+    *
+    * @param conditionBuilder the Builder used to generate the condition value
+    * @param conditionValue the IlValue instance representing the condition value
+    * @return JBCondition* pointer to the constructed JBCondition instance
+    */
+   JBCondition * MakeCondition(TR::IlBuilder *conditionBuilder, TR::IlValue *conditionValue);
 
    void IfCmpNotEqualZero(TR::IlBuilder **target, TR::IlValue *condition);
    void IfCmpNotEqualZero(TR::IlBuilder *target, TR::IlValue *condition);
@@ -343,16 +480,48 @@ public:
       {
       IfThenElse(thenPath, NULL, condition);
       }
+
+   /**
+    * @brief Generates a switch-case control flow structure.
+    *
+    * @param selectionVar the variable to switch on.
+    * @param defaultBuilder the builder for the default case.
+    * @param numCases the number of cases.
+    * @param cases array of pointers to JBCase instances corresponding to each case.
+    */
    void Switch(const char *selectionVar,
                TR::IlBuilder **defaultBuilder,
                uint32_t numCases,
-               int32_t *caseValues,
-               TR::IlBuilder **caseBuilders,
-               bool *caseFallsThrough);
+               JBCase** cases);
+
+   /**
+    * @brief Generates a switch-case control flow structure (vararg overload).
+    *
+    * Instead of taking an array of pointers to JBCase instances, this overload
+    * takes a pointer to each instance as a separate varargs argument.
+    *
+    * @param selectionVar the variable to switch on.
+    * @param defaultBuilder the builder for the default case.
+    * @param numCases the number of cases.
+    * @param ... the list of pointers to JBCase instances corresponding to each case.
+    */
    void Switch(const char *selectionVar,
                TR::IlBuilder **defaultBuilder,
                uint32_t numCases,
                ...);
+
+   /**
+    * @brief Construct an instance for JBCase.
+    *
+    * @param caseValue the value matched by the case.
+    * @param caseBuilder pointer to pointer to IlBuilder for the case (automatically allocated if pointed-to pointer is null).
+    * @param caseFallsThrough flag specifying whether the case falls-through to the next case.
+    * @return JBCase* pointer to instance of JBCase representing the specified case.
+    */
+   JBCase * MakeCase(int32_t caseValue,
+                     TR::IlBuilder **caseBuilder,
+                     int32_t caseFallsThrough);
+
 
 protected:
 
@@ -435,7 +604,7 @@ protected:
    TR::IlValue *shiftOpFromNodes(TR::ILOpCodes op, TR::Node *leftNode, TR::Node *rightNode);
    TR::IlValue *shiftOpFromOpMap(OpCodeMapper mapOp, TR::IlValue *left, TR::IlValue *right);
    TR::IlValue *compareOp(TR_ComparisonTypes ct, bool needUnsigned, TR::IlValue *left, TR::IlValue *right);
-   TR::IlValue *convertTo(TR::IlType *t, TR::IlValue *v, bool needUnsigned);
+   TR::IlValue *convertTo(TR::DataType typeTo, TR::IlValue *v, bool needUnsigned);
 
    void ifCmpCondition(TR_ComparisonTypes ct, bool isUnsignedCmp, TR::IlValue *left, TR::IlValue *right, TR::Block *target);
    void ifCmpNotEqualZero(TR::IlValue *condition, TR::Block *target);

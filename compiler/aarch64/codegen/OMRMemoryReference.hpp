@@ -221,6 +221,47 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
       }
 
    /**
+    * @brief Answers if MemoryReference refs specified register
+    * @param[in] reg : register
+    * @return true if MemoryReference refs the register, false otherwise
+    */
+   bool refsRegister(TR::Register *reg)
+      {
+      return (reg == _baseRegister ||
+              reg == _indexRegister);
+      }
+
+   /**
+    * @brief Blocks registers used by MemoryReference
+    */
+   void blockRegisters()
+      {
+      if (_baseRegister != NULL)
+         {
+         _baseRegister->block();
+         }
+      if (_indexRegister != NULL)
+         {
+         _indexRegister->block();
+         }
+      }
+
+   /**
+    * @brief Unblocks registers used by MemoryReference
+    */
+   void unblockRegisters()
+      {
+      if (_baseRegister != NULL)
+         {
+         _baseRegister->unblock();
+         }
+      if (_indexRegister != NULL)
+         {
+         _indexRegister->unblock();
+         }
+      }
+
+   /**
     * @brief Base register is modifiable or not
     * @return true when base register is modifiable
     */
@@ -275,11 +316,17 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
    TR::SymbolReference *getSymbolReference() {return _symbolReference;}
 
    /**
-    * @brief Estimates the length of generated binary
+    * @brief Assigns registers
+    * @param[in] currentInstruction : current instruction
     * @param[in] cg : CodeGenerator
+    */
+   void assignRegisters(TR::Instruction *currentInstruction, TR::CodeGenerator *cg);
+
+   /**
+    * @brief Estimates the length of generated binary
     * @return estimated binary length
     */
-   uint32_t estimateBinaryLength(TR::CodeGenerator&);
+   uint32_t estimateBinaryLength();
 
    /**
     * @brief Generates binary encoding

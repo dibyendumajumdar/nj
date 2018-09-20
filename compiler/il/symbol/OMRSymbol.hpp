@@ -153,7 +153,6 @@ public:
    inline TR::RegisterMappedSymbol            *castToRegisterMappedSymbol();
    inline TR::AutomaticSymbol                 *castToAutoSymbol();
    inline TR::AutomaticSymbol                 *castToVariableSizeSymbol();
-   inline TR::AutomaticSymbol                 *castToAutoMarkerSymbol();
    inline TR::ParameterSymbol                 *castToParmSymbol();
    inline TR::AutomaticSymbol                 *castToInternalPointerAutoSymbol();
    inline TR::AutomaticSymbol                 *castToLocalObjectSymbol();
@@ -295,9 +294,6 @@ public:
    inline void setSpillTempLoaded();
    inline bool isSpillTempLoaded();
 
-   inline void setAutoMarkerSymbol();
-   inline bool isAutoMarkerSymbol();
-
    inline void setVariableSizeSymbol();
    inline bool isVariableSizeSymbol();
 
@@ -320,6 +316,9 @@ public:
    //
    inline void setConstString();
    inline bool isConstString();
+
+   inline void setConstantDynamic();
+   inline bool isConstantDynamic();
 
    inline void setAddressIsCPIndexOfStatic(bool b);
    inline bool addressIsCPIndexOfStatic();
@@ -487,7 +486,7 @@ public:
       // Available              = 0x00020000,
       AutoAddressTaken          = 0x04000000, ///< a loadaddr of this auto exists
       SpillTempLoaded           = 0x04000000, ///< share bit with loadaddr because spill temps will never have their address taken. Used to remove store to spill if never loaded
-      AutoMarkerSymbol          = 0x02000000, ///< dummy symbol marking some auto boundary
+      // Available              = 0x02000000,
       VariableSizeSymbol        = 0x01000000, ///< non-java only?: specially managed automatic symbols that contain both an activeSize and a size
       ThisTempForObjectCtor     = 0x01000000, ///< java only; this temp for j/l/Object constructor
 
@@ -559,6 +558,7 @@ public:
       NamedShadow               = 0x00000200,
       ImmutableField            = 0x00000400,
       PendingPush               = 0x00000800,
+      ConstantDynamic           = 0x00001000,
       };
 
 protected:

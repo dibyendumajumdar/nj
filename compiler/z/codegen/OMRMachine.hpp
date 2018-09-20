@@ -57,7 +57,6 @@ template <typename ListKind> class List;
 #define NUM_S390_HPR 16
 #define NUM_S390_FPR 16
 #define NUM_S390_VRF 16 ///< 32 after full RA complete
-#define NUM_S390_AR  16
 #define NUM_S390_FPR_PAIRS 8
 
 /** Max. displacement */
@@ -182,7 +181,6 @@ namespace Z
 
 class OMR_EXTENSIBLE Machine : public OMR::Machine
    {
-   TR::RealRegister            *_registerFile[TR::RealRegister::NumRegisters];
    TR::Register                *_registerAssociations[TR::RealRegister::NumRegisters];
    uint32_t                     _globalRegisterNumberToRealRegisterMap[NUM_S390_GPR+NUM_S390_FPR+NUM_S390_VRF+NUM_S390_HPR];
    TR::RealRegister::RegNum     _S390FirstOfFPRegisterPairs[NUM_S390_FPR_PAIRS];
@@ -201,8 +199,6 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
    /** Used to keep track of blocked registers (HPR/GPR) that upgrades/spill's etc should not use. Typical stores ~0-3 registers. */
    TR_Stack<TR::RealRegister *>               *_blockedUpgradedRegList;
 
-   TR_GlobalRegisterNumber  _firstGlobalAccessRegisterNumber;
-   TR_GlobalRegisterNumber  _lastGlobalAccessRegisterNumber;
    TR_GlobalRegisterNumber  _firstGlobalGPRRegisterNumber;
    TR_GlobalRegisterNumber  _lastGlobalGPRRegisterNumber;
    TR_GlobalRegisterNumber  _firstGlobalHPRRegisterNumber;
@@ -314,13 +310,8 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
    void allocateUpgradedBlockedList(TR_Stack<TR::RealRegister*> * mem);
    TR::RealRegister * getNextRegFromUpgradedBlockedList();
 
-   void blockVolatileAccessRegisters();
-   void unblockVolatileAccessRegisters();
-
    // High Register managed
    void spillAllVolatileHighRegisters(TR::Instruction  *currentInstruction);
-   void blockVolatileHighRegisters();
-   void unblockVolatileHighRegisters();
 
    // SINGLE REGISTERs methods
    uint64_t constructFreeRegBitVector(TR::Instruction  *currentInstruction);
@@ -383,24 +374,6 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
       {
       return _globalRegisterNumberToRealRegisterMap;
       }
-
-
-   /*************************** Access regs ***************************/
-
-
-   TR_GlobalRegisterNumber getFirstGlobalAccessRegisterNumber()
-      {
-      return _firstGlobalAccessRegisterNumber;
-      }
-
-   TR_GlobalRegisterNumber setFirstGlobalAccessRegisterNumber(TR_GlobalRegisterNumber reg);
-
-   TR_GlobalRegisterNumber getLastGlobalAccessRegisterNumber()
-       {
-       return _lastGlobalAccessRegisterNumber;
-       }
-
-   TR_GlobalRegisterNumber setLastGlobalAccessRegisterNumber(TR_GlobalRegisterNumber reg);
 
    TR_GlobalRegisterNumber getLastGlobalGPRRegisterNumber()
       {
@@ -612,8 +585,6 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
      return _lastLinkageFPR=reg;
      }
 
-   TR::Register * getAccessRegisterFromGlobalRegisterNumber(TR_GlobalRegisterNumber reg);
-
    TR::Register * getGPRFromGlobalRegisterNumber(TR_GlobalRegisterNumber reg);
 
    TR::Register * getHPRFromGlobalRegisterNumber(TR_GlobalRegisterNumber reg);
@@ -635,8 +606,6 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
       {
       memset(_registerAssociations, 0, sizeof(TR::Register *) * (TR::RealRegister::NumRegisters));
       }
-
-   TR::RealRegister *getRegisterFile(int32_t i);
 
    void takeRegisterStateSnapShot();
    void restoreRegisterStateFromSnapShot();

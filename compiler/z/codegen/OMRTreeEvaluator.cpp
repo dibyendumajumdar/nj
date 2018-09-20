@@ -840,49 +840,6 @@ generateS390ImmOp(TR::CodeGenerator * cg,  TR::InstOpCode::Mnemonic memOp, TR::N
       case TR::InstOpCode::A:
          if (value == 0) return cursor;
 
-         // consider overflow situation for non-Java when ADVISE(IMM) is off
-         if (cg->mayImmedInstructionCauseOverFlow(node))
-            {
-            if (cg->canUseGoldenEagleImmediateInstruction(value))
-               {
-               // LL: If Golden Eagle - can use Add Logical Immediate with max 32-bit value.
-               ei_immOp = TR::InstOpCode::ALFI;
-               sourceRegister = targetRegister;
-               break;
-               }
-            else if (value >= MIN_IMMEDIATE_VAL && value <= MAX_IMMEDIATE_VAL)
-               {
-               if (sourceRegister == targetRegister)
-                  {
-                  // testing register pressure
-                  if (!comp->getJittedMethodSymbol()->isNoTemps())
-                     {
-                     TR::Register * tempReg = cg->allocateRegister();
-                     cursor = generateRIInstruction(cg, TR::InstOpCode::LHI, node, tempReg, value, preced);
-                     cursor = generateRRInstruction(cg, TR::InstOpCode::ALR, node, targetRegister, tempReg, cursor);
-                     if (cond) cond->addPostConditionIfNotAlreadyInserted(tempReg, TR::RealRegister::AssignAny);
-                     cg->stopUsingRegister(tempReg);
-                     }
-                  else
-                     {
-                     memOp = TR::InstOpCode::AL;
-                     break;
-                     }
-                  }
-               else
-                  {
-                  cursor = generateRIInstruction(cg, TR::InstOpCode::LHI, node, sourceRegister, value, preced);
-                  cursor = generateRRInstruction(cg, TR::InstOpCode::ALR, node, targetRegister, sourceRegister, cursor);
-                  }
-               return cursor;
-               }
-            else
-               {
-               memOp = TR::InstOpCode::AL;
-               break;
-               }
-            }
-
          if (value >= MIN_IMMEDIATE_VAL && value <= MAX_IMMEDIATE_VAL)
             {
             immOp = TR::InstOpCode::AHI;
@@ -900,48 +857,6 @@ generateS390ImmOp(TR::CodeGenerator * cg,  TR::InstOpCode::Mnemonic memOp, TR::N
          break;
       case TR::InstOpCode::AG:
          if (value == 0) return cursor;
-         // consider overflow situation for non-Java when ADVISE(IMM) is off
-         if (cg->mayImmedInstructionCauseOverFlow(node))
-            {
-            if (cg->canUseGoldenEagleImmediateInstruction(value) && value > 0)
-               {
-               // LL: If Golden Eagle - can use Add Logical Long Immediate with max 32-bit value, cannot use negative values because ALGFI does not sign extend its immediate value.
-               ei_immOp = TR::InstOpCode::ALGFI;
-               sourceRegister = targetRegister;
-               break;
-               }
-            if (value >= MIN_IMMEDIATE_VAL && value <= MAX_IMMEDIATE_VAL)
-               {
-               if (sourceRegister == targetRegister)
-                  {
-                  // testing register pressure
-                  if (!comp->getJittedMethodSymbol()->isNoTemps())
-                     {
-                     TR::Register * tempReg = cg->allocate64bitRegister();
-                     cursor = generateRIInstruction(cg, TR::InstOpCode::LGHI, node, tempReg, value, preced);
-                     cursor = generateRRInstruction(cg, TR::InstOpCode::ALGR, node, targetRegister, tempReg, cursor);
-                     if (cond) cond->addPostConditionIfNotAlreadyInserted(tempReg, TR::RealRegister::AssignAny);
-                     cg->stopUsingRegister(tempReg);
-                     }
-                  else
-                     {
-                     memOp = TR::InstOpCode::AGF;
-                     break;
-                     }
-                  }
-               else
-                  {
-                  cursor = generateRIInstruction(cg, TR::InstOpCode::LGHI, node, sourceRegister, value, preced);
-                  cursor = generateRRInstruction(cg, TR::InstOpCode::ALGR, node, targetRegister, sourceRegister, cursor);
-                  }
-               return cursor;
-               }
-            else
-               {
-               memOp = TR::InstOpCode::AGF;
-               break;
-               }
-            }
 
          if (value >= MIN_IMMEDIATE_VAL && value <= MAX_IMMEDIATE_VAL)
             {
@@ -1094,7 +1009,7 @@ generateS390ImmOp(TR::CodeGenerator * cg,  TR::InstOpCode::Mnemonic memOp, TR::N
                return cursor;
                }
             }
-         if (value >= 0 && cg->canUseGoldenEagleImmediateInstruction(value))
+         if (cg->canUseGoldenEagleImmediateInstruction(value))
             {
             // LL: If Golden Eagle - can use Compare Logical Immediate with max 32-bit value.
             ei_immOp = TR::InstOpCode::CLGFI;
@@ -4824,7 +4739,7 @@ genericLoad(TR::Node * node, TR::CodeGenerator * cg, TR::MemoryReference * tempM
    {
    bool nodeSigned = node->getType().isInt64() || !node->isZeroExtendedAtSource();
 
-   if (node->getType().isAddress() || node->getType().isAggregate()) // o- and a-type and PLX-Fixed24/Fixed8 always unsigned
+   if (node->getType().isAddress() || node->getType().isAggregate())
       nodeSigned = false;
 
    if (numberOfBits > 32 || numberOfBits == 31 || node->isExtendedTo64BitAtSource())
@@ -4977,10 +4892,17 @@ genericLoadHelper(TR::Node * node, TR::CodeGenerator * cg, TR::MemoryReference *
          }
       else //if (form == MemReg)
          {
-         if (TR::InstOpCode::getInstructionFormat(load) == RX_FORMAT)
+         auto instructionFormat = TR::InstOpCode::getInstructionFormat(load);
+
+         if (instructionFormat == RXa_FORMAT ||
+             instructionFormat == RXb_FORMAT)
+            {
             generateRXInstruction(cg, load, node, targetRegister, tempMR);
+            }
          else
+            {
             generateRXYInstruction(cg, load, node, targetRegister, tempMR);
+            }
          }
       }
    else if (numberOfBits == 31 && !useRegPairs)
@@ -6638,10 +6560,6 @@ istoreHelper(TR::Node * node, TR::CodeGenerator * cg, bool isReversed)
             {
             generateRSInstruction(cg, TR::InstOpCode::STOC, node, sourceRegister, cg->getRCondMoveBranchOpCond(), tempMR);
             }
-         else if (sourceRegister->getKind() == TR_AR)
-            {
-            generateRSInstruction(cg, TR::InstOpCode::STAM, node, sourceRegister, sourceRegister, tempMR);
-            }
          else
             {
             generateRXInstruction(cg, TR::InstOpCode::ST, node, sourceRegister, tempMR);
@@ -6954,9 +6872,6 @@ astoreHelper(TR::Node * node, TR::CodeGenerator * cg)
          tempMR = generateS390MemoryReference(node, cg);
          }
 
-
-      TR_ASSERT(!(sourceRegister && sourceRegister->isArGprPair()) , "not expecting AR reg pair");
-
       // Generate the Store instruction unless storeOp is TR::InstOpCode::BAD (i.e. Move
       // Halfword Immediate instruction was generated).
       if (storeOp == TR::InstOpCode::STCM)
@@ -7108,20 +7023,7 @@ OMR::Z::TreeEvaluator::aiaddEvaluator(TR::Node * node, TR::CodeGenerator * cg)
 
    aiaddMR->populateAddTree(node, cg);
    aiaddMR->eliminateNegativeDisplacement(node, cg);
-   bool skipFinalLA = false;
-   // this is partial extract from enforceDisplacementLimit in order to remove the need for the final LA in some cases
-   if (aiaddMR->getOffset() >= MAXLONGDISP && aiaddMR->getOffset() <= TR::getMaxSigned<TR::Int32>() && TR::Compiler->target.is32Bit())
-      {
-      skipFinalLA = true;
-      TR::MemoryReference *tempMR = generateS390MemoryReference(aiaddMR->getBaseRegister(), aiaddMR->getIndexRegister(), 0, cg);
-      tempMR->setSymbolReference(aiaddMR->getSymbolReference());
-      generateRXInstruction(cg, TR::InstOpCode::LA, node, targetRegister, tempMR);
-      generateS390ImmOp(cg, TR::InstOpCode::getAddOpCode(), node, targetRegister, targetRegister, (int32_t)aiaddMR->getOffset());
-      }
-   else
-      {
-      aiaddMR->enforceDisplacementLimit(node, cg, NULL);
-      }
+   aiaddMR->enforceDisplacementLimit(node, cg, NULL);
 
    if (node->getOpCodeValue() == TR::aiadd && node->isInternalPointer())
       {
@@ -7151,23 +7053,7 @@ OMR::Z::TreeEvaluator::aiaddEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          }
       }
 
-
-   if (!skipFinalLA)
-      {
-      TR::Instruction *laInst = generateRXInstruction(cg, TR::InstOpCode::LA, node, targetRegister, aiaddMR);
-      TR::Register *baseReg = aiaddMR->getBaseRegister();
-      if (aiaddMR->getOffset() == 0 &&
-          aiaddMR->getIndexRegister() == NULL &&
-          baseReg &&
-          cg->getBucketPlusIndexRegisters().ValueAt(baseReg->getIndex()))
-         {
-         aiaddMR->setBucketBaseRegMemRef();
-         if (cg->traceBCDCodeGen())
-            traceMsg(comp,"\tfound baseReg %s (idx=%d) for node %s (%p) in BucketPlusIndexRegisters setBucketBaseRegMemRef on LA inst %p memRef\n",
-               cg->getDebug()->getName(baseReg),baseReg->getIndex(),node->getOpCode().getName(),node,laInst);
-         }
-      }
-
+   generateRXInstruction(cg, TR::InstOpCode::LA, node, targetRegister, aiaddMR);
    node->setRegister(targetRegister);
 
    return targetRegister;
@@ -10291,13 +10177,13 @@ OMR::Z::TreeEvaluator::arraycmpHelper(TR::Node *node,
                regDeps->addPostConditionIfNotAlreadyInserted(baseSource1Ref->getIndexRegister(), TR::RealRegister::AssignAny);
 
             if (baseSource1Ref->getBaseRegister())
-               regDeps->addPostConditionIfNotAlreadyInserted(baseSource1Ref->getBaseRegister()->getGPRofArGprPair(), TR::RealRegister::AssignAny);
+               regDeps->addPostConditionIfNotAlreadyInserted(baseSource1Ref->getBaseRegister(), TR::RealRegister::AssignAny);
 
             if (baseSource2Ref->getIndexRegister() && (baseSource2Ref->getIndexRegister() != baseSource1Ref->getIndexRegister()))
                regDeps->addPostConditionIfNotAlreadyInserted(baseSource2Ref->getIndexRegister(), TR::RealRegister::AssignAny);
 
             if (baseSource2Ref->getBaseRegister() && (baseSource2Ref->getBaseRegister() != baseSource1Ref->getBaseRegister()))
-               regDeps->addPostConditionIfNotAlreadyInserted(baseSource2Ref->getBaseRegister()->getGPRofArGprPair(), TR::RealRegister::AssignAny);
+               regDeps->addPostConditionIfNotAlreadyInserted(baseSource2Ref->getBaseRegister(), TR::RealRegister::AssignAny);
             }
          }
 
@@ -10696,8 +10582,8 @@ OMR::Z::TreeEvaluator::arraycmpHelper(TR::Node *node,
                setStartInternalControlFlow(generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_MASK6, node, outOfCompare),
                                            isStartInternalControlFlowSet);
 
-            generateRXInstruction(cg, TR::InstOpCode::LA, node, source1Reg->getGPRofArGprPair(), generateS390MemoryReference(source1Reg->getGPRofArGprPair(), 256, cg));
-            generateRXInstruction(cg, TR::InstOpCode::LA, node, source2Reg->getGPRofArGprPair(), generateS390MemoryReference(source2Reg->getGPRofArGprPair(), 256, cg));
+            generateRXInstruction(cg, TR::InstOpCode::LA, node, source1Reg, generateS390MemoryReference(source1Reg, 256, cg));
+            generateRXInstruction(cg, TR::InstOpCode::LA, node, source2Reg, generateS390MemoryReference(source2Reg, 256, cg));
             generateS390BranchInstruction(cg, TR::InstOpCode::BRCT, node, loopCountReg, topOfLoop);
             generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, bottomOfLoop);
 
@@ -11721,10 +11607,7 @@ OMR::Z::TreeEvaluator::passThroughEvaluator(TR::Node * node, TR::CodeGenerator *
             break;
          case TR_FPR:
             opCode = TR::InstOpCode::LDR;
-               break;
-         case TR_AR:
-            opCode = TR::InstOpCode::CPYA;
-               break;
+            break;
          case TR_VRF:
             opCode = TR::InstOpCode::VLR;
             break;
@@ -15350,8 +15233,8 @@ void arraycmpWithPadHelper::generateVarCLCMainLoop()
 
    generateS390BranchInstruction(cg, TR::InstOpCode::BRC, brCond, node, skipUnequal ? cmpDoneLabel : unequalLabel, branchDeps);
 
-   generateRXInstruction(cg, TR::InstOpCode::LA, node, source1Reg->getGPRofArGprPair(), generateS390MemoryReference(source1Reg->getGPRofArGprPair(), 256, cg));
-   generateRXInstruction(cg, TR::InstOpCode::LA, node, source2Reg->getGPRofArGprPair(), generateS390MemoryReference(source2Reg->getGPRofArGprPair(), 256, cg));
+   generateRXInstruction(cg, TR::InstOpCode::LA, node, source1Reg, generateS390MemoryReference(source1Reg, 256, cg));
+   generateRXInstruction(cg, TR::InstOpCode::LA, node, source2Reg, generateS390MemoryReference(source2Reg, 256, cg));
 
    generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, loopStartLabel);
 
@@ -15794,7 +15677,7 @@ void arraycmpWithPadHelper::generateCLCLitPoolPadding()
 
       constSpacePadding = true;
 
-      paddingLitPoolOffset = cg->fe()->findOrCreateLiteral(comp, paddingValue, paddingByteLength);
+      paddingLitPoolOffset = cg->findOrCreateLiteral(paddingValue, paddingByteLength);
       newLitPoolReg = cg->isLiteralPoolOnDemandOn();
       if (newLitPoolReg)
          litPoolBaseReg = cg->allocateRegister();
@@ -19167,24 +19050,24 @@ OMR::Z::TreeEvaluator::vsetelemEvaluator(TR::Node *node, TR::CodeGenerator *cg)
             if (size == 1)
                {
                uint8_t value = valueNode->getIntegerNodeValue<uint8_t>();
-               offset = cg->fe()->findOrCreateLiteral(cg->comp(), &value, size);
+               offset = cg->findOrCreateLiteral(&value, size);
                }
             else if (size == 2)
                {
                uint16_t value = valueNode->getIntegerNodeValue<uint16_t>();
-               offset = cg->fe()->findOrCreateLiteral(cg->comp(), &value, size);
+               offset = cg->findOrCreateLiteral(&value, size);
                }
             else if (size == 4)
                {
                if (valueNode->getOpCode().isFloat())
                   {
                   float value = valueNode->getFloat();
-                  offset = cg->fe()->findOrCreateLiteral(cg->comp(), &value, size);
+                  offset = cg->findOrCreateLiteral(&value, size);
                   }
                else
                   {
                   uint32_t value = valueNode->getIntegerNodeValue<uint32_t>();
-                  offset = cg->fe()->findOrCreateLiteral(cg->comp(), &value, size);
+                  offset = cg->findOrCreateLiteral(&value, size);
                   }
                }
             else if (size == 8)
@@ -19192,12 +19075,12 @@ OMR::Z::TreeEvaluator::vsetelemEvaluator(TR::Node *node, TR::CodeGenerator *cg)
                if (valueNode->getOpCode().isDouble())
                   {
                   double value = valueNode->getDouble();
-                  offset = cg->fe()->findOrCreateLiteral(cg->comp(), &value, size);
+                  offset = cg->findOrCreateLiteral(&value, size);
                   }
                else
                   {
                   uint64_t value = valueNode->getIntegerNodeValue<uint64_t>();
-                  offset = cg->fe()->findOrCreateLiteral(cg->comp(), &value, size);
+                  offset = cg->findOrCreateLiteral(&value, size);
                   }
                }
 

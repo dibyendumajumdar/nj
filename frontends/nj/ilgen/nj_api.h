@@ -248,6 +248,16 @@ enum JIT_NodeOpCode {
   OP_bload,       // load byte
   OP_sload,       // load short integer
   OP_lload,       // load long integer
+  //Read barrier is used to represent loads with side effects like check for GC, debugging etc.
+  //It is the same as the corresponding load except that it needs to be anchored under a
+  //treetop. The children and symbol of a read barrier are the same as the corresponding load.
+  OP_irdbar,   // read barrier for load integer
+  OP_frdbar,   // read barrier for load float
+  OP_drdbar,   // read barrier for load double
+  OP_ardbar,   // read barrier for load address
+  OP_brdbar,   // read barrier for load byte
+  OP_srdbar,   // load short integer
+  OP_lrdbar,   // load long integer
   OP_iloadi,      // load indirect integer
   OP_floadi,      // load indirect float
   OP_dloadi,      // load indirect double
@@ -255,6 +265,13 @@ enum JIT_NodeOpCode {
   OP_bloadi,      // load indirect byte
   OP_sloadi,      // load indirect short integer
   OP_lloadi,      // load indirect long integer
+  OP_irdbari,  // read barrier for load indirect integer
+  OP_frdbari,  // read barrier for load indirect float
+  OP_drdbari,  // read barrier for load indirect double
+  OP_ardbari,  // read barrier for load indirect address
+  OP_brdbari,  // read barrier for load indirect byte
+  OP_srdbari,  // read barrier for load indirect short integer
+  OP_lrdbari,  // read barrier for load indirect long integer
   OP_istore,      // store integer
   OP_lstore,      // store long integer
   OP_fstore,      // store float

@@ -103,7 +103,7 @@ class TR_S390RegisterDependencyGroup
 
    void setDependencyInfo(uint32_t                                  index,
                           TR::Register                              *vr,
-                          TR::RealRegister::RegDep rr,
+                          TR::RealRegister::RegDep                  rr,
                           uint8_t                                   flag)
      {
      setDependencyInfo(index, vr, static_cast<TR::RealRegister::RegNum>(rr), flag);
@@ -111,7 +111,7 @@ class TR_S390RegisterDependencyGroup
 
    void setDependencyInfo(uint32_t                                  index,
                           TR::Register                              *vr,
-                          TR::RealRegister::RegNum rr,
+                          TR::RealRegister::RegNum                  rr,
                           uint8_t                                   flag)
       {
       _dependencies[index].setRegister(vr);
@@ -127,11 +127,6 @@ class TR_S390RegisterDependencyGroup
       for (int32_t i=0; i<numberOfRegisters; i++)
          {
          if (_dependencies[i].getRegister() == vr && (_dependencies[i].getFlags() & flag))
-            return _dependencies[i].getRegister();
-         if (vr->isArGprPair() &&
-         	  _dependencies[i].getRegister()->isArGprPair() &&
-         	  vr->getARofArGprPair() == _dependencies[i].getRegister()->getARofArGprPair() &&
-         	  vr->getGPRofArGprPair() == _dependencies[i].getRegister()->getGPRofArGprPair())
             return _dependencies[i].getRegister();
          }
       return NULL;

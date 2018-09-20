@@ -489,8 +489,38 @@ class OMR_EXTENSIBLE CodeGenerator
    bool isRegisterClobberable(TR::Register *reg, uint16_t count);
 
    // ilgen
-   bool ilOpCodeIsSupported(TR::ILOpCodes); // no virt, default, cast
 
+   /**
+    * @brief Returns if an IL OpCode is supported by current CodeGen
+    *
+    * @param op The IL OpCode being checked.
+    *
+    * @return True if the IL OpCode is supported otherwise false.
+    */
+   static bool isILOpCodeSupported(TR::ILOpCodes op);
+
+   /**
+    * @brief Returns the corresponding IL OpCode for an intrinsic method
+    *
+    * This query maps an intrinsic method to an IL OpCode, with the requirement that
+    * the method's child(ren) corresponds to the OpCode's child(ren) exactly.
+    * It is usually used by the IL Gen transforming the intrinsic method to IL OpCode
+    * so that it can leverage existing framework for better optimization.
+    *
+    * @param method The intrinsic method being checked.
+    *
+    * @return The corresponding IL OpCode for the intrinsic method.
+    */
+   static TR::ILOpCodes ilOpCodeForIntrinsicMethod(TR::RecognizedMethod method) { return TR::BadILOp; }
+
+   /**
+    * @brief Returns if an intrinsic method is supported by current CodeGen
+    *
+    * @param method The intrinsic method being checked.
+    *
+    * @return True if the intrinsic method is supported otherwise false.
+    */
+   static inline bool isIntrinsicMethodSupported(TR::RecognizedMethod method);
 
 
    TR::Recompilation *allocateRecompilationInfo() { return NULL; }
@@ -568,11 +598,6 @@ class OMR_EXTENSIBLE CodeGenerator
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, int32_t delta, TR_ScratchRegisterManager &srm){ return cursor; } // no virt, default, cast
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, TR::Register *deltaReg, TR_ScratchRegisterManager &srm){ return cursor; } // no virt, default, cast
 
-   // NOT USED?
-   bool supportsDebugCounters(TR::DebugCounterInjectionPoint injectionPoint){ return injectionPoint == TR::TR_BeforeCodegen; } // no virt, default
-
-   void incrementEventCounter(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg) { TR_ASSERT(0,"not implemented\n");} // no virt, default
-
    // --------------------------------------------------------------------------
    // Linkage
    //
@@ -597,7 +622,7 @@ class OMR_EXTENSIBLE CodeGenerator
     * @param method : the recognized method to consider
     * @return true if inlining should be suppressed; false otherwise
     */
-   bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method) {return false;}
+   bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
 
    // --------------------------------------------------------------------------
    // Optimizer, not code generator
@@ -680,11 +705,6 @@ class OMR_EXTENSIBLE CodeGenerator
    //
    bool internalPointerSupportImplemented() {return false;} // no virt, cast
    bool supportsInternalPointers();
-
-   // --------------------------------------------------------------------------
-   // Behaviour on a particular arch, not code generator
-   //
-   bool supportsLongRegAllocation() {return false;}  // no virt
 
    // --------------------------------------------------------------------------
    // GC
@@ -858,11 +878,6 @@ class OMR_EXTENSIBLE CodeGenerator
    TR_GlobalRegisterNumber getLastOverlappedGlobalFPR()                           { return _lastOverlappedGlobalFPR     ;}
    TR_GlobalRegisterNumber setLastOverlappedGlobalFPR(TR_GlobalRegisterNumber n)  { return _lastOverlappedGlobalFPR = n ;}
 
-   TR_GlobalRegisterNumber getFirstGlobalAR() {return _firstGlobalAR;}
-   TR_GlobalRegisterNumber setFirstGlobalAR(TR_GlobalRegisterNumber n) {return (_firstGlobalAR = n);}
-   TR_GlobalRegisterNumber getLastGlobalAR() {return _lastGlobalAR;}
-   TR_GlobalRegisterNumber setLastGlobalAR(TR_GlobalRegisterNumber n) {return (_lastGlobalAR = n);}
-
    TR_GlobalRegisterNumber getFirstGlobalVRF() {return _firstGlobalVRF;}
    TR_GlobalRegisterNumber setFirstGlobalVRF(TR_GlobalRegisterNumber n) {return (_firstGlobalVRF = n);}
    TR_GlobalRegisterNumber getLastGlobalVRF() {return _lastGlobalVRF;}
@@ -979,7 +994,6 @@ class OMR_EXTENSIBLE CodeGenerator
 #endif
 
    void dumpDataSnippets(TR::FILE *outFile) {}
-   void dumpTargetAddressSnippets(TR::FILE *outFile) {}
 
    // --------------------------------------------------------------------------
    // Register assignment tracing
@@ -1124,14 +1138,7 @@ class OMR_EXTENSIBLE CodeGenerator
    void emitDataSnippets() {}
    bool hasDataSnippets() {return false;} // no virt, cast
    int32_t setEstimatedLocationsForDataSnippetLabels(int32_t estimatedSnippetStart) {return 0;}
-
-   // called to emit any target address snippets.  The platform specific code generators
-   // should override these methods if they use target address snippets.
-   //
-   void emitTargetAddressSnippets() {}
-   bool hasTargetAddressSnippets() {return false;} // no virt, cast
-   int32_t setEstimatedLocationsForTargetAddressSnippetLabels(int32_t estimatedSnippetStart) {return 0;}
-
+   
    // --------------------------------------------------------------------------
    // Register pressure
    //
@@ -1563,9 +1570,6 @@ class OMR_EXTENSIBLE CodeGenerator
    bool getSupportsCompactedLocals() {return _flags1.testAny(SupportsCompactedLocals);}
    void setSupportsCompactedLocals() {_flags1.set(SupportsCompactedLocals);}
 
-   bool getSupportsFastCTM() {return _flags1.testAny(SupportsFastCTM);}
-   void setSupportsFastCTM() {_flags1.set(SupportsFastCTM);}
-
    bool getSupportsCurrentTimeMaxPrecision() {return _flags2.testAny(SupportsCurrentTimeMaxPrecision);}
    void setSupportsCurrentTimeMaxPrecision() {_flags2.set(SupportsCurrentTimeMaxPrecision);}
 
@@ -1691,7 +1695,7 @@ class OMR_EXTENSIBLE CodeGenerator
       //                                                 = 0x00400000,   // Available
       SupportsScaledIndexAddressing                      = 0x00800000,
       SupportsCompactedLocals                            = 0x01000000,
-      SupportsFastCTM                                    = 0x02000000,
+      //                                                 = 0x02000000,   // Available
       UsesRegisterPairsForLongs                          = 0x04000000,
       SupportsArraySet                                   = 0x08000000,
       AccessStaticsIndirectly                            = 0x10000000,
@@ -1779,7 +1783,7 @@ class OMR_EXTENSIBLE CodeGenerator
       //                                                  = 0x00000002,  AVAILABLE FOR USE!
       //                                                  = 0x00000004,  AVAILABLE FOR USE!
       OptimizationPhaseIsComplete                         = 0x00000008,
-      RequireRAPassAR                                     = 0x00000010,
+      // Available                                        = 0x00000010,
       IsInOOLSection                                      = 0x00000020,
       SupportsBCDToDFPReduction                           = 0x00000040,
       GRACompleted                                        = 0x00000080,
@@ -1920,8 +1924,6 @@ class OMR_EXTENSIBLE CodeGenerator
    TR_GlobalRegisterNumber _lastGlobalFPR;
    TR_GlobalRegisterNumber _firstOverlappedGlobalFPR;
    TR_GlobalRegisterNumber _lastOverlappedGlobalFPR;
-   TR_GlobalRegisterNumber _firstGlobalAR;
-   TR_GlobalRegisterNumber _lastGlobalAR;
    TR_GlobalRegisterNumber _last8BitGlobalGPR;
    TR_GlobalRegisterNumber _firstGlobalVRF;
    TR_GlobalRegisterNumber _lastGlobalVRF;

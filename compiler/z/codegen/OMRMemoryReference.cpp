@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -819,19 +819,11 @@ OMR::Z::MemoryReference::initSnippetPointers(TR::Snippet * s, TR::CodeGenerator 
       {
       self()->setUnresolvedSnippet((TR::UnresolvedDataSnippet *) s);
       }
-   else if (s->getKind() == TR::Snippet::IsTargetAddress)
-      {
-      self()->setTargetAddressSnippet((TR::S390TargetAddressSnippet *) s);
-      }
    else if (s->getKind() == TR::Snippet::IsWritableData ||
             s->getKind() == TR::Snippet::IsConstantInstruction ||
             s->getKind() == TR::Snippet::IsConstantData)
       {
       self()->setConstantDataSnippet((TR::S390ConstantDataSnippet *) s);
-      }
-   else if (s->getKind() == TR::Snippet::IsLookupSwitch)
-      {
-      self()->setLookupSwitchSnippet((TR::S390LookupSwitchSnippet *) s);
       }
    }
 
@@ -1062,19 +1054,6 @@ OMR::Z::MemoryReference::setUnresolvedSnippet(TR::UnresolvedDataSnippet *s)
    return (TR::UnresolvedDataSnippet *) (_targetSnippet = (TR::Snippet *) s);
    }
 
-TR::S390TargetAddressSnippet *
-OMR::Z::MemoryReference::getTargetAddressSnippet()
-   {
-   return self()->isTargetAddressSnippet() ? (TR::S390TargetAddressSnippet *)_targetSnippet : NULL;
-   }
-
-TR::S390TargetAddressSnippet *
-OMR::Z::MemoryReference::setTargetAddressSnippet(TR::S390TargetAddressSnippet *s)
-   {
-   self()->setTargetAddressSnippet();
-   return (TR::S390TargetAddressSnippet *) (_targetSnippet = s);
-   }
-
 TR::S390ConstantDataSnippet *
 OMR::Z::MemoryReference::getConstantDataSnippet()
    {
@@ -1086,19 +1065,6 @@ OMR::Z::MemoryReference::setConstantDataSnippet(TR::S390ConstantDataSnippet *s)
    {
    self()->setConstantDataSnippet();
    return (TR::S390ConstantDataSnippet *) (_targetSnippet = s);
-   }
-
-TR::S390LookupSwitchSnippet *
-OMR::Z::MemoryReference::getLookupSwitchSnippet()
-   {
-   return self()->isLookupSwitchSnippet() ? (TR::S390LookupSwitchSnippet *)_targetSnippet : NULL;
-   }
-
-TR::S390LookupSwitchSnippet *
-OMR::Z::MemoryReference::setLookupSwitchSnippet(TR::S390LookupSwitchSnippet *s)
-   {
-   self()->setLookupSwitchSnippet();
-   return (TR::S390LookupSwitchSnippet *) (_targetSnippet = s);
    }
 
 void
@@ -1909,7 +1875,7 @@ OMR::Z::MemoryReference::populateMemoryReference(TR::Node * subTree, TR::CodeGen
 
    if (noopNode && noopNode->getRegister() == NULL)
       {
-      if (subTree->getRegister() && subTree->getRegister()->getRegisterPair() && !subTree->getRegister()->getRegisterPair()->isArGprPair())
+      if (subTree->getRegister() && subTree->getRegister()->getRegisterPair())
          noopNode->setRegister(subTree->getRegister()->getRegisterPair()->getLowOrder());
       else
          noopNode->setRegister(subTree->getRegister());
@@ -1996,19 +1962,9 @@ bool OMR::Z::MemoryReference::ignoreNegativeOffset()
 
 TR::Register *OMR::Z::MemoryReference::swapBaseRegister(TR::Register *br, TR::CodeGenerator * cg)
    {
-   TR::Register *base = self()->getBaseRegister();
    br->setIsUsedInMemRef();
-   if (base && base->isArGprPair())
-      {
-      TR::RegisterPair *regpair = cg->allocateArGprPair(base->getARofArGprPair(), br);
-      self()->setBaseRegister(regpair, cg);
-      return regpair;
-      }
-   else
-      {
-      self()->setBaseRegister(br, cg);
-      return br;
-      }
+   self()->setBaseRegister(br, cg);
+   return br;
    }
 
 TR::Instruction *
@@ -2380,17 +2336,7 @@ OMR::Z::MemoryReference::assignRegisters(TR::Instruction * currentInstruction, T
    TR::Machine *machine = cg->machine();
    TR::RealRegister * assignedBaseRegister;
    TR::RealRegister * assignedIndexRegister;
-   TR::Register * virtualBaseAR = NULL;
    TR::Compilation *comp = cg->comp();
-
-   if (_indexRegister &&
-       _indexRegister->isArGprPair() &&
-       _baseRegister == NULL)
-      {
-      self()->setBaseRegister(_indexRegister, cg);
-      _indexRegister = NULL;
-      }
-
 
    // If the base reg has a virt reg assignment
    if (_baseRegister != NULL && _baseRegister->getRealRegister() == NULL)
@@ -2405,12 +2351,6 @@ OMR::Z::MemoryReference::assignRegisters(TR::Instruction * currentInstruction, T
       // We postpone bookkeeping until after _indexRegister is assigned to avoid assigning
       // the same reg to both _indexRegister and _baseRegister
 
-      if (_baseRegister->isArGprPair())
-         {
-         virtualBaseAR = _baseRegister->getARofArGprPair();
-         self()->setBaseRegister(_baseRegister->getGPRofArGprPair(), cg);
-         }
-
       if (_baseRegister != NULL && _baseRegister->getRealRegister() == NULL)
          {
          assignedBaseRegister = static_cast<TR::RealRegister*>(machine->assignBestRegisterSingle(_baseRegister, currentInstruction, NOBOOKKEEPING, ~TR::RealRegister::GPR0Mask));
@@ -2418,10 +2358,6 @@ OMR::Z::MemoryReference::assignRegisters(TR::Instruction * currentInstruction, T
       else if (_baseRegister != NULL && _baseRegister->getRealRegister() != NULL)
          assignedBaseRegister = _baseRegister->getRealRegister();
 
-      if (virtualBaseAR != NULL)
-         {
-         currentInstruction->addARDependencyCondition(virtualBaseAR, assignedBaseRegister);
-         }
       if (_indexRegister != NULL)
          {
          _indexRegister->unblock();
@@ -2552,25 +2488,13 @@ OMR::Z::MemoryReference::getSnippet()
    {
    TR::Snippet * snippet = NULL;
 
-   // unresolved data
    if (self()->getUnresolvedSnippet() != NULL)
       {
       self()->setMemRefAndGetUnresolvedData(snippet);
       }
-   else // add writable data snippet address relocation
-   if (self()->getConstantDataSnippet() != NULL)
+   else if (self()->getConstantDataSnippet() != NULL)
       {
       snippet = self()->getConstantDataSnippet();
-      }
-   else if (self()->getTargetAddressSnippet() != NULL)
-      {
-      // add target address snippet address relocation
-      snippet = self()->getTargetAddressSnippet();
-      }
-   else if (self()->getLookupSwitchSnippet() != NULL)
-      {
-      // add lookup switch snippet address relocation
-      snippet = self()->getLookupSwitchSnippet();
       }
 
    return snippet;
@@ -3121,11 +3045,15 @@ OMR::Z::MemoryReference::generateBinaryEncoding(uint8_t * cursor, TR::CodeGenera
       TR_ASSERT(scratchReg!=NULL,
         "OMR::Z::MemoryReference::generateBinaryEncoding -- A scratch reg should always be found.");
 
+      auto instructionFormat = instr->getOpCode().getInstructionFormat(instr->getOpCodeValue());
+
       // If the instr is already of RSY/RXY/SIY form && its disp is within the range, no fixup is needed.
       if ((instr->hasLongDisplacementSupport() ||
-           instr->getOpCode().getInstructionFormat(instr->getOpCodeValue()) == RSY_FORMAT ||
-           instr->getOpCode().getInstructionFormat(instr->getOpCodeValue()) == RXY_FORMAT ||
-           instr->getOpCode().getInstructionFormat(instr->getOpCodeValue()) == SIY_FORMAT) &&
+           instructionFormat == RSYa_FORMAT ||
+           instructionFormat == RSYb_FORMAT ||
+           instructionFormat == RXYa_FORMAT ||
+           instructionFormat == RXYb_FORMAT ||
+           instructionFormat == SIY_FORMAT) &&
           disp < MAXLONGDISP && disp > MINLONGDISP)
          {
          instr->attemptOpAdjustmentForLongDisplacement();
@@ -3719,29 +3647,12 @@ static TR::SymbolReference * findBestSymRefForArrayCopy(TR::CodeGenerator *cg, T
 
       if (firstChildOp==TR::loadaddr || firstChildOp==TR::aload)
          {
-         sym=firstChild->getSymbolReference();
-         }
-      else if ((firstChildOp==TR::aiuadd) || (firstChildOp==TR::aiadd)  ||
-               (firstChildOp==TR::aluadd) || (firstChildOp==TR::aladd))
-         {
-         // We're looking an address computation of a static symbol. If we
-         // find one, we can return the symref of the static symbol itself.
-
-         if (firstChild == cg->getNodeAddressOfCachedStatic())
-            {
-            TR::Node *immNode = srcNode->getSecondChild();
-            uint32_t offset = immNode->get64bitIntegralValue();
-
-            // If this is not a contant, punt and use the original generic sym
-            if (!immNode->getOpCode().isLoadConst())
-               return sym;
-
-            }
+         sym = firstChild->getSymbolReference();
          }
       }
    else if (srcNode->getOpCodeValue()==TR::loadaddr)
       {
-      sym=srcNode->getSymbolReference();
+      sym = srcNode->getSymbolReference();
       }
 
    return sym;

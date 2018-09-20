@@ -1177,8 +1177,7 @@ TR::Register *OMR::X86::TreeEvaluator::integerReturnEvaluator(TR::Node *node, TR
    if (cg->enableSinglePrecisionMethods() &&
        comp->getJittedMethodSymbol()->usesSinglePrecisionMode())
       {
-      TR::IA32ConstantDataSnippet *cds = cg->findOrCreate2ByteConstant(node, DOUBLE_PRECISION_ROUND_TO_NEAREST);
-      generateMemInstruction(LDCWMem, node, generateX86MemoryReference(cds, cg), cg);
+      generateMemInstruction(LDCWMem, node, generateX86MemoryReference(cg->findOrCreate2ByteConstant(node, DOUBLE_PRECISION_ROUND_TO_NEAREST), cg), cg);
       }
 
    TR::Node     *firstChild     = node->getFirstChild();
@@ -1245,8 +1244,7 @@ TR::Register *OMR::X86::TreeEvaluator::returnEvaluator(TR::Node *node, TR::CodeG
    if (cg->enableSinglePrecisionMethods() &&
        comp->getJittedMethodSymbol()->usesSinglePrecisionMode())
       {
-      TR::IA32ConstantDataSnippet *cds = cg->findOrCreate2ByteConstant(node, DOUBLE_PRECISION_ROUND_TO_NEAREST);
-      generateMemInstruction(LDCWMem, node, generateX86MemoryReference(cds, cg), cg);
+      generateMemInstruction(LDCWMem, node, generateX86MemoryReference(cg->findOrCreate2ByteConstant(node, DOUBLE_PRECISION_ROUND_TO_NEAREST), cg), cg);
       }
 
    if (cg->getProperties().getCallerCleanup())
@@ -1308,75 +1306,48 @@ TR::Register *OMR::X86::TreeEvaluator::iternaryEvaluator(TR::Node *node, TR::Cod
    return trueReg;
    }
 
-static bool canBeHandledByIfInstanceOfHelper(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::Node *firstChild  = node->getFirstChild();
-   TR::Node *secondChild = node->getSecondChild();
-   if (secondChild->getOpCode().isLoadConst() &&
-       secondChild->getRegister() == NULL &&
-       !cg->comp()->getOption(TR_DisableInlineIfInstanceOf))
-      {
-      intptrj_t constValue = integerConstNodeValue(secondChild, cg);
-      return (firstChild->getOpCodeValue() == TR::instanceof &&
-              firstChild->getRegister() == NULL &&
-              firstChild->getReferenceCount() == 1 &&
-              (constValue == 0 || constValue == 1));
-      }
-   else
-      {
-      return false;
-      }
-   }
-
 TR::Register *OMR::X86::TreeEvaluator::integerIfCmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   if (canBeHandledByIfInstanceOfHelper(node, cg))
-      {
-      return TR::TreeEvaluator::VMifInstanceOfEvaluator(node, cg);
-      }
-   else
-      {
 #ifdef J9_PROJECT_SPECIFIC
-      // Check for the special case of a BigDecimal long lookaside overflow check.
-      //
-      if (node->getFirstChild()->getOpCodeValue() == TR::icall &&
-          node->getSecondChild()->getOpCodeValue() == TR::iconst)
+   // Check for the special case of a BigDecimal long lookaside overflow check.
+   //
+   if (node->getFirstChild()->getOpCodeValue() == TR::icall &&
+       node->getSecondChild()->getOpCodeValue() == TR::iconst)
+      {
+      TR::Node *firstChild = node->getFirstChild();
+      TR::Node *secondChild = node->getSecondChild();
+
+      TR::MethodSymbol *symbol = firstChild->getSymbol()->castToMethodSymbol();
+
+      if (cg->getSupportsBDLLHardwareOverflowCheck() &&
+          (symbol->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowAdd ||
+           symbol->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowMul))
          {
-         TR::Node *firstChild = node->getFirstChild();
-         TR::Node *secondChild = node->getSecondChild();
+         cg->evaluate(firstChild);
+         cg->evaluate(secondChild);
 
-         TR::MethodSymbol *symbol = firstChild->getSymbol()->castToMethodSymbol();
+         generateConditionalJumpInstruction(JO4, node, cg, true);
 
-         if (cg->getSupportsBDLLHardwareOverflowCheck() &&
-             (symbol->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowAdd ||
-              symbol->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowMul))
-            {
-            cg->evaluate(firstChild);
-            cg->evaluate(secondChild);
+         cg->decReferenceCount(firstChild);
+         cg->decReferenceCount(secondChild);
 
-            generateConditionalJumpInstruction(JO4, node, cg, true);
+         traceMsg(cg->comp(), "inserting long lookaside versioning overflow check @ node %p\n", node);
 
-            cg->decReferenceCount(firstChild);
-            cg->decReferenceCount(secondChild);
-
-            traceMsg(cg->comp(), "inserting long lookaside versioning overflow check @ node %p\n", node);
-
-            return NULL;
-            }
+         return NULL;
          }
+      }
 #endif
 
-      if ( node->isTheVirtualGuardForAGuardedInlinedCall())
-         {
-         TR::Node *firstChild = node->getFirstChild();
-         cg->evaluate(firstChild);
-         }
-
-      TR::TreeEvaluator::compareIntegersForEquality(node, cg);
-
-      generateConditionalJumpInstruction(JE4, node, cg, true);
-      return NULL;
+   if ( node->isTheVirtualGuardForAGuardedInlinedCall())
+      {
+      TR::Node *firstChild = node->getFirstChild();
+      cg->evaluate(firstChild);
       }
+
+   TR::TreeEvaluator::compareIntegersForEquality(node, cg);
+
+   generateConditionalJumpInstruction(JE4, node, cg, true);
+   return NULL;
    }
 
 static inline void generateMergedGuardCodeIfNeeded(TR::Node *node, TR::CodeGenerator *cg, TR::Instruction *runtimeGuard)
@@ -1408,10 +1379,6 @@ TR::Register *OMR::X86::TreeEvaluator::integerIfCmpneEvaluator(TR::Node *node, T
    if (virtualGuardHelper(node, cg))
       {
       return NULL;
-      }
-   else if (canBeHandledByIfInstanceOfHelper(node, cg))
-      {
-      return TR::TreeEvaluator::VMifInstanceOfEvaluator(node, cg);
       }
    else
       {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2018, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -18,3 +18,36 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
+
+#ifndef ARM64SHIFTCODE_INCL
+#define ARM64SHIFTCODE_INCL
+
+namespace TR {
+
+/*
+ * Shift codes used in "shifted register" instructions
+ */
+typedef enum {
+   SH_LSL = 0,
+   SH_LSR,
+   SH_ASR,
+   SH_Reserved
+} ARM64ShiftCode;
+
+/*
+ * Extend codes used in "extended register" instructions
+ */
+typedef enum {
+   EXT_UXTB = 0,
+   EXT_UXTH,
+   EXT_UXTW,
+   EXT_UXTX,
+   EXT_SXTB,
+   EXT_SXTH,
+   EXT_SXTW,
+   EXT_SXTX,
+} ARM64ExtendCode;
+
+} // TR
+
+#endif

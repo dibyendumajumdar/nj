@@ -135,11 +135,9 @@ OMR::CodeGenerator::_nodeToInstrEvaluators[] =
    #include "codegen/TreeEvaluatorTable.hpp"
    };
 
-#if !defined(TR_TARGET_ARM64)
 static_assert(TR::NumIlOps ==
               (sizeof(OMR::CodeGenerator::_nodeToInstrEvaluators) / sizeof(OMR::CodeGenerator::_nodeToInstrEvaluators[0])),
               "NodeToInstrEvaluators is not the correct size");
-#endif
 
 #define OPT_DETAILS "O^O CODE GENERATION: "
 
@@ -208,8 +206,6 @@ OMR::CodeGenerator::CodeGenerator() :
      _lastGlobalFPR(0),
      _firstOverlappedGlobalFPR(0),
      _lastOverlappedGlobalFPR(0),
-     _firstGlobalAR(0),
-     _lastGlobalAR(0),
      _last8BitGlobalGPR(0),
      _globalGPRPartitionLimit(0),
      _globalFPRPartitionLimit(0),
@@ -856,17 +852,11 @@ bool
 OMR::CodeGenerator::use64BitRegsOn32Bit()
    {
 #ifdef TR_TARGET_S390
-   if (!(TR::Compiler->target.isZOS() || TR::Compiler->target.isLinux()))
-      return false;
-   else if (TR::Compiler->target.is64Bit())
+   if (TR::Compiler->target.is64Bit())
       return false;
    else
       {
-      bool longReg = self()->comp()->getOption(TR_Enable64BitRegsOn32Bit);
-      bool longRegHeur = self()->comp()->getOption(TR_Enable64BitRegsOn32BitHeuristic);
-      bool use64BitRegs = (longReg && !longRegHeur && self()->comp()->getJittedMethodSymbol()->mayHaveLongOps()) ||
-                          (longReg && longRegHeur && self()->comp()->useLongRegAllocation());
-      return use64BitRegs;
+      return !self()->comp()->getOption(TR_Disable64BitRegsOn32Bit);
       }
 #endif // TR_TARGET_S390
    return false;
@@ -1152,7 +1142,7 @@ OMR::CodeGenerator::getNumberOfGlobalRegisters()
 #ifdef TR_HOST_S390
 uint16_t OMR::CodeGenerator::getNumberOfGlobalGPRs()
    {
-   if (self()->comp()->cg()->supportsHighWordFacility() && !self()->comp()->getOption(TR_DisableHighWordRA))
+   if (self()->supportsHighWordFacility() && !self()->comp()->getOption(TR_DisableHighWordRA))
       {
       return _firstGlobalHPR;
       }
@@ -1545,16 +1535,18 @@ OMR::CodeGenerator::nodeMatches(TR::Node *addr1, TR::Node *addr2, bool addresses
       }
    else if (self()->uniqueAddressOccurrence(addr1, addr2, addressesUnderSameTreeTop))
       {
-      if (addr1->getOpCodeValue() == TR::aload && addr2->getOpCodeValue() == TR::aload &&
+      TR::ILOpCode op1 = addr1->getOpCode();
+      TR::ILOpCode op2 = addr2->getOpCode();
+      if (op1.getOpCodeValue() == op2.getOpCodeValue() &&
+            op1.isLoadVar() && op1.getDataType() == TR::Address &&
                addr1->getSymbolReference() == addr2->getSymbolReference())
          {
-         foundMatch = true;
-         }
-      else if (addr1->getOpCodeValue() == TR::aloadi && addr2->getOpCodeValue() == TR::aloadi &&
-               addr1->getSymbolReference() == addr2->getSymbolReference() &&
-               self()->nodeMatches(addr1->getFirstChild(), addr2->getFirstChild(),addressesUnderSameTreeTop))
-         {
-         foundMatch = true;
+         // aload, ardbar etc
+         if (op1.isLoadDirect())
+            foundMatch = true;
+         // aloadi, ardbari etc
+         else if (op1.isLoadIndirect() && self()->nodeMatches(addr1->getFirstChild(), addr2->getFirstChild(),addressesUnderSameTreeTop))
+            foundMatch = true;
          }
       }
 
@@ -2311,7 +2303,7 @@ OMR::CodeGenerator::alignBinaryBufferCursor()
    if (boundary && (boundary & boundary - 1) == 0)
       {
       uintptr_t round = boundary - 1;
-      uintptr_t offset = self()->comp()->cg()->getPreJitMethodEntrySize();
+      uintptr_t offset = self()->getPreJitMethodEntrySize();
 
       _binaryBufferCursor += offset;
       _binaryBufferCursor = (uint8_t *)(((uintptr_t)_binaryBufferCursor + round) & ~round);
@@ -2330,11 +2322,6 @@ OMR::CodeGenerator::setEstimatedLocationsForSnippetLabels(int32_t estimatedSnipp
    TR::Snippet *cursor;
 
    self()->setEstimatedSnippetStart(estimatedSnippetStart);
-
-   if (self()->hasTargetAddressSnippets())
-      {
-      estimatedSnippetStart = self()->setEstimatedLocationsForTargetAddressSnippetLabels(estimatedSnippetStart);
-      }
 
    for (auto iterator = _snippetList.begin(); iterator != _snippetList.end(); ++iterator)
       {
@@ -2371,13 +2358,6 @@ OMR::CodeGenerator::emitSnippets()
       }
 
    retVal = self()->getBinaryBufferCursor();
-
-   // Emit target address snippets first.
-   //
-   if (self()->hasTargetAddressSnippets())
-      {
-      self()->emitTargetAddressSnippets();
-      }
 
    // Emit constant data snippets last.
    //
@@ -2977,7 +2957,7 @@ OMR::CodeGenerator::canNullChkBeImplicit(TR::Node *node, bool doChecks)
    return false;
    }
 
-bool OMR::CodeGenerator::ilOpCodeIsSupported(TR::ILOpCodes o)
+bool OMR::CodeGenerator::isILOpCodeSupported(TR::ILOpCodes o)
    {
 	return (_nodeToInstrEvaluators[o] != TR::TreeEvaluator::unImpOpEvaluator) &&
 	      (_nodeToInstrEvaluators[o] != TR::TreeEvaluator::badILOpEvaluator);

@@ -754,6 +754,55 @@ TR::Register *OMR::X86::TreeEvaluator::sloadEvaluator(TR::Node *node, TR::CodeGe
    return reg;
    }
 
+TR::Register *OMR::X86::TreeEvaluator::irdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::iloadEvaluator(node,cg);
+   }
+
+TR::Register *OMR::X86::TreeEvaluator::ardbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::aloadEvaluator(node, cg);
+   }
+
+TR::Register *OMR::X86::TreeEvaluator::frdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::floadEvaluator(node, cg);
+   }
+
+TR::Register *OMR::X86::TreeEvaluator::drdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::dloadEvaluator(node, cg);
+   }
+
+TR::Register *OMR::X86::TreeEvaluator::brdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::bloadEvaluator(node, cg);
+   }
+
+TR::Register *OMR::X86::TreeEvaluator::srdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::sloadEvaluator(node, cg);
+   }
+
+TR::Register *OMR::X86::TreeEvaluator::lrdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   if (node->getSymbolReference()->getSymbol()->isStatic())
+      cg->decReferenceCount(node->getFirstChild());
+   return TR::TreeEvaluator::lloadEvaluator(node, cg);
+   }
+
 // cloadEvaluator handled by sloadEvaluator
 
 // iiload handled by iloadEvaluator
@@ -2950,7 +2999,7 @@ static TR::Register * inlineSinglePrecisionSQRT(TR::Node *node, TR::CodeGenerato
       else
    targetRegister = cg->allocateSinglePrecisionRegister(TR_FPR);
 
-      generateRegRegInstruction(SQRTSFRegReg, node, targetRegister, opRegister, cg);
+      generateRegRegInstruction(SQRTSSRegReg, node, targetRegister, opRegister, cg);
     }
   else
     {
@@ -2978,20 +3027,30 @@ static TR::Register * inlineSinglePrecisionSQRT(TR::Node *node, TR::CodeGenerato
   return node->getRegister();
 }
 
-TR::Register* OMR::X86::TreeEvaluator::performSimpleAtomicMemoryUpdate(TR::Node* node, TR_X86OpCodes op, TR::CodeGenerator* cg)
+/** \brief
+ *    Generate instructions to do atomic memory update.
+ *
+ *  \param node
+ *     The tree node
+ *
+ *  \param op
+ *     The instruction op code to perform the memory update
+ *
+ *  \param cg
+ *     The code generator
+ */
+static TR::Register* inlineAtomicMemoryUpdate(TR::Node* node, TR_X86OpCodes op, TR::CodeGenerator* cg)
    {
    TR_ASSERT((!TR_X86OpCode(op).hasLongSource() && !TR_X86OpCode(op).hasLongTarget()) || TR::Compiler->target.is64Bit(), "64-bit instruction not supported on IA32");
    TR::Register* address = cg->evaluate(node->getChild(0));
-   TR::Register* value   = cg->evaluate(node->getChild(1));
-   TR::Register* result  = cg->allocateRegister();
+   TR::Register* value   = cg->gprClobberEvaluate(node->getChild(1), MOVRegReg());
 
-   generateRegRegInstruction(MOVRegReg(), node, result, value, cg);
-   generateMemRegInstruction(op, node, generateX86MemoryReference(address, 0, cg), result, cg);
+   generateMemRegInstruction(op, node, generateX86MemoryReference(address, 0, cg), value, cg);
 
-   node->setRegister(result);
+   node->setRegister(value);
    cg->decReferenceCount(node->getChild(0));
    cg->decReferenceCount(node->getChild(1));
-   return result;
+   return value;
    }
 
 // TR::icall, TR::acall, TR::lcall, TR::fcall, TR::dcall, TR::call handled by directCallEvaluator
@@ -3009,27 +3068,27 @@ TR::Register *OMR::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::C
       {
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicAdd32BitSymbol))
          {
-         return TR::TreeEvaluator::performSimpleAtomicMemoryUpdate(node, LADD4MemReg, cg);
+         return inlineAtomicMemoryUpdate(node, LADD4MemReg, cg);
          }
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicAdd64BitSymbol))
          {
-         return TR::TreeEvaluator::performSimpleAtomicMemoryUpdate(node, LADD8MemReg, cg);
+         return inlineAtomicMemoryUpdate(node, LADD8MemReg, cg);
          }
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicFetchAndAdd32BitSymbol))
          {
-         return TR::TreeEvaluator::performSimpleAtomicMemoryUpdate(node, LXADD4MemReg, cg);
+         return inlineAtomicMemoryUpdate(node, LXADD4MemReg, cg);
          }
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicFetchAndAdd64BitSymbol))
          {
-         return TR::TreeEvaluator::performSimpleAtomicMemoryUpdate(node, LXADD8MemReg, cg);
+         return inlineAtomicMemoryUpdate(node, LXADD8MemReg, cg);
          }
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicSwap32BitSymbol))
          {
-         return TR::TreeEvaluator::performSimpleAtomicMemoryUpdate(node, XCHG4MemReg, cg);
+         return inlineAtomicMemoryUpdate(node, XCHG4MemReg, cg);
          }
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicSwap64BitSymbol))
          {
-         return TR::TreeEvaluator::performSimpleAtomicMemoryUpdate(node, XCHG8MemReg, cg);
+         return inlineAtomicMemoryUpdate(node, XCHG8MemReg, cg);
          }
       }
 
@@ -3557,7 +3616,7 @@ TR::Register *OMR::X86::TreeEvaluator::conversionAnalyser(TR::Node          *nod
                child->getOpCode().isLoadIndirect() &&
                child->getSymbolReference()->getSymbol()->getDataType() == TR::Address)
             {
-            targetRegister = TR::TreeEvaluator::iloadEvaluator(child, cg);
+            targetRegister = cg->evaluate(child);
             }
          else
             {
@@ -4035,12 +4094,6 @@ bool
 OMR::X86::TreeEvaluator::VMinlineCallEvaluator(TR::Node*, bool, TR::CodeGenerator*)
    {
    return false;
-   }
-
-TR::Register *
-OMR::X86::TreeEvaluator::VMifInstanceOfEvaluator(TR::Node*, TR::CodeGenerator*)
-   {
-   return 0;
    }
 
 TR::Register *

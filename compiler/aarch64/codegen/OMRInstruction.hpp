@@ -71,6 +71,23 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
     * @param[in] node : node
     */
    Instruction(TR::CodeGenerator *cg, TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op, TR::Node *node = NULL);
+   /**
+    * @brief Constructor
+    * @param[in] cg : CodeGenerator
+    * @param[in] op : opcode
+    * @param[in] cond : register dependency conditions
+    * @param[in] node : node
+    */
+   Instruction(TR::CodeGenerator *cg, TR::InstOpCode::Mnemonic op, TR::RegisterDependencyConditions *cond, TR::Node *node = NULL);
+   /**
+    * @brief Constructor
+    * @param[in] cg : CodeGenerator
+    * @param[in] precedingInstruction : preceding instruction
+    * @param[in] op : opcode
+    * @param[in] cond : register dependency conditions
+    * @param[in] node : node
+    */
+   Instruction(TR::CodeGenerator *cg, TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op, TR::RegisterDependencyConditions *cond, TR::Node *node = NULL);
 
    /**
     * @brief Instruction description string
@@ -106,6 +123,12 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
     * @brief Removes this instruction from instruction list
     */
    void remove();
+
+   /**
+    * @brief Answers if this instruction is a label or not
+    * @return true if this instruction is a label, false otherwise
+    */
+   virtual bool isLabel() { return _opcode.getMnemonic() == TR::InstOpCode::label; }
 
    /**
     * @brief Gets the base register of memory access
@@ -152,6 +175,13 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
     * @return basic block index
     */
    void setBlockIndex(int32_t i)   { _blockIndex = i; }
+
+   /**
+    * @brief Sets GCMap mask
+    * @param[in] cg : CodeGenerator
+    * @param[in] mask : GCMap mask
+    */
+   void ARM64NeedsGCMap(TR::CodeGenerator *cg, uint32_t mask);
 
    /**
     * @brief Gets the memory data register

@@ -33,8 +33,12 @@ OBJECTS := \
 	AnonymousTest \
 	ControlFlowTest \
 	SystemLinkageTest \
+	NegateTest \
 	WorklistTest \
-	IfThenElseTest
+	IfThenElseTest \
+	CallReturnTest \
+	FieldNameTest \
+	ConvertBitsTest
 
 OBJECTS := $(addsuffix $(OBJEXT),$(OBJECTS))
 

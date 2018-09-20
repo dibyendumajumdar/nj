@@ -30,7 +30,6 @@
 #include "codegen/RegisterConstants.hpp"
 #include "codegen/Relocation.hpp"
 #include "codegen/ScratchRegisterManager.hpp"
-#include "codegen/TreeEvaluator.hpp"               // for IS_32BIT_SIGNED
 #include "codegen/UnresolvedDataSnippet.hpp"
 #include "compile/Compilation.hpp"                 // for Compilation, isSMP
 #include "control/Options.hpp"
@@ -95,7 +94,7 @@ OMR::X86::AMD64::MemoryReference::MemoryReference(TR::Register *br, TR::Register
    self()->finishInitialization(cg, NULL);
    }
 
-OMR::X86::AMD64::MemoryReference::MemoryReference(TR::IA32DataSnippet *cds, TR::CodeGenerator *cg):
+OMR::X86::AMD64::MemoryReference::MemoryReference(TR::X86DataSnippet *cds, TR::CodeGenerator *cg):
    OMR::X86::MemoryReference(cds, cg)
    {
    self()->finishInitialization(cg, NULL);

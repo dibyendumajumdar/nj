@@ -526,9 +526,6 @@ public:
    TR::list<TR::Snippet*> *getSnippetsToBePatchedOnClassRedefinition() { return &_snippetsToBePatchedOnClassRedefinition; }
    TR::list<TR_Pair<TR::Snippet,TR_ResolvedMethod> *> *getSnippetsToBePatchedOnRegisterNative() { return &_snippetsToBePatchedOnRegisterNative; }
 
-   bool useLongRegAllocation(){ return _useLongRegAllocation; }
-   void setUseLongRegAllocation(bool b){ _useLongRegAllocation = b; }
-
    void switchCodeCache(TR::CodeCache *newCodeCache);
    bool getCodeCacheSwitched() { return _codeCacheSwitched; }
 
@@ -932,8 +929,8 @@ public:
    bool isDLT() { return _flags.testAny(IsDLTCompile);}
 
    // surely J9 specific
-   void * getAotMethodCodeStart() const { return _aotMethodCodeStart; }
-   void setAotMethodCodeStart(void *p) { _aotMethodCodeStart = p; }
+   void * getRelocatableMethodCodeStart() const { return _relocatableMethodCodeStart; }
+   void setRelocatableMethodCodeStart(void *p) { _relocatableMethodCodeStart = p; }
 
    bool getFailCHTableCommit() const { return _failCHtableCommitFlag; }
    void setFailCHTableCommit(bool v) { _failCHtableCommitFlag = v; }
@@ -973,6 +970,12 @@ public:
     * @return reference to the TR::DebugCounterMap map
     */
    DebugCounterMap &getDebugCounterMap() { return _debugCounterMap; }
+
+   /**
+    *  @brief needRelocationsForStatics
+    *  @return whether static data addresses need to be relocated
+    */
+   bool needRelocationsForStatics() { return true; }
 
 
 public:
@@ -1130,7 +1133,6 @@ private:
    bool                              _loopVersionedWrtAsyncChecks;
    bool                              _codeCacheSwitched;
    bool                              _commitedCallSiteInfo;
-   bool                              _useLongRegAllocation;
    bool                              _containsBigDecimalLoad;
    bool                              _isOptServer;
    bool                              _isServerInlining;
@@ -1182,7 +1184,7 @@ protected:
 #endif
 
 private:
-   void *                            _aotMethodCodeStart;
+   void *                            _relocatableMethodCodeStart;
    const int32_t                     _compThreadID; // The ID of the supporting compilation thread; 0 for compilation an application thread
    volatile bool                     _failCHtableCommitFlag;
 
