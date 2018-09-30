@@ -44,6 +44,7 @@ add_executable(comptest
 	LogicalTest.cpp
 	LinkageTest.cpp
 	BitPermuteTest.cpp
+	LocalPassByRefTest.cpp
 )
 
 target_link_libraries(comptest
