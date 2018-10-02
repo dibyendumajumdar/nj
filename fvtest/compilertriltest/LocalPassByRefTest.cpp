@@ -32,7 +32,7 @@ int foo(int*i, long long*l)
 
 TEST_F(LocalPassByRefTest, passByRefTest) { 
     char inputTrees[512] = {0};
-	const auto format_string = "(method return Int32 (block (istore temp=\"a\" (iconst 5)) (lstore temp=\"b\" (lconst 42)) (treetop (icall address=0x%jX args=[Address, Address] (loadaddr temp=\"a\") (loadaddr temp=\"b\") )) (ireturn (iadd (l2i (lload temp=\"b\")) (iload temp=\"a\")))))";
+	const auto format_string = "(method return=Int32 (block (istore temp=\"a\" (iconst 5)) (lstore temp=\"b\" (lconst 42)) (treetop (icall address=0x%jX args=[Address, Address] (loadaddr temp=\"a\") (loadaddr temp=\"b\") )) (ireturn (iadd (l2i (lload temp=\"b\")) (iload temp=\"a\")))))";
     std::snprintf(inputTrees, sizeof inputTrees, format_string, reinterpret_cast<uintmax_t>(&foo));
     auto trees = parseString(inputTrees);
 
