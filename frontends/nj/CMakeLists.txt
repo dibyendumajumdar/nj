@@ -26,6 +26,9 @@ set(FILTER_FILES
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRThunkBuilder.cpp		
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineOperandArray.cpp		
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineOperandStack.cpp		
+	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineRegister.cpp
+	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineRegisterInStruct.cpp
+	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineState.cpp	
 )
 
 if (NOT OMR_TOOLCONFIG MATCHES "msvc")
