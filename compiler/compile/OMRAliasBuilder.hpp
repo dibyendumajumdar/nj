@@ -107,6 +107,7 @@ public:
    TR_BitVector & refinedAddressArrayShadows() { return _refinedAddressArrayShadows; }
    TR_BitVector & refinedIntArrayShadows() { return _refinedIntArrayShadows; }
 
+   // nj To enable auto variable whose address is taken in alias analysis
    TR_BitVector & addressTakenAutos() { return _addressTakenAutos; }
 
    bool litPoolGenericIntShadowHasBeenCreated(){ return _litPoolGenericIntShadowHasBeenCreated; }
@@ -186,6 +187,7 @@ protected:
    TR_BitVector _refinedIntArrayShadows;
    TR_BitVector _refinedNonIntPrimitiveArrayShadows;
 
+   // Tracks autos whose address have been taken
    TR_BitVector _addressTakenAutos;
 
    bool _litPoolGenericIntShadowHasBeenCreated;

@@ -43,6 +43,8 @@ add_executable(comptest
 	MockStrategyTest.cpp
 	LogicalTest.cpp
 	BitPermuteTest.cpp
+	MaxMinTest.cpp
+
 	LocalPassByRefTest.cpp
 	LinkageTest.cpp
 )

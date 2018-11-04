@@ -34,7 +34,7 @@ if (NOT OMR_TOOLCONFIG MATCHES "msvc")
         set(NJ_LIB_TYPE SHARED)
 endif()
 
-# Create njmin library
+# Create nj library
 # The create_omr_compiler_library() function
 # will add all the backend Compiler code to the library
 create_omr_compiler_library(
@@ -43,6 +43,17 @@ create_omr_compiler_library(
 	DEFINES NONJAVA
 	OBJECTS ${API_FILES}
 	FILTER ${FILTER_FILES}
+)
+
+# Add interface path so that include paths propagate.
+# NOTE: `release` directory  isn't being automatically setup, so this
+#       is adding the actual compiler dir, as opposed to the 'composed'
+#       install directory.
+target_include_directories(nj
+	INTERFACE
+		ilgen
+		../compiler/
+		../
 )
 
 target_link_libraries(nj
@@ -54,3 +65,5 @@ install(TARGETS nj
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
+
+add_subdirectory(c-api-tests)

@@ -37,6 +37,7 @@ namespace OMR { typedef OMR::ARM64::MemoryReference MemoryReferenceConnector; }
 
 #include <stddef.h>
 #include <stdint.h>
+#include "codegen/InstOpCode.hpp"
 #include "codegen/Register.hpp"
 #include "env/TRMemory.hpp"
 #include "il/SymbolReference.hpp"
@@ -118,6 +119,15 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
          TR::Register *br,
          int32_t disp,
          TR::CodeGenerator *cg);
+
+   /**
+    * @brief Constructor
+    * @param[in] node : node
+    * @param[in] symRef : symbol reference
+    * @param[in] len : length
+    * @param[in] cg : CodeGenerator object
+    */
+   MemoryReference(TR::Node *node, TR::SymbolReference *symRef, uint32_t len, TR::CodeGenerator *cg);
 
    /**
     * @brief Gets base register
@@ -324,9 +334,10 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
 
    /**
     * @brief Estimates the length of generated binary
+    * @param[in] op : opcode of the instruction to attach this memory reference to
     * @return estimated binary length
     */
-   uint32_t estimateBinaryLength();
+   uint32_t estimateBinaryLength(TR::InstOpCode op);
 
    /**
     * @brief Generates binary encoding

@@ -102,11 +102,27 @@ uint8_t *TR::ARM64CompareBranchInstruction::generateBinaryEncoding()
    return cursor;
    }
 
+uint8_t *TR::ARM64RegBranchInstruction::generateBinaryEncoding()
+   {
+   uint8_t *instructionStart = cg()->getBinaryBufferCursor();
+   uint8_t *cursor = instructionStart;
+   cursor = getOpCode().copyBinaryToBuffer(instructionStart);
+   insertTargetRegister(toARM64Cursor(cursor));
+   cursor += ARM64_INSTRUCTION_LENGTH;
+   setBinaryLength(ARM64_INSTRUCTION_LENGTH);
+   setBinaryEncoding(instructionStart);
+   return cursor;
+   }
+
 uint8_t *TR::ARM64AdminInstruction::generateBinaryEncoding()
    {
    uint8_t *instructionStart = cg()->getBinaryBufferCursor();
+   TR::InstOpCode::Mnemonic op = getOpCodeValue();
 
-   TR_ASSERT(false, "Not implemented yet.");
+   if (op != OMR::InstOpCode::proc && op != OMR::InstOpCode::fence && op != OMR::InstOpCode::retn)
+      {
+      TR_ASSERT(false, "Unsupported opcode in AdminInstruction.");
+      }
 
    setBinaryLength(0);
    setBinaryEncoding(instructionStart);
@@ -246,7 +262,7 @@ uint8_t *TR::ARM64Trg1MemInstruction::generateBinaryEncoding()
 
 int32_t TR::ARM64Trg1MemInstruction::estimateBinaryLength(int32_t currentEstimate)
    {
-   setEstimatedBinaryLength(getMemoryReference()->estimateBinaryLength());
+   setEstimatedBinaryLength(getMemoryReference()->estimateBinaryLength(getOpCodeValue()));
    return currentEstimate + getEstimatedBinaryLength();
    }
 
@@ -264,7 +280,7 @@ uint8_t *TR::ARM64MemInstruction::generateBinaryEncoding()
 
 int32_t TR::ARM64MemInstruction::estimateBinaryLength(int32_t currentEstimate)
    {
-   setEstimatedBinaryLength(getMemoryReference()->estimateBinaryLength());
+   setEstimatedBinaryLength(getMemoryReference()->estimateBinaryLength(getOpCodeValue()));
    return(currentEstimate + getEstimatedBinaryLength());
    }
 
@@ -283,6 +299,6 @@ uint8_t *TR::ARM64MemSrc1Instruction::generateBinaryEncoding()
 
 int32_t TR::ARM64MemSrc1Instruction::estimateBinaryLength(int32_t currentEstimate)
    {
-   setEstimatedBinaryLength(getMemoryReference()->estimateBinaryLength());
+   setEstimatedBinaryLength(getMemoryReference()->estimateBinaryLength(getOpCodeValue()));
    return(currentEstimate + getEstimatedBinaryLength());
    }
