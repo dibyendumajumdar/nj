@@ -124,7 +124,7 @@ void TR_UseDefInfo::prepareUseDefInfo(bool requiresGlobals, bool prefersGlobals,
       }
 
    bool canBuild = false;
-   _hasCallsAsUses = false;
+   _hasCallsAsUses = true; //  false;
    _uniqueIndexForDefsOnEntry = false;
 
    if (comp()->cg()->getGRACompleted() && conversionRegsOnly)
