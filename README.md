@@ -28,14 +28,14 @@ Following OMR components have been removed:
 ## Status
 
 * Builds successfully on Linux, Mac OSX and Windows 10 
-* Not all tests pass on Windows 10
-* A [C API](https://github.com/dibyendumajumdar/nj/blob/master/jitbuilder/c-api/nj_api.h) is implemented to allow easy use of the JIT engine in projects; note this is a low level api, not the same as the JitBuilder api provided by Eclipse OMR. A user guide for this api will be available at a future date.
+* Some tests fail on Windows 10
+* A [C API](https://github.com/dibyendumajumdar/nj/blob/master/frontends/nj/ilgen/nj_api.h) is implemented to allow easy use of the JIT engine in projects; note this is a low level api, not the same as the JitBuilder api provided by Eclipse OMR. A user guide for this api will be available at a future date.
 * An easy way to get started is to use the C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c), which enables you to generate code from C code taking away a lot of the complexities of working with the JIT api.
 
 ## Roadmap
 
-* Immediate focus is on trying to use the JIT engine behind a C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c)
-* I would like to further trim the library to make it leaner and more focussed - especially enable a build option that is minimal in size
+* Immediate focus is on trying to use the JIT engine behind a C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c) and with the help of that, as a backend JIT engine for [Ravi, a Lua 5.3 derived language](https://github.com/dibyendumajumdar/ravi).
+* I would like to further trim the library to make it even leaner and focussed - especially enable a build option that is minimal in size
 
 ## Merge Strategy
 
@@ -44,8 +44,7 @@ need to maintain this project as I disagree with one aspect of the Eclipse OMR s
 the port and thread libraries. 
 
 Initially I wanted to merge the commits from Eclipse OMR using git's `am` facility. But I got hopelessly lost and some of the
-merges did not succeed. So sadly I am going to take the easy way and just do regular manual merge from the OMR tree. The downside is
-that all history will be lost.
+merges did not succeed. So sadly I am taking the easy way and am doing periodic manual merges from the OMR tree using BeyondCompare tool. The downside is that the upstream commit history is not maintained.
 
 ## Build Instructions
 

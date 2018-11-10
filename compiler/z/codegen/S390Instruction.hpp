@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -625,11 +625,6 @@ class S390PseudoInstruction : public TR::Instruction
    TR::LabelSymbol *_callDescLabel;
    bool _shouldBeginNewLine;
 
-   // Following is used when ASM encoding is determined at compile time
-   // (e.g. for C/C++ when doing inlined asm and producing object file)
-   uint8_t *_asmDataEncoding;       ///< binary encoding values
-   int32_t  _asmDataEncodingLength; ///< binary encoding length
-
    public:
 
    S390PseudoInstruction(TR::InstOpCode::Mnemonic op,
@@ -641,8 +636,6 @@ class S390PseudoInstruction : public TR::Instruction
         _callDescValue(0),
         _padbytes(0),
         _callDescLabel(NULL),
-        _asmDataEncoding(NULL),
-        _asmDataEncodingLength(0),
         _shouldBeginNewLine(false){}
 
    S390PseudoInstruction(TR::InstOpCode::Mnemonic op,
@@ -655,8 +648,6 @@ class S390PseudoInstruction : public TR::Instruction
         _callDescValue(0),
         _padbytes(0),
         _callDescLabel(NULL),
-        _asmDataEncoding(NULL),
-        _asmDataEncodingLength(0),
         _shouldBeginNewLine(false){}
 
    S390PseudoInstruction(TR::InstOpCode::Mnemonic  op,
@@ -669,8 +660,6 @@ class S390PseudoInstruction : public TR::Instruction
         _callDescValue(0),
         _padbytes(0),
         _callDescLabel(NULL),
-        _asmDataEncoding(NULL),
-        _asmDataEncodingLength(0),
         _shouldBeginNewLine(false){}
 
    S390PseudoInstruction(TR::InstOpCode::Mnemonic  op,
@@ -684,8 +673,6 @@ class S390PseudoInstruction : public TR::Instruction
         _callDescValue(0),
         _padbytes(0),
         _callDescLabel(NULL),
-        _asmDataEncoding(NULL),
-        _asmDataEncodingLength(0),
         _shouldBeginNewLine(false){}
 
    virtual char *description() { return "S390PseudoInstruction"; }
@@ -697,11 +684,6 @@ class S390PseudoInstruction : public TR::Instruction
 
    void setShouldBeginNewLine(bool sbnl) { _shouldBeginNewLine = sbnl; }
    bool shouldBeginNewLine() { return _shouldBeginNewLine; }
-
-   uint8_t *getASMDataEncoding() { return _asmDataEncoding; }
-   void setASMDataEncoding(uint8_t *encoding) { _asmDataEncoding = encoding; }
-   uint32_t  getASMDataEncodingLength() { return _asmDataEncodingLength; }
-   void setASMDataEncodingLength(int32_t encodingLength) { _asmDataEncodingLength = encodingLength; }
 
    virtual uint8_t *generateBinaryEncoding();
 
@@ -1422,26 +1404,9 @@ class S390RegInstruction : public TR::Instruction
             return realReg == targetReg1;
             }
 
-         if (reg->getRealRegister() && getRegisterOperand(1)->getRealRegister() &&
-            TR::RealRegister::isAR(((TR::RealRegister *)getRegisterOperand(1))->getRegisterNumber()) &&
-             GPRmatchesAR(
-             toRealRegister(reg),
-             (TR::RealRegister *)getRegisterOperand(1))
-             )
-            return true;
-
          // if we are matching virt regs
          return reg == getRegisterOperand(1);
          }
-      return false;
-      }
-
-   bool GPRmatchesAR(TR::RealRegister* gprReg, TR::RealRegister* arReg)
-      {
-      TR_ASSERT(gprReg, "expecting valid gpr");
-      TR_ASSERT(arReg,  "expecting valid ar");
-      if (gprReg->getRegisterNumber()==arReg->getRegisterNumber()-TR::RealRegister::FirstAR+1)
-         return true;
       return false;
       }
 
@@ -1474,6 +1439,14 @@ class S390RRInstruction : public TR::S390RegInstruction
       : S390RegInstruction(op, n, treg, cg), _flagsRR(0), _secondConstant(-1)
       {
       }
+
+   S390RRInstruction(TR::InstOpCode::Mnemonic         op,
+                        TR::Node                      *n,
+                        TR::CodeGenerator             *cg)
+      : S390RegInstruction(op, n, cg), _flagsRR(0), _secondConstant(-1)
+      {
+      }
+
 
    S390RRInstruction(TR::InstOpCode::Mnemonic         op,
                         TR::Node               *n,
@@ -1827,6 +1800,20 @@ class S390RRFInstruction : public TR::S390RRInstruction
                         TR::CodeGenerator      *cg)
       : S390RRInstruction(op, n, treg, sreg, cg), _encodeAsRRD(false),
         _isSourceReg2Present(false), _isMask3Present(isMask3),_isMask4Present(!isMask3)
+      {
+      if (isMask3)
+         _mask3 = mask;
+      else
+         _mask4 = mask;
+      }
+
+   S390RRFInstruction(TR::InstOpCode::Mnemonic        op,
+                        TR::Node               *n,
+                        uint8_t                mask,
+                        bool                   isMask3,
+                        TR::CodeGenerator      *cg)
+      : S390RRInstruction(op, n, cg), _encodeAsRRD(false),
+        _isMask3Present(isMask3), _isMask4Present(!isMask3), _isSourceReg2Present(false)
       {
       if (isMask3)
          _mask3 = mask;

@@ -260,7 +260,6 @@ OMR::Compilation::Compilation(
    _loopVersionedWrtAsyncChecks(false),
    _codeCacheSwitched(false),
    _commitedCallSiteInfo(false),
-   _useLongRegAllocation(false),
    _containsBigDecimalLoad(false),
    _osrStateIsReliable(true),
    _canAffordOSRControlFlow(true),
@@ -278,7 +277,7 @@ OMR::Compilation::Compilation(
    _debugCounterMap(std::less<const void *>(), getTypedAllocator<DebugCounterEntry>(self()->allocator())),
    _currentBlock(NULL),
    _verboseOptTransformationCount(0),
-   _aotMethodCodeStart(NULL),
+   _relocatableMethodCodeStart(NULL),
    _compThreadID(id),
    _failCHtableCommitFlag(false),
    _numReservedIPICTrampolines(0),
@@ -924,7 +923,7 @@ int32_t OMR::Compilation::compile()
       if( (self()->getMethodHotness() <= warm))
          {
          if (!TR::Compiler->target.cpu.isPower())
-            self()->getOptions()->setOption(TR_DisableInternalPointers);
+            TR::Options::getCmdLineOptions()->setOption(TR_DisableInternalPointers);
          }
       self()->getOptions()->setOption(TR_DisablePartialInlining);
       }
@@ -1271,11 +1270,6 @@ void OMR::Compilation::performOptimizations()
 
    if (_optimizer)
       _optimizer->optimize();
-
-   if (self()->getOption(TR_DisableShrinkWrapping) &&
-       !TR::Compiler->target.cpu.isZ() && // 390 now uses UseDefs in CodeGenPrep
-       !self()->getOptions()->getVerboseOption(TR_VerboseCompYieldStats))
-      _optimizer = NULL;
    }
 
 bool OMR::Compilation::incInlineDepth(TR::ResolvedMethodSymbol * method, TR_ByteCodeInfo & bcInfo, int32_t cpIndex, TR::SymbolReference *callSymRef, bool directCall, TR_PrexArgInfo *argInfo)

@@ -19,6 +19,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
+#include "env/TRMemory.hpp"    // must precede IlBuilder.hpp to get TR_ALLOC
 #include "ilgen/IlBuilder.hpp"
 
 #include <stdint.h>
@@ -42,6 +43,7 @@
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 #include "ilgen/TypeDictionary.hpp"
 #include "ilgen/IlInjector.hpp"
+#include "ilgen/IlReference.hpp"
 #include "ilgen/MethodBuilder.hpp"
 #include "ilgen/BytecodeBuilder.hpp"
 #include "infra/Cfg.hpp"
@@ -86,6 +88,8 @@
 
 OMR::IlBuilder::IlBuilder(TR::IlBuilder *source)
    : TR::IlInjector(source),
+   _client(0),
+   _clientCallbackBuildIL(0),
    _methodBuilder(source->_methodBuilder),
    _sequence(0),
    _sequenceAppender(0),
@@ -309,7 +313,7 @@ OMR::IlBuilder::countBlocks()
          count += entry->_builder->countBlocks();
       }
 
-   if (this != _methodBuilder)
+   if (this != _methodBuilder || _methodBuilder->callerMethodBuilder() != NULL)
       {
       // exit block isn't in the sequence except for method builders
       //            gets tacked in late by connectTrees
@@ -324,9 +328,9 @@ OMR::IlBuilder::countBlocks()
 
 void
 OMR::IlBuilder::pullInBuilderTrees(TR::IlBuilder *builder,
-                              uint32_t *currentBlock,
-                              TR::TreeTop **firstTree,
-                              TR::TreeTop **newLastTree)
+                                   uint32_t *currentBlock,
+                                   TR::TreeTop **firstTree,
+                                   TR::TreeTop **newLastTree)
    {
    TraceIL("\n[ %p ] Calling connectTrees on inner builder %p\n", this, builder);
    builder->connectTrees();
@@ -413,7 +417,7 @@ OMR::IlBuilder::connectTrees()
       lastTree = newLastTree;
       }
 
-   if (_methodBuilder != this)
+   if (_methodBuilder != this || _methodBuilder->callerMethodBuilder() != NULL)
       {
       // non-method builders need to append the "EXIT" block trees
       // (method builders have EXIT as the special block 1)
@@ -476,6 +480,15 @@ TR::IlBuilder *
 OMR::IlBuilder::OrphanBuilder()
    {
    TR::IlBuilder *orphan = new (comp()->trHeapMemory()) TR::IlBuilder(_methodBuilder, _types);
+   orphan->initialize(_details, _methodSymbol, _fe, _symRefTab);
+   orphan->setupForBuildIL();
+   return orphan;
+   }
+
+TR::BytecodeBuilder *
+OMR::IlBuilder::OrphanBytecodeBuilder(int32_t bcIndex, char *name)
+   {
+   TR::BytecodeBuilder *orphan = new (comp()->trHeapMemory()) TR::BytecodeBuilder(_methodBuilder, bcIndex, name);
    orphan->initialize(_details, _methodSymbol, _fe, _symRefTab);
    orphan->setupForBuildIL();
    return orphan;
@@ -611,7 +624,7 @@ OMR::IlBuilder::Store(const char *varName, TR::IlValue *value)
       _methodBuilder->defineValue(varName, _types->PrimitiveType(value->getDataType()));
    TR::SymbolReference *symRef = lookupSymbol(varName);
 
-   TraceIL("IlBuilder[ %p ]::Store %s %d gets %d\n", this, varName, symRef->getCPIndex(), value->getID());
+   TraceIL("IlBuilder[ %p ]::Store %s %d (%d) gets %d\n", this, varName, symRef->getCPIndex(), symRef->getReferenceNumber(), value->getID());
    storeNode(symRef, loadValue(value));
    }
 
@@ -623,6 +636,7 @@ OMR::IlBuilder::Store(const char *varName, TR::IlValue *value)
 void
 OMR::IlBuilder::StoreOver(TR::IlValue *dest, TR::IlValue *value)
    {
+   TraceIL("IlBuilder[ %p ]::StoreOver %d gets %d\n", this, dest->getID(), value->getID());
    dest->storeOver(value, _currentBlock);
    }
 
@@ -649,7 +663,7 @@ OMR::IlBuilder::VectorStore(const char *varName, TR::IlValue *value)
    TR::SymbolReference *symRef = lookupSymbol(varName);
 
    TraceIL("IlBuilder[ %p ]::VectorStore %s %d gets %d\n", this, varName, symRef->getCPIndex(), value->getID());
-   storeNode(symRef, loadValue(value));
+   storeNode(symRef, valueNode);
    }
 
 /**
@@ -731,13 +745,14 @@ OMR::IlBuilder::CreateLocalStruct(TR::IlType *structType)
 
 void
 OMR::IlBuilder::StoreIndirect(const char *type, const char *field, TR::IlValue *object, TR::IlValue *value)
-  {
-  TR::SymbolReference *symRef = (TR::SymbolReference*)_types->FieldReference(type, field);
-  TR::DataType fieldType = symRef->getSymbol()->getDataType();
-  TraceIL("IlBuilder[ %p ]::StoreIndirect %s.%s (%d) into (%d)\n", this, type, field, value->getID(), object->getID());
-  TR::ILOpCodes storeOp = comp()->il.opCodeForIndirectStore(fieldType);
-  genTreeTop(TR::Node::createWithSymRef(storeOp, 2, loadValue(object), loadValue(value), 0, symRef));
-  }
+   {
+   TR::IlReference *fieldRef = _types->FieldReference(type, field);
+   TR::SymbolReference *symRef = fieldRef->symRef();
+   TR::DataType fieldType = symRef->getSymbol()->getDataType();
+   TraceIL("IlBuilder[ %p ]::StoreIndirect %s.%s (%d) into (%d)\n", this, type, field, value->getID(), object->getID());
+   TR::ILOpCodes storeOp = comp()->il.opCodeForIndirectStore(fieldType);
+   genTreeTop(TR::Node::createWithSymRef(storeOp, 2, loadValue(object), loadValue(value), 0, symRef));
+   }
 
 TR::IlValue *
 OMR::IlBuilder::Load(const char *name)
@@ -745,6 +760,7 @@ OMR::IlBuilder::Load(const char *name)
    TR::SymbolReference *symRef = lookupSymbol(name);
    TR::Node *valueNode = TR::Node::createLoad(symRef);
    TR::IlValue *returnValue = newValue(symRef->getSymbol()->getDataType(), valueNode);
+   TraceIL("IlBuilder[ %p ]::Load %s into %d from symref %d\n", this, name, returnValue->getID(), symRef->getReferenceNumber());
    return returnValue;
    }
 
@@ -765,7 +781,8 @@ OMR::IlBuilder::VectorLoad(const char *name)
 TR::IlValue *
 OMR::IlBuilder::LoadIndirect(const char *type, const char *field, TR::IlValue *object)
    {
-   TR::SymbolReference *symRef = (TR::SymbolReference *)_types->FieldReference(type, field);
+   TR::IlReference *fieldRef = _types->FieldReference(type, field);
+   TR::SymbolReference *symRef = fieldRef->symRef();
    TR::DataType fieldType = symRef->getSymbol()->getDataType();
    TR::IlValue *returnValue = newValue(fieldType, TR::Node::createWithSymRef(comp()->il.opCodeForIndirectLoad(fieldType), 1, loadValue(object), 0, symRef));
    TraceIL("IlBuilder[ %p ]::%d is LoadIndirect %s.%s from (%d)\n", this, returnValue->getID(), type, field, object->getID());
@@ -970,7 +987,7 @@ OMR::IlBuilder::ConvertTo(TR::IlType *t, TR::IlValue *v)
       TraceIL("IlBuilder[ %p ]::%d is ConvertTo (already has type %s) %d\n", this, v->getID(), t->getName(), v->getID());
       return v;
       }
-   TR::IlValue *convertedValue = convertTo(t, v, false);
+   TR::IlValue *convertedValue = convertTo(typeTo, v, false);
    TraceIL("IlBuilder[ %p ]::%d is ConvertTo(%s) %d\n", this, convertedValue->getID(), t->getName(), v->getID());
    return convertedValue;
    }
@@ -985,22 +1002,59 @@ OMR::IlBuilder::UnsignedConvertTo(TR::IlType *t, TR::IlValue *v)
       TraceIL("IlBuilder[ %p ]::%d is UnsignedConvertTo (already has type %s) %d\n", this, v->getID(), t->getName(), v->getID());
       return v;
       }
-   TR::IlValue *convertedValue = convertTo(t, v, true);
+   TR::IlValue *convertedValue = convertTo(typeTo, v, true);
    TraceIL("IlBuilder[ %p ]::%d is UnsignedConvertTo(%s) %d\n", this, convertedValue->getID(), t->getName(), v->getID());
    return convertedValue;
    }
 
 TR::IlValue *
-OMR::IlBuilder::convertTo(TR::IlType *t, TR::IlValue *v, bool needUnsigned)
+OMR::IlBuilder::Negate(TR::IlValue *v)
+   {
+   TR::DataType dataType = v->getDataType();
+
+   TR::ILOpCodes negateOp = ILOpCode::negateOpCode(dataType);
+   TR_ASSERT(negateOp != TR::BadILOp, "Builder [ %p ] cannot negate value %d of type %s", this, v->getID(), dataType.toString());
+
+   TR::Node *result = TR::Node::create(negateOp, 1, loadValue(v));
+   TR::IlValue *negatedValue = newValue(dataType, result);
+   TraceIL("IlBuilder[ %p ]::%d is Negated %d\n", this, negatedValue->getID(), v->getID());
+   return negatedValue;
+   }
+
+TR::IlValue *
+OMR::IlBuilder::convertTo(TR::DataType typeTo, TR::IlValue *v, bool needUnsigned)
+   {
+   TR::DataType typeFrom = v->getDataType();
+
+   TR::ILOpCodes convertOp = ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
+   TR_ASSERT(convertOp != TR::BadILOp, "Builder [ %p ] unknown conversion requested for value %d %s to %s", this, v->getID(), typeFrom.toString(), typeTo.toString());
+
+   TR::Node *result = TR::Node::create(convertOp, 1, loadValue(v));
+   TR::IlValue *convertedValue = newValue(typeTo, result);
+   return convertedValue;
+   }
+
+TR::IlValue*
+OMR::IlBuilder::ConvertBitsTo(TR::IlType* t, TR::IlValue* v)
    {
    TR::DataType typeFrom = v->getDataType();
    TR::DataType typeTo = t->getPrimitiveType();
 
-   TR::ILOpCodes convertOp = ILOpCode::getProperConversion(typeFrom, typeTo, needUnsigned);
-   TR_ASSERT(convertOp != TR::BadILOp, "Builder [ %p ] unknown conversion requested for value %d (TR::DataType %d) to type %s", this, v->getID(), (int)typeFrom, t->getName());
+   if (typeTo == typeFrom)
+      {
+      TraceIL("IlBuilder[ %p ]::%d is ConvertBitsTo (already has type %s) %d\n", this, v->getID(), t->getName(), v->getID());
+      return v;
+      }
 
-   TR::Node *result = TR::Node::create(convertOp, 1, loadValue(v));
+   TR::ILOpCodes convertOpcode = TR::DataType::getDataTypeBitConversion(typeFrom, typeTo);
+   TR_ASSERT(convertOpcode != TR::BadILOp && TR::DataType::getSize(typeTo) == TR::DataType::getSize(typeFrom),
+             "Builder [ %p ] requested bit conversion for value %d from type of size %d (%s) to type of size %d (%s) (consider using ConvertTo() to for narrowing/widening)",
+             this, v->getID(), TR::DataType::getSize(typeFrom), typeFrom.toString(), TR::DataType::getSize(typeTo), typeTo.toString());
+   TR_ASSERT(convertOpcode != TR::BadILOp, "Builder [ %p ] unknown bit conversion requested for value %d (%s) to type %s", this, v->getID(), typeFrom.toString(), t->getName());
+
+   TR::Node *result = TR::Node::create(convertOpcode, 1, loadValue(v));
    TR::IlValue *convertedValue = newValue(t, result);
+   TraceIL("IlBuilder[ %p ]::%d is CoerceTo(%s) %d\n", this, convertedValue->getID(), t->getName(), v->getID());
    return convertedValue;
    }
 
@@ -1136,21 +1190,59 @@ OMR::IlBuilder::Goto(TR::IlBuilder *dest)
 void
 OMR::IlBuilder::Return()
    {
-   TraceIL("IlBuilder[ %p ]::Return\n", this);
-   TR::Node *returnNode = TR::Node::create(TR::ILOpCode::returnOpCode(TR::NoType));
-   genTreeTop(returnNode);
-   cfg()->addEdge(_currentBlock, cfg()->getEnd());
-   setDoesNotComeBack();
+   TR::IlBuilder *returnBuilder = _methodBuilder->returnBuilder();
+   if (returnBuilder != NULL)
+      {
+      TR_ASSERT(_methodBuilder->returnSymbol() == NULL, "Return() from inlined call did not expect a pre-existing returnSymbol");
+      TraceIL("IlBuilder[ %p ]::Return back to caller's returnBuilder [ %p ]\n", this, returnBuilder);
+
+      // redirect flow back to the caller's return block
+      Goto(returnBuilder);
+      }
+   else
+      {
+      TraceIL("IlBuilder[ %p ]::Return\n", this);
+      TR::Node *returnNode = TR::Node::create(TR::ILOpCode::returnOpCode(TR::NoType));
+      genTreeTop(returnNode);
+      cfg()->addEdge(_currentBlock, cfg()->getEnd());
+      setDoesNotComeBack();
+      }
    }
 
 void
 OMR::IlBuilder::Return(TR::IlValue *value)
-   {
-   TraceIL("IlBuilder[ %p ]::Return %d\n", this, value->getID());
-   TR::Node *returnNode = TR::Node::create(TR::ILOpCode::returnOpCode(value->getDataType()), 1, loadValue(value));
-   genTreeTop(returnNode);
-   cfg()->addEdge(_currentBlock, cfg()->getEnd());
-   setDoesNotComeBack();
+   { 
+   TR::IlBuilder *returnBuilder = _methodBuilder->returnBuilder();
+   if (returnBuilder != NULL)
+      {
+      char *returnSymbol = (char *)_methodBuilder->returnSymbol();
+      if (returnSymbol == NULL)
+         {
+         TR::DataType dt = value->getDataType();
+         TR::SymbolReference *newSymRef = symRefTab()->createTemporary(_methodSymbol, dt);
+         returnSymbol = (char *) _comp->trMemory()->allocateHeapMemory((3+10+1) * sizeof(char)); // 3 ("_RV") + max 10 digits + trailing zero
+         sprintf(returnSymbol, "_RV%u", newSymRef->getCPIndex());
+         newSymRef->getSymbol()->getAutoSymbol()->setName(returnSymbol);
+         newSymRef->getSymbol()->setNotCollected();
+         _methodBuilder->defineSymbol(returnSymbol, newSymRef);
+         _methodBuilder->setReturnSymbol(returnSymbol);
+
+         // also proactively define this symbol in the caller, so that it can access it after the inlined body!
+         _methodBuilder->callerMethodBuilder()->defineSymbol(returnSymbol, newSymRef);
+         }
+
+      TraceIL("IlBuilder[ %p ]::Return %d back to caller's returnBuilder [ %p ] via return symbol called %s\n", this, value->getID(), returnBuilder, returnSymbol);
+      Store(returnSymbol, value);
+      Goto(returnBuilder);
+      }
+   else
+      {
+      TraceIL("IlBuilder[ %p ]::Return %d\n", this, value->getID());
+      TR::Node *returnNode = TR::Node::create(TR::ILOpCode::returnOpCode(value->getDataType()), 1, loadValue(value));
+      genTreeTop(returnNode);
+      cfg()->addEdge(_currentBlock, cfg()->getEnd());
+      setDoesNotComeBack();
+      }
    }
 
 TR::IlValue *
@@ -1492,12 +1584,14 @@ OMR::IlBuilder::UnsignedShiftR(TR::IlValue *v, TR::IlValue *amount)
 
 /*
  * @brief IfAnd service for constructing short circuit AND conditional nests (like the && operator)
- * @param allTrueBuilder builder containing operations to execute if all conditional tests evaluate to true
+ * @param allTrueBuilder builder containing operations to execute if all conditional tests evaluate 
+ *        to true (automatically allocated if pointed-to pointer is null)
  * @param anyFalseBuilder builder containing operations to execute if any conditional test is false
+ *        (automatically allocated if pointed-to pointer is null)
  * @param numTerms the number of conditional terms
- * @param ... for each term, provide a TR::IlBuilder object and a TR::IlValue object that evaluates a condition (builder is where all the operations to evaluate the condition go, the value is the final result of the condition)
+ * @param terms array of JBCondition instances that evaluate a condition
  *
- * Example:
+ * Example (should be moved to client API):
  * TR::IlBuilder *cond1Builder = OrphanBuilder();
  * TR::IlValue *cond1 = cond1Builder->GreaterOrEqual(
  *                      cond1Builder->   Load("x"),
@@ -1507,26 +1601,24 @@ OMR::IlBuilder::UnsignedShiftR(TR::IlValue *v, TR::IlValue *amount)
  *                      cond2Builder->   Load("x"),
  *                      cond2Builder->   Load("upper"));
  * TR::IlBuilder *inRange = NULL, *outOfRange = NULL;
- * IfAnd(&inRange, &outOfRange, 2, cond1Builder, cond1, cond2Builder, cond2);
+ * TR::IlBuilder *conditions[] = {MakeCondition(cond1Builder, cond1), MakeCondition(cond2Builder, cond2)};
+ * IfAnd(&inRange, &outOfRange, 2, conditions);
  */
 void
-OMR::IlBuilder::IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBuilder, int32_t numTerms, ...)
+OMR::IlBuilder::IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBuilder, int32_t numTerms, JBCondition **terms)
    {
    TR::IlBuilder *mergePoint = OrphanBuilder();
    *allTrueBuilder = createBuilderIfNeeded(*allTrueBuilder);
    *anyFalseBuilder = createBuilderIfNeeded(*anyFalseBuilder);
 
-   va_list terms;
-   va_start(terms, numTerms);
    for (int32_t t=0;t < numTerms;t++)
       {
-      TR::IlBuilder *condBuilder = va_arg(terms, TR::IlBuilder*);
-      TR::IlValue *condValue = va_arg(terms, TR::IlValue*);
+      TR::IlBuilder *condBuilder = terms[t]->_builder;
+      TR::IlValue *condValue = terms[t]->_condition;
       AppendBuilder(condBuilder);
       condBuilder->IfCmpEqualZero(anyFalseBuilder, condValue);
       // otherwise fall through to test next term
       }
-   va_end(terms);
 
    // if control gets here, all the provided terms were true
    AppendBuilder(*allTrueBuilder);
@@ -1542,14 +1634,55 @@ OMR::IlBuilder::IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBu
    setComesBack();
    }
 
-/*
- * @brief IfOr service for constructing short circuit OR conditional nests (like the || operator)
- * @param anyTrueBuilder builder containing operations to execute if any conditional test evaluates to true
- * @param allFalseBuilder builder containing operations to execute if all conditional tests are false
+/**
+ * @brief Overload taking a varargs instead of an array of JBCondition pointers
+ *
+ * @param allTrueBuilder builder containing operations to execute if all conditional tests 
+ *        evaluate to true (automatically allocated if pointed-to pointer is null)
+ * @param anyFalseBuilder builder containing operations to execute if any conditional test
+ *        is false (automatically allocated if pointed-to pointer is null)
  * @param numTerms the number of conditional terms
- * @param ... for each term, provide a TR::IlBuilder object and a TR::IlValue object that evaluates a condition (builder is where all the operations to evaluate the condition go, the value is the final result of the condition)
+ * @param ... for each term, provide a TR::IlBuilder::JBCondition object for the condition
  *
  * Example:
+ * TR::IlBuilder *cond1Builder = OrphanBuilder();
+ * TR::IlValue *cond1 = cond1Builder->GreaterOrEqual(
+ *                      cond1Builder->   Load("x"),
+ *                      cond1Builder->   Load("lower"));
+ * TR::IlBuilder *cond2Builder = OrphanBuilder();
+ * TR::IlValue *cond2 = cond2Builder->LessThan(
+ *                      cond2Builder->   Load("x"),
+ *                      cond2Builder->   Load("upper"));
+ * TR::IlBuilder *inRange = NULL, *outOfRange = NULL;
+ * IfAnd(&inRange, &outOfRange, 2, MakeCondition(cond1Builder, cond1), MakeCondition(cond2Builder, cond2));
+ */
+void
+OMR::IlBuilder::IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBuilder, int32_t numTerms, ...)
+   {
+   JBCondition **terms = (JBCondition **) _comp->trMemory()->allocateHeapMemory(numTerms * sizeof(JBCondition *));
+   TR_ASSERT(NULL != terms, "out of memory");
+
+   va_list args;
+   va_start(args, numTerms);
+   for (int32_t c = 0; c < numTerms; ++c)
+      {
+      terms[c] = va_arg(args, JBCondition *);
+      }
+   va_end(args);
+
+   IfAnd(allTrueBuilder, anyFalseBuilder, numTerms, terms);
+   }
+
+/*
+ * @brief IfOr service for constructing short circuit OR conditional nests (like the || operator)
+ * @param anyTrueBuilder builder containing operations to execute if any conditional test evaluates
+ *        to true (automatically allocated if pointed-to pointer is null)
+ * @param allFalseBuilder builder containing operations to execute if all conditional tests are
+ *        false (automatically allocated if pointed-to pointer is null)
+ * @param numTerms the number of conditional terms
+ * @param terms array of JBCondition instances that evaluate a condition
+ *
+ * Example (should be moved to client API):
  * TR::IlBuilder *cond1Builder = OrphanBuilder();
  * TR::IlValue *cond1 = cond1Builder->LessThan(
  *                      cond1Builder->   Load("x"),
@@ -1559,32 +1692,30 @@ OMR::IlBuilder::IfAnd(TR::IlBuilder **allTrueBuilder, TR::IlBuilder **anyFalseBu
  *                      cond2Builder->   Load("x"),
  *                      cond2Builder->   Load("upper"));
  * TR::IlBuilder *inRange = NULL, *outOfRange = NULL;
- * IfOr(&outOfRange, &inRange, 2, cond1Builder, cond1, cond2Builder, cond2);
+ * TR::IlBuilder *conditions[] = {MakeCondition(cond1Builder, cond1), MakeCondition(cond2Builder, cond2)};
+ * IfOr(&outOfRange, &inRange, 2, conditions);
  */
 void
-OMR::IlBuilder::IfOr(TR::IlBuilder **anyTrueBuilder, TR::IlBuilder **allFalseBuilder, int32_t numTerms, ...)
+OMR::IlBuilder::IfOr(TR::IlBuilder **anyTrueBuilder, TR::IlBuilder **allFalseBuilder, int32_t numTerms, JBCondition **terms)
    {
    TR::IlBuilder *mergePoint = OrphanBuilder();
    *anyTrueBuilder = createBuilderIfNeeded(*anyTrueBuilder);
    *allFalseBuilder = createBuilderIfNeeded(*allFalseBuilder);
 
-   va_list terms;
-   va_start(terms, numTerms);
    for (int32_t t=0;t < numTerms-1;t++)
       {
-      TR::IlBuilder *condBuilder = va_arg(terms, TR::IlBuilder*);
-      TR::IlValue *condValue = va_arg(terms, TR::IlValue*);
+      TR::IlBuilder *condBuilder = terms[t]->_builder;
+      TR::IlValue *condValue = terms[t]->_condition;
       AppendBuilder(condBuilder);
       condBuilder->IfCmpNotEqualZero(anyTrueBuilder, condValue);
       // otherwise fall through to test next term
       }
 
    // reverse condition on last term so that it can fall through to anyTrueBuilder
-   TR::IlBuilder *condBuilder = va_arg(terms, TR::IlBuilder*);
-   TR::IlValue *condValue = va_arg(terms, TR::IlValue*);
+   TR::IlBuilder *condBuilder = terms[numTerms - 1]->_builder;
+   TR::IlValue *condValue = terms[numTerms - 1]->_condition;
    AppendBuilder(condBuilder);
    condBuilder->IfCmpEqualZero(allFalseBuilder, condValue);
-   va_end(terms);
 
    // any true term will end up here
    AppendBuilder(*anyTrueBuilder);
@@ -1598,6 +1729,53 @@ OMR::IlBuilder::IfOr(TR::IlBuilder **anyTrueBuilder, TR::IlBuilder **allFalseBui
 
    // return state for "this" can get confused by the Goto's in this service
    setComesBack();
+   }
+
+/**
+ * @brief Overload taking a varargs instead of an array of JBCondition pointers
+ *
+ * @param anyTrueBuilder builder containing operations to execute if any conditional test 
+ *        evaluates to true (automatically allocated if pointed-to pointer is null)
+ * @param allFalseBuilder builder containing operations to execute if all conditional
+ *        tests are false (automatically allocated if pointed-to pointer is null)
+ * @param numTerms the number of conditional terms
+ * @param ... for each term, provide a TR::IlBuilder::JBCondition object for the condition
+ *
+ * Example:
+ * TR::IlBuilder *cond1Builder = OrphanBuilder();
+ * TR::IlValue *cond1 = cond1Builder->LessThan(
+ *                      cond1Builder->   Load("x"),
+ *                      cond1Builder->   Load("lower"));
+ * TR::IlBuilder *cond2Builder = OrphanBuilder();
+ * TR::IlValue *cond2 = cond2Builder->GreaterOrEqual(
+ *                      cond2Builder->   Load("x"),
+ *                      cond2Builder->   Load("upper"));
+ * TR::IlBuilder *inRange = NULL, *outOfRange = NULL;
+ * IfOr(&outOfRange, &inRange, 2, MakeCondition(cond1Builder, cond1), MakeCondition(cond2Builder, cond2));
+ */
+void
+OMR::IlBuilder::IfOr(TR::IlBuilder **anyTrueBuilder, TR::IlBuilder **allFalseBuilder, int32_t numTerms, ...)
+   {
+   JBCondition **terms = (JBCondition **) _comp->trMemory()->allocateHeapMemory(numTerms * sizeof(JBCondition *));
+   TR_ASSERT(NULL != terms, "out of memory");
+
+   va_list args;
+   va_start(args, numTerms);
+   for (int32_t c = 0; c < numTerms; ++c)
+      {
+      terms[c] = va_arg(args, JBCondition *);
+      }
+   va_end(args);
+
+   IfOr(anyTrueBuilder, allFalseBuilder, numTerms, terms);
+   }
+
+TR::IlBuilder::JBCondition *
+OMR::IlBuilder::MakeCondition(TR::IlBuilder *conditionBuilder, TR::IlValue *conditionValue)
+   {
+   TR_ASSERT(conditionBuilder != NULL, "MakeCondition needs to have non-null conditionBuilder");
+   TR_ASSERT(conditionValue != NULL, "MakeCondition needs to have non-null conditionValue");
+   return new (_comp->trHeapMemory()) JBCondition(conditionBuilder, conditionValue);
    }
 
 TR::IlValue *
@@ -1745,6 +1923,89 @@ OMR::IlBuilder::ComputedCall(const char *functionName, int32_t numArgs, TR::IlVa
    return genCall(methodSymRef, numArgs, argValues, false /*isDirectCall*/);
    }
 
+/*
+ * This service takes a MethodBuilder object as the target and will, for
+ * now, inline the code for that MethodBuilder into the current builder
+ * object. Really, this API does not promise to inline the provided
+ * MethodBuilder object, but this current implementation will inline.
+ * In future, as inlining support moves deeper into the OMR compiler,
+ * this service may or may not inline the provided MethodBuilder.
+ * This particular implementation does not handle VirtualMachineState
+ * propagation well, but does work for simpler examples (code sample
+ * coming in a subsequent commit).
+ */
+TR::IlValue *
+OMR::IlBuilder::Call(TR::MethodBuilder *calleeMB, int32_t numArgs, ...)
+   {
+   va_list args;
+   va_start(args, numArgs);
+   TR::IlValue **argValues = processCallArgs(_comp, numArgs, args);
+   va_end(args);
+
+   return Call(calleeMB, numArgs, argValues);
+   }
+
+/*
+ * This service takes a MethodBuilder object as the target and will, for
+ * now, inline the code for that MethodBuilder into the current builder
+ * object. Really, this API does not promise to inline the provided
+ * MethodBuilder object, but this current implementation will inline.
+ * In future, as inlining support moves deeper into the OMR compiler,
+ * this service may or may not inline the provided MethodBuilder.
+ * This particular implementation does not handle VirtualMachineState
+ * propagation well, but does work for simpler examples (code sample
+ * coming in a subsequent commit).
+ */
+TR::IlValue *
+OMR::IlBuilder::Call(TR::MethodBuilder *calleeMB, int32_t numArgs, TR::IlValue **argValues)
+   {
+   TraceIL("IlBuilder[ %p ]::Call %s\n", this, calleeMB->GetMethodName());
+
+   // set up callee's inline site index
+   calleeMB->setInlineSiteIndex(_methodBuilder->getNextInlineSiteIndex());
+
+   // set up callee's return builder for return control flows
+   TR::IlBuilder *returnBuilder = OrphanBuilder();
+   calleeMB->setReturnBuilder(returnBuilder);
+
+   // get calleeMB ready to be part of this compilation
+   // MUST be the OMR::IlBuilder implementation, not the OMR::MethodBuilder one
+   calleeMB->OMR::IlBuilder::setupForBuildIL();
+
+   // store arguments into parameter values
+   for (int32_t a=0;a < numArgs;a++)
+      {
+      calleeMB->Store(calleeMB->getSymbolName(a), argValues[a]);
+      }
+
+   // propagate vm state into the callee
+   if (vmState() != NULL)
+      calleeMB->setVMState(vmState());
+
+   // now flow control into the callee
+   AppendBuilder(calleeMB);
+
+   bool rc = calleeMB->buildIL();
+   TraceIL("callee's buildIL() returned %d\n", rc);
+   if (!rc)
+      return NULL;
+
+   // there shouldn't be any fall-through, but if there is it should go to the return block and we need to put it somewhere anyway
+   AppendBuilder(returnBuilder);
+
+   setVMState(returnBuilder->vmState());
+
+   // if no return value, then we're done
+   const char *returnSymbol = calleeMB->returnSymbol();
+   if (!returnSymbol)
+      return NULL;
+
+   // otherwise, return callee's return value
+   TR::IlValue *returnValue = returnBuilder->Load(returnSymbol);
+   TraceIL("IlBuilder[ %p ]::Call callee return value is %d loaded from %s\n", this, returnValue->getID(), returnSymbol);
+   return returnValue;
+   }
+
 TR::IlValue *
 OMR::IlBuilder::Call(const char *functionName, int32_t numArgs, ...)
    {
@@ -1797,6 +2058,9 @@ OMR::IlBuilder::genCall(TR::SymbolReference *methodSymRef, int32_t numArgs, TR::
    if (returnType != TR::NoType)
       {
       TR::IlValue *returnValue = newValue(callNode->getDataType(), callNode);
+      if (returnType != callNode->getDataType())
+         returnValue = convertTo(returnType, returnValue, false);
+
       return returnValue;
       }
 
@@ -1819,7 +2083,6 @@ OMR::IlBuilder::genCall(TR::SymbolReference *methodSymRef, int32_t numArgs, TR::
 TR::IlValue *
 OMR::IlBuilder::AtomicAdd(TR::IlValue * baseAddress, TR::IlValue * value)
    {
-   TR_ASSERT(comp()->cg()->supportsAtomicAdd(), "this platform doesn't support AtomicAdd() yet");
    TR_ASSERT(baseAddress->getDataType() == TR::Address, "baseAddress must be TR::Address");
 
    //Determine the implementation type and returnType by detecting "value"'s type
@@ -1827,8 +2090,7 @@ OMR::IlBuilder::AtomicAdd(TR::IlValue * baseAddress, TR::IlValue * value)
    TR_ASSERT(returnType == TR::Int32 || (returnType == TR::Int64 && TR::Compiler->target.is64Bit()), "AtomicAdd currently only supports Int32/64 values");
    TraceIL("IlBuilder[ %p ]::AtomicAdd(%d, %d)\n", this, baseAddress->getID(), value->getID());
 
-   OMR::SymbolReferenceTable::CommonNonhelperSymbol atomicBitSymbol = returnType == TR::Int32 ? TR::SymbolReferenceTable::atomicAdd32BitSymbol : TR::SymbolReferenceTable::atomicAdd64BitSymbol;//lock add
-   TR::SymbolReference *methodSymRef = symRefTab()->findOrCreateCodeGenInlinedHelper(atomicBitSymbol); 
+   TR::SymbolReference *methodSymRef = symRefTab()->findOrCreateCodeGenInlinedHelper(TR::SymbolReferenceTable::atomicAddSymbol);
    TR::Node *callNode;
    callNode = TR::Node::createWithSymRef(TR::ILOpCode::getDirectCall(returnType), 2, methodSymRef);
    callNode->setAndIncChild(0, loadValue(baseAddress));
@@ -2274,9 +2536,7 @@ void
 OMR::IlBuilder::Switch(const char *selectionVar,
                   TR::IlBuilder **defaultBuilder,
                   uint32_t numCases,
-                  int32_t *caseValues,
-                  TR::IlBuilder **caseBuilders,
-                  bool *caseFallsThrough)
+                  JBCase **cases)
    {
    TR::IlValue *selectorValue = Load(selectionVar);
    TR_ASSERT(selectorValue->getDataType() == TR::Int32, "Switch only supports selector having type Int32");
@@ -2294,18 +2554,18 @@ OMR::IlBuilder::Switch(const char *selectionVar,
 
    TR::IlBuilder *breakBuilder = OrphanBuilder();
 
-   // each case handler is a sequence of two builder objects: first the one passed in via caseBuilder (or will be passed
-   //   back via caseBuilders, and second a builder that branches to the breakBuilder (unless this case falls through)
+   // each case handler is a sequence of two builder objects: first the one passed in via `cases`,
+   //   and second a builder that branches to the breakBuilder (unless this case falls through)
    for (int32_t c=0;c < numCases;c++)
       {
-      int32_t value = caseValues[c];
+      int32_t value = cases[c]->_value;
       TR::IlBuilder *handler = NULL;
-      if (!caseFallsThrough[c])
+      TR::IlBuilder *builder = cases[c]->_builder;
+      if (!cases[c]->_fallsThrough)
          {
          handler = OrphanBuilder();
 
-         caseBuilders[c] = createBuilderIfNeeded(caseBuilders[c]);
-         handler->AppendBuilder(caseBuilders[c]);
+         handler->AppendBuilder(builder);
 
          // handle "break" with a separate builder so user can add whatever they want into caseBuilders[c]
          TR::IlBuilder *branchToBreak = OrphanBuilder();
@@ -2314,8 +2574,7 @@ OMR::IlBuilder::Switch(const char *selectionVar,
          }
       else
          {
-         caseBuilders[c] = createBuilderIfNeeded(caseBuilders[c]);
-         handler = caseBuilders[c];
+         handler = builder;
          }
 
       TR::Block *caseBlock = handler->getEntry();
@@ -2332,45 +2591,34 @@ OMR::IlBuilder::Switch(const char *selectionVar,
    AppendBuilder(breakBuilder);
    }
 
+TR::IlBuilder::JBCase *
+OMR::IlBuilder::MakeCase(int32_t caseValue, TR::IlBuilder **caseBuilder, int32_t caseFallsThrough)
+   {
+   TR_ASSERT(caseBuilder != NULL, "MakeCase, needs to have non-null caseBuilder");
+   *caseBuilder = createBuilderIfNeeded(*caseBuilder);
+   auto * c = new (_comp->trHeapMemory()) JBCase(caseValue, *caseBuilder, caseFallsThrough);
+   return c;
+   }
+
 void
 OMR::IlBuilder::Switch(const char *selectionVar,
                   TR::IlBuilder **defaultBuilder,
                   uint32_t numCases,
                   ...)
    {
-   int32_t *caseValues = (int32_t *) _comp->trMemory()->allocateHeapMemory(numCases * sizeof(int32_t));
-   TR_ASSERT(0 != caseValues, "out of memory");
+   JBCase **cases = (JBCase **) _comp->trMemory()->allocateHeapMemory(numCases * sizeof(JBCase *));
+   TR_ASSERT(NULL != cases, "out of memory");
 
-   TR::IlBuilder **caseBuilders = (TR::IlBuilder **) _comp->trMemory()->allocateHeapMemory(numCases * sizeof(TR::IlBuilder *));
-   TR_ASSERT(0 != caseBuilders, "out of memory");
-
-   bool *caseFallsThrough = (bool *) _comp->trMemory()->allocateHeapMemory(numCases * sizeof(bool));
-   TR_ASSERT(0 != caseFallsThrough, "out of memory");
-
-   va_list cases;
-   va_start(cases, numCases);
-   for (int32_t c=0;c < numCases;c++)
+   va_list args;
+   va_start(args, numCases);
+   for (uint32_t c = 0; c < numCases; ++c)
       {
-      caseValues[c] = (int32_t) va_arg(cases, int);
-      caseBuilders[c] = *(TR::IlBuilder **) va_arg(cases, TR::IlBuilder **);
-      caseFallsThrough[c] = (bool) va_arg(cases, int);
+      cases[c] = va_arg(args, JBCase *);
       }
-   va_end(cases);
+   va_end(args);
 
-   Switch(selectionVar, defaultBuilder, numCases, caseValues, caseBuilders, caseFallsThrough);
-
-   // if Switch created any new builders, we need to put those back into the arguments passed into this Switch call
-   va_start(cases, numCases);
-   for (int32_t c=0;c < numCases;c++)
-      {
-      int throwawayValue = va_arg(cases, int);
-      TR::IlBuilder **caseBuilder = va_arg(cases, TR::IlBuilder **);
-      (*caseBuilder) = caseBuilders[c];
-      int throwAwayFallsThrough = va_arg(cases, int);
-      }
-   va_end(cases);
+   Switch(selectionVar, defaultBuilder, numCases, cases);
    }
-
 
 void
 OMR::IlBuilder::ForLoop(bool countsUp,
@@ -2507,3 +2755,34 @@ OMR::IlBuilder::WhileDoLoop(const char *whileCondition, TR::IlBuilder **body, TR
 
    AppendBuilder(done);
    }
+
+void *
+OMR::IlBuilder::client()
+   {
+   if (_client == NULL && _clientAllocator != NULL)
+      _client = _clientAllocator(static_cast<TR::IlBuilder *>(this));
+   return _client;
+   }
+
+void *
+OMR::IlBuilder::JBCase::client()
+   {
+   if (_client == NULL && _clientAllocator != NULL)
+      _client = _clientAllocator(static_cast<TR::IlBuilder::JBCase *>(this));
+   return _client;
+   }
+
+void *
+OMR::IlBuilder::JBCondition::client()
+   {
+   if (_client == NULL && _clientAllocator != NULL)
+      _client = _clientAllocator(static_cast<TR::IlBuilder::JBCondition *>(this));
+   return _client;
+   }
+
+ClientAllocator OMR::IlBuilder::_clientAllocator = NULL;
+ClientAllocator OMR::IlBuilder::_getImpl = NULL;
+ClientAllocator OMR::IlBuilder::JBCase::_clientAllocator = NULL;
+ClientAllocator OMR::IlBuilder::JBCase::_getImpl = NULL;
+ClientAllocator OMR::IlBuilder::JBCondition::_clientAllocator = NULL;
+ClientAllocator OMR::IlBuilder::JBCondition::_getImpl = NULL;

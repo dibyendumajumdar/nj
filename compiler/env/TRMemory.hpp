@@ -175,12 +175,10 @@ class TR_MemoryBase
    {
 protected:
 
-   TR_MemoryBase(void * jitConfig) :
-      _jitConfig(jitConfig)
+   TR_MemoryBase()
       {}
 
-   TR_MemoryBase(const TR_MemoryBase &prototype) :
-      _jitConfig(prototype._jitConfig)
+   TR_MemoryBase(void * jitConfig)
       {}
 
 public:
@@ -258,7 +256,6 @@ public:
       LocalOpts,
       LocalReordering,
       LocalLiveRangeReduction,
-      LongRegAllocation,
       LoopAliasRefiner,
       LoopTransformer,
       MonitorElimination,
@@ -278,7 +275,6 @@ public:
       InterProceduralAnalyzer,
       InductionVariableAnalysis,
       CoarseningInterProceduralAnalyzer,
-      ShrinkWrapping,
 
       AheadOfTimeCompile,
 
@@ -452,6 +448,8 @@ public:
       ClientSessionData,
       ROMClass,
 
+      SymbolValidationManager,
+
       NumObjectTypes,
       // If adding new object types above, add the corresponding names
       // to objectName[] array defined in TRMemory.cpp
@@ -461,16 +459,16 @@ public:
    static void *  jitPersistentAlloc(size_t size, ObjectType = UnknownType);
    static void    jitPersistentFree(void *mem);
 
-   protected:
-
-   void *    _jitConfig;
-
    };
 
 class TR_PersistentMemory : public TR_MemoryBase
    {
 public:
    static const uintptr_t MEMINFO_SIGNATURE = 0x1CEDD1CE;
+
+   TR_PersistentMemory (
+      TR::PersistentAllocator &persistentAllocator
+      );
 
    TR_PersistentMemory (
       void * jitConfig,
@@ -685,8 +683,6 @@ inline void *
 operator new[](size_t size, PERSISTENT_NEW_DECLARE) { return TR_Memory::jitPersistentAlloc(size, TR_MemoryBase::UnknownType); }
 
 
-
-
 /*
  * TR_ByteCodeInfo exists in an awkward situation where it seems TR_ALLOC()
  * would be inappropriate for the structure, despite things needing to allocate them,
@@ -746,10 +742,14 @@ TR_HeapMemory::allocate(size_t size, TR_MemoryBase::ObjectType ot)
    static void   jitPersistentFree(void *mem)                                 {TR_Memory::jitPersistentFree(mem); }
 
 #define TR_PERSISTENT_NEW(a) \
-   void * operator new   (size_t s, PERSISTENT_NEW_DECLARE)   throw()   {return TR_Memory::jitPersistentAlloc(s, a);} \
-   void * operator new[] (size_t s, PERSISTENT_NEW_DECLARE)   throw()   {return TR_Memory::jitPersistentAlloc(s, a);} \
-   void * operator new   (size_t s, TR_PersistentMemory * m)  throw()   {return m->allocatePersistentMemory(s, a);} \
-   void * operator new[] (size_t s, TR_PersistentMemory * m)  throw()   {return m->allocatePersistentMemory(s, a);} \
+   void * operator new    (size_t s, PERSISTENT_NEW_DECLARE)   throw()   { return TR_Memory::jitPersistentAlloc(s, a); } \
+   void operator delete   (void *p, PERSISTENT_NEW_DECLARE)    throw()   { TR_Memory::jitPersistentFree(p); } \
+   void * operator new[]  (size_t s, PERSISTENT_NEW_DECLARE)   throw()   { return TR_Memory::jitPersistentAlloc(s, a); } \
+   void operator delete[] (void *p, PERSISTENT_NEW_DECLARE)    throw()   { TR_Memory::jitPersistentFree(p); } \
+   void * operator new    (size_t s, TR_PersistentMemory * m)  throw()   { return m->allocatePersistentMemory(s, a); } \
+   void operator delete   (void *p, TR_PersistentMemory *m)    throw()   { m->freePersistentMemory(p); } \
+   void * operator new[]  (size_t s, TR_PersistentMemory * m)  throw()   { return m->allocatePersistentMemory(s, a); } \
+   void operator delete[] (void *p, TR_PersistentMemory *m)    throw()   { m->freePersistentMemory(p); } \
    void operator delete  (void *p, size_t s) throw() { TR_ASSERT(false, "Invalid use of operator delete"); }
 
 #define TR_ALLOC_WITHOUT_NEW(a) \
@@ -773,7 +773,8 @@ TR_HeapMemory::allocate(size_t size, TR_MemoryBase::ObjectType ot)
 #define TR_ALLOC_IMPL(a) \
    TR_ALLOC_WITHOUT_NEW(a) \
    TR_PERSISTENT_NEW(a) \
-   void * operator new (size_t s, TR_ArenaAllocator *m)                  {return m->allocate(s);} \
+   void * operator new (size_t s, TR_ArenaAllocator *m) { return m->allocate(s); } \
+   void operator delete(void *p, TR_ArenaAllocator *m) { /* TR_ArenaAllocator contains an empty deallocator */ } \
    void * operator new (size_t s, TR_HeapMemory m, TR_MemoryBase::ObjectType ot = a) { return m.allocate(s,ot); } \
    void operator delete(void *p, TR_HeapMemory m, TR_MemoryBase::ObjectType ot) { return m.deallocate(p); } \
    void * operator new[] (size_t s, TR_HeapMemory m, TR_MemoryBase::ObjectType ot = a) { return m.allocate(s,ot); } \
@@ -792,7 +793,7 @@ TR_HeapMemory::allocate(size_t size, TR_MemoryBase::ObjectType ot)
    void operator delete(void * p, TR::Region &region) { region.deallocate(p); } \
    void * operator new[](size_t size, TR::Region &region) { return region.allocate(size); } \
    void operator delete[](void * p, TR::Region &region) { region.deallocate(p); } \
-   static TrackedPersistentAllocator getPersistentAllocator() { return TrackedPersistentAllocator(); } \
+   static TrackedPersistentAllocator getPersistentAllocator() { return TrackedPersistentAllocator(); }
 
 #define TR_ALLOC(a) \
    typedef TR_TypedPersistentAllocatorBase TrackedPersistentAllocator; \
@@ -1025,7 +1026,7 @@ namespace TR
       {
       return GlobalAllocator(GlobalSingletonAllocator::instance());
       }
- 
+
    /*
     * some common CS2 datatypes
     */

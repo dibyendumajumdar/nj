@@ -159,7 +159,9 @@ public:
    ~Node();
 
    void * operator new(size_t s, TR::NodePool & nodePool);
+   void operator delete(void *node, TR::NodePool& nodes);
    void * operator new(size_t s, void *ptr) throw();
+   void operator delete(void *node, void *ptr) throw();
 
    static TR::Node *copy(TR::Node *);
    static TR::Node *copy(TR::Node *, int32_t numChildren);
@@ -1236,7 +1238,7 @@ public:
    bool chkArrayChkReferenceArray2();
    const char * printIsArrayChkReferenceArray2();
 
-   // Flags used by TR::wrtbar and TR::iwrtbar
+   // Flags used by TR::awrtbar and TR::awrtbari
    bool skipWrtBar();
    void setSkipWrtBar(bool v);
    bool chkSkipWrtBar();

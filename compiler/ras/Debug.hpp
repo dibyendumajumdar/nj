@@ -141,14 +141,12 @@ namespace TR { class X86FPMemRegInstruction;               }
 namespace TR { class X86FPRegMemInstruction;               }
 class TR_X86RegisterDependencyGroup;
 namespace TR { class X86RestartSnippet; }
-namespace TR { class S390LookupSwitchSnippet; }
 namespace TR { class X86PicDataSnippet; }
 namespace TR { class X86DivideCheckSnippet; }
 namespace TR { class X86FPConvertToIntSnippet; }
 namespace TR { class X86FPConvertToLongSnippet; }
 namespace TR { class X86GuardedDevirtualSnippet; }
 namespace TR { class X86HelperCallSnippet; }
-namespace TR { class X86ScratchArgHelperCallSnippet; }
 namespace TR { class UnresolvedDataSnippet; }
 namespace TR { class X86UnresolvedVirtualCallSnippet; }
 namespace TR { class AMD64Imm64Instruction;    }
@@ -318,9 +316,7 @@ namespace TR { class S390RestoreGPR7Snippet; }
 namespace TR { class S390CallSnippet; }
 namespace TR { class S390ConstantDataSnippet; }
 namespace TR { class S390WritableDataSnippet; }
-namespace TR { class S390TargetAddressSnippet; }
 namespace TR { class S390HelperCallSnippet; }
-namespace TR { class S390InterfaceCallDataSnippet; }
 namespace TR { class S390JNICallDataSnippet; }
 
 namespace TR { class S390StackCheckFailureSnippet; }
@@ -338,7 +334,30 @@ namespace TR { class S390UnresolvedCallSnippet; }
 namespace TR { class S390VirtualSnippet; }
 namespace TR { class S390VirtualUnresolvedSnippet; }
 namespace TR { class S390InterfaceCallSnippet; }
+namespace TR { class J9S390InterfaceCallDataSnippet; }
 #endif
+
+namespace TR { class ARM64ImmInstruction; }
+namespace TR { class ARM64DepInstruction; }
+namespace TR { class ARM64LabelInstruction; }
+namespace TR { class ARM64DepLabelInstruction; }
+namespace TR { class ARM64ConditionalBranchInstruction; }
+namespace TR { class ARM64DepConditionalBranchInstruction; }
+namespace TR { class ARM64CompareBranchInstruction; }
+namespace TR { class ARM64RegBranchInstruction; }
+namespace TR { class ARM64AdminInstruction; }
+namespace TR { class ARM64Trg1Instruction; }
+namespace TR { class ARM64Trg1ImmInstruction; }
+namespace TR { class ARM64Trg1Src1Instruction; }
+namespace TR { class ARM64Trg1Src1ImmInstruction; }
+namespace TR { class ARM64Trg1Src2Instruction; }
+namespace TR { class ARM64Trg1Src2ShiftedInstruction; }
+namespace TR { class ARM64Trg1Src2ExtendedInstruction; }
+namespace TR { class ARM64Trg1Src3Instruction; }
+namespace TR { class ARM64Trg1MemInstruction; }
+namespace TR { class ARM64MemInstruction; }
+namespace TR { class ARM64MemSrc1Instruction; }
+
 
 TR_Debug *createDebugObject(TR::Compilation *);
 
@@ -593,7 +612,8 @@ public:
    const char * getName(TR::RealRegister *, TR_RegisterSizes size = TR_WordReg);
 #endif
 #if defined(TR_TARGET_ARM64)
-   void print(TR::FILE *pOutFile, TR::UnresolvedDataSnippet * snippet);
+   virtual const char * getOpCodeName(TR::InstOpCode *);
+   const char * getName(TR::RealRegister *, TR_RegisterSizes size = TR_WordReg);
 #endif
 
 #if defined(AIXPPC)
@@ -839,8 +859,6 @@ public:
    void print(TR::FILE *, TR::X86GuardedDevirtualSnippet *);
    void print(TR::FILE *, TR::X86HelperCallSnippet *);
    void printBody(TR::FILE *, TR::X86HelperCallSnippet *, uint8_t *bufferPos);
-   void print(TR::FILE *, TR::X86ScratchArgHelperCallSnippet *);
-
 
    void print(TR::FILE *, TR::UnresolvedDataSnippet *);
 
@@ -1044,9 +1062,7 @@ public:
    void print(TR::FILE *, TR::S390CallSnippet *);
 
    void print(TR::FILE *, TR::S390ConstantDataSnippet *);
-   void print(TR::FILE *, TR::S390TargetAddressSnippet *);
 
-   void print(TR::FILE *, TR::S390LookupSwitchSnippet *);
    void print(TR::FILE *, TR::S390HelperCallSnippet *);
 #ifdef J9_PROJECT_SPECIFIC
    void print(TR::FILE *, TR::S390ForceRecompilationSnippet *);
@@ -1055,11 +1071,11 @@ public:
    void print(TR::FILE *, TR::S390VirtualSnippet *);
    void print(TR::FILE *, TR::S390VirtualUnresolvedSnippet *);
    void print(TR::FILE *, TR::S390InterfaceCallSnippet *);
+   void print(TR::FILE *, TR::J9S390InterfaceCallDataSnippet *);
 #endif
    void print(TR::FILE *, TR::S390StackCheckFailureSnippet *);
    void print(TR::FILE *, TR::UnresolvedDataSnippet *);
    void print(TR::FILE *, TR::S390HeapAllocSnippet *);
-   void print(TR::FILE *, TR::S390InterfaceCallDataSnippet *);
    void print(TR::FILE *, TR::S390JNICallDataSnippet *);
    void print(TR::FILE *, TR::S390RestoreGPR7Snippet *);
 
@@ -1072,6 +1088,43 @@ public:
    uint8_t *printLoadVMThreadInstruction(TR::FILE *pOutFile, uint8_t* cursor);
    uint8_t *printRuntimeInstrumentationOnOffInstruction(TR::FILE *pOutFile, uint8_t* cursor, bool isRION, bool isPrivateLinkage = false);
    const char *updateBranchName(const char * opCodeName, const char * brCondName);
+#endif
+#ifdef TR_TARGET_ARM64
+   void printPrefix(TR::FILE *, TR::Instruction *);
+
+   void print(TR::FILE *, TR::ARM64ImmInstruction *);
+   void print(TR::FILE *, TR::ARM64DepInstruction *);
+   void print(TR::FILE *, TR::ARM64LabelInstruction *);
+   void print(TR::FILE *, TR::ARM64DepLabelInstruction *);
+   void print(TR::FILE *, TR::ARM64ConditionalBranchInstruction *);
+   void print(TR::FILE *, TR::ARM64DepConditionalBranchInstruction *);
+   void print(TR::FILE *, TR::ARM64CompareBranchInstruction *);
+   void print(TR::FILE *, TR::ARM64RegBranchInstruction *);
+   void print(TR::FILE *, TR::ARM64AdminInstruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Instruction *);
+   void print(TR::FILE *, TR::ARM64Trg1ImmInstruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Src1Instruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Src1ImmInstruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Src2Instruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Src2ShiftedInstruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Src2ExtendedInstruction *);
+   void print(TR::FILE *, TR::ARM64Trg1Src3Instruction *);
+   void print(TR::FILE *, TR::ARM64Trg1MemInstruction *);
+   void print(TR::FILE *, TR::ARM64MemInstruction *);
+   void print(TR::FILE *, TR::ARM64MemSrc1Instruction *);
+
+   void print(TR::FILE *, TR::RealRegister *, TR_RegisterSizes size = TR_WordReg);
+   void print(TR::FILE *, TR::RegisterDependency *);
+   void print(TR::FILE *, TR::RegisterDependencyConditions *);
+   void print(TR::FILE *, TR::MemoryReference *);
+   void print(TR::FILE *, TR::UnresolvedDataSnippet *);
+
+   void printARM64OOLSequences(TR::FILE *);
+   void printARM64GCRegisterMap(TR::FILE *, TR::GCRegisterMap *);
+   void printInstructionComment(TR::FILE *, int32_t, TR::Instruction *);
+   void printMemoryReferenceComment(TR::FILE *, TR::MemoryReference *);
+
+   const char *getARM64RegisterName(uint32_t, bool = true);
 #endif
 
    friend class TR_CFGChecker;

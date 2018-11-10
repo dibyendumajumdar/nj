@@ -385,6 +385,7 @@ bool         TR_ResolvedMethod::isPublic()                                 { not
 bool         TR_ResolvedMethod::isFinal()                                  { notImplemented("isFinal"); return false; }
 bool         TR_ResolvedMethod::isStrictFP()                               { notImplemented("isStrictFP"); return false; }
 bool         TR_ResolvedMethod::isInterpreted()                            { notImplemented("isInterpreted"); return false; }
+bool         TR_ResolvedMethod::isInterpretedForHeuristics()               { notImplemented("isInterpretedForHeuristics"); return false; }
 bool         TR_ResolvedMethod::hasBackwardBranches()                      { notImplemented("hasBackwardBranches"); return false; }
 bool         TR_ResolvedMethod::isObjectConstructor()                      { notImplemented("isObjectConstructor"); return false; }
 bool         TR_ResolvedMethod::isNonEmptyObjectConstructor()              { notImplemented("isNonEmptyObjectConstructor"); return false; }
@@ -426,6 +427,10 @@ float *      TR_ResolvedMethod::floatConstant(int32_t)                     { not
 double *     TR_ResolvedMethod::doubleConstant(int32_t, TR_Memory *)       { notImplemented("doubleConstant"); return 0; }
 void *       TR_ResolvedMethod::stringConstant(int32_t)                    { notImplemented("stringConstant"); return 0; }
 bool         TR_ResolvedMethod::isUnresolvedString(int32_t, bool optimizeForAOT)                { notImplemented("isUnresolvedString"); return false; }
+void *       TR_ResolvedMethod::getConstantDynamicTypeFromCP(int32_t cpIndex)   { notImplemented("ConstantDynamic"); return 0; }
+bool         TR_ResolvedMethod::isConstantDynamic(int32_t cpIndex)            { notImplemented("ConstantDynamic"); return false; }
+bool         TR_ResolvedMethod::isUnresolvedConstantDynamic(int32_t cpIndex)  { notImplemented("ConstantDynamic"); return false; }
+void *       TR_ResolvedMethod::dynamicConstant(int32_t cpIndex)              { notImplemented("ConstantDynamic"); return 0; }
 void *       TR_ResolvedMethod::methodTypeConstant(int32_t)                { notImplemented("methodTypeConstant"); return 0; }
 bool         TR_ResolvedMethod::isUnresolvedMethodType(int32_t)            { notImplemented("isUnresolvedMethodType"); return false; }
 void *       TR_ResolvedMethod::methodHandleConstant(int32_t)              { notImplemented("methodHandleConstant"); return 0; }

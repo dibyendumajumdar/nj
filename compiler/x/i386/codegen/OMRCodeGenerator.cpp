@@ -90,21 +90,6 @@ OMR::X86::I386::CodeGenerator::CodeGenerator() :
          }
       self()->setSupportsDivCheck();
       self()->setJNILinkageCalleeCleanup();
-
-      // The default CTM behaviour is to do the conversion via X87 instructions.
-      //
-      static char *dontUseGPRsForWin32CTMConversion = feGetEnv("TR_DontUseGPRsForWin32CTMConversion");
-      if (!dontUseGPRsForWin32CTMConversion)
-         {
-         self()->setUseGPRsForWin32CTMConversion();
-         }
-
-      static char *useLongDivideHelperForWin32CTMConversion = feGetEnv("TR_UseLongDivideHelperForWin32CTMConversion");
-      if (useLongDivideHelperForWin32CTMConversion)
-         {
-         self()->setUseLongDivideHelperForWin32CTMConversion();
-         }
-
       self()->setRealVMThreadRegister(self()->machine()->getX86RealRegister(TR::RealRegister::ebp));
       }
    else if (TR::Compiler->target.isLinux())
@@ -301,15 +286,15 @@ OMR::X86::I386::CodeGenerator::pickRegister(
 
          maxRegisterPressure = self()->estimateRegisterPressure(block, visitCount, maxStaticFrequency, maxFrequency, vmThreadUsed, numAssignedGlobalRegs, _assignedGlobalRegisters, rc->getSymbolReference(), assigningEDX);
 
-         if (maxRegisterPressure >= self()->comp()->cg()->getMaximumNumbersOfAssignableGPRs())
+         if (maxRegisterPressure >= self()->getMaximumNumbersOfAssignableGPRs())
             break;
          }
 
       // Determine if we can spare any extra registers for this candidate without spilling
       // in any hot (critical) blocks
       //
-      if (maxRegisterPressure < self()->comp()->cg()->getMaximumNumbersOfAssignableGPRs())
-         numExtraRegs = self()->comp()->cg()->getMaximumNumbersOfAssignableGPRs() - maxRegisterPressure;
+      if (maxRegisterPressure < self()->getMaximumNumbersOfAssignableGPRs())
+         numExtraRegs = self()->getMaximumNumbersOfAssignableGPRs() - maxRegisterPressure;
 
       //dumpOptDetails("For global register candidate %d reg pressure is %d maxRegs %d numExtraRegs %d\n", rc->getSymbolReference()->getReferenceNumber(), maxRegisterPressure, comp()->cg()->getMaximumNumbersOfAssignableGPRs(), numExtraRegs);
 

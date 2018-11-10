@@ -59,8 +59,8 @@ public:
    void AddSuccessorBuilders(uint32_t numBuilders, ...);
    void AddSuccessorBuilder(TR::BytecodeBuilder **b) { AddSuccessorBuilders(1, b); }
 
-   TR::VirtualMachineState *initialVMState()                { return _initialVMState; }
-   TR::VirtualMachineState *vmState()                       { return _vmState; }
+   virtual TR::VirtualMachineState *initialVMState()        { return _initialVMState; }
+   virtual TR::VirtualMachineState *vmState()               { return _vmState; }
    void setVMState(TR::VirtualMachineState *vmState)        { _vmState = vmState; }
 
    void propagateVMState(TR::VirtualMachineState *fromVMState);
@@ -97,6 +97,26 @@ public:
    void IfCmpUnsignedGreaterOrEqual(TR::BytecodeBuilder **dest, TR::IlValue *v1, TR::IlValue *v2);
    void IfCmpUnsignedGreaterOrEqual(TR::BytecodeBuilder *dest, TR::IlValue *v1, TR::IlValue *v2);
 
+   /**
+    * @brief returns the client object associated with this object, allocating it if necessary
+    */
+   void *client();
+
+   static void setClientAllocator(ClientAllocator allocator)
+      {
+      _clientAllocator = allocator;
+      }
+
+   /**
+    * @brief Set the Get Impl function
+    *
+    * @param getter function pointer to the impl getter
+    */
+   static void setGetImpl(ImplGetter getter)
+      {
+      _getImpl = getter;
+      }
+
 protected:
    TR::BytecodeBuilder       * _fallThroughBuilder;
    List<TR::BytecodeBuilder> * _successorBuilders;
@@ -110,6 +130,10 @@ protected:
    bool connectTrees();
    virtual void setHandlerInfo(uint32_t catchType);
    void transferVMState(TR::BytecodeBuilder **b);
+
+private:
+   static ClientAllocator      _clientAllocator;
+   static ImplGetter _getImpl;
    };
 
 } // namespace OMR

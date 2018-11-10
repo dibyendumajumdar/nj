@@ -183,8 +183,8 @@ OMR::CodeGenPhase::performProcessRelocationsPhase(TR::CodeGenerator * cg, TR::Co
      traceMsg(comp, "\n<relocatableDataCG>\n");
      if (comp->getOption(TR_TraceRelocatableDataDetailsCG)) // verbose output
         {
-        uint8_t * aotMethodCodeStart = (uint8_t *)comp->getAotMethodCodeStart();
-        traceMsg(comp, "Code start = %8x, Method start pc = %x, Method start pc offset = 0x%x\n", aotMethodCodeStart, cg->getCodeStart(), cg->getCodeStart() - aotMethodCodeStart);
+        uint8_t * relocatableMethodCodeStart = (uint8_t *)comp->getRelocatableMethodCodeStart();
+        traceMsg(comp, "Code start = %8x, Method start pc = %x, Method start pc offset = 0x%x\n", relocatableMethodCodeStart, cg->getCodeStart(), cg->getCodeStart() - relocatableMethodCodeStart);
         }
      cg->getAheadOfTimeCompile()->dumpRelocationData();
      traceMsg(comp, "</relocatableDataCG>\n");
@@ -439,7 +439,7 @@ OMR::CodeGenPhase::performSetupForInstructionSelectionPhase(TR::CodeGenerator * 
    {
    TR::Compilation *comp = cg->comp();
 
-   if (TR::Compiler->om.shouldGenerateReadBarriersForFieldLoads())
+   if (TR::Compiler->target.cpu.isZ() && TR::Compiler->om.shouldGenerateReadBarriersForFieldLoads())
       {
       // TODO (GuardedStorage): We need to come up with a better solution than anchoring aloadi's
       // to enforce certain evaluation order
@@ -663,14 +663,6 @@ OMR::CodeGenPhase::performRemoveUnusedLocalsPhase(TR::CodeGenerator * cg, TR::Co
    }
 
 void
-OMR::CodeGenPhase::performShrinkWrappingPhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
-   {
-   TR::Compilation *comp = cg->comp();
-   if (comp->getOptimizer())
-      comp->getOptimizer()->performVeryLateOpts();
-   }
-
-void
 OMR::CodeGenPhase::performInsertDebugCountersPhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
    {
    cg->insertDebugCounters();
@@ -717,8 +709,6 @@ OMR::CodeGenPhase::getName(PhaseValue phase)
 	 return "FindAndFixCommonedReferencesPhase";
       case RemoveUnusedLocalsPhase:
 	 return "RemoveUnusedLocalsPhase";
-      case ShrinkWrappingPhase:
-	 return "ShrinkWrappingPhase";
       case InliningReportPhase:
 	 return "InliningReportPhase";
       case InsertDebugCountersPhase:

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -49,25 +49,17 @@ namespace TR {
 class S390ConstantDataSnippet : public TR::Snippet
    {
    protected:
-   union
-      {
-      uint8_t                       _value[1<<TR_DEFAULT_DATA_SNIPPET_EXPONENT];
-      char *                        _string;
-      };
+
+   uint8_t _value[1<<TR_DEFAULT_DATA_SNIPPET_EXPONENT];
 
    uint32_t                      _length;
    TR::UnresolvedDataSnippet *_unresolvedDataSnippet;
    TR::SymbolReference*           _symbolReference;
    uint32_t                      _reloType;
 
-   uint32_t                      _extraInfo;
-
-   bool                          _isString;
-
    public:
 
    S390ConstantDataSnippet(TR::CodeGenerator *cg, TR::Node *, void *c, uint16_t size);
-   S390ConstantDataSnippet(TR::CodeGenerator *cg, TR::Node *, char *c);
 
    virtual Kind getKind() { return IsConstantData; }
 
@@ -76,17 +68,6 @@ class S390ConstantDataSnippet : public TR::Snippet
    virtual int32_t getDataAs2Bytes() { return *((int16_t *) &_value); }
    virtual int32_t getDataAs4Bytes() { return *((int32_t *) &_value); }
    virtual int64_t getDataAs8Bytes() { return *((int64_t *) &_value); }
-   virtual uint8_t * setRawData(uint8_t *value)
-      {
-      TR_ASSERT(false,"setRawData not implemented\n");
-      return NULL;
-      }
-
-   virtual char * getDataAsString()
-      {
-      TR_ASSERT(_isString, "Data is not a string\n");
-      return _string;
-      }
 
    virtual uint8_t * getRawData()
       {
@@ -114,14 +95,6 @@ class S390ConstantDataSnippet : public TR::Snippet
       {
       return _reloType = rt;
       }
-   uint32_t            getExtraInfo() {return _extraInfo;}
-   void                setExtraInfo(uint32_t ei) {_extraInfo = ei;}
-   bool                getValueIsInLitPool() { return false; }
-   void                setValueIsInLitPool() { }
-
-   bool                getValueIsString() { return _isString; }
-   void                setValueIsString() { _isString = true; }
-
    TR::Compilation* comp() { return TR::comp(); }
 
    };
@@ -129,7 +102,6 @@ class S390ConstantDataSnippet : public TR::Snippet
 class S390ConstantInstructionSnippet : public TR::S390ConstantDataSnippet
    {
    TR::Instruction * _instruction;
-   bool             _isRefed;
 
    public:
 
@@ -140,8 +112,6 @@ class S390ConstantInstructionSnippet : public TR::S390ConstantDataSnippet
    uint32_t getConstantSize() { return 8; }
    virtual int64_t getDataAs8Bytes();
    uint8_t * emitSnippetBody();
-   bool      isRefed() { return _isRefed; }
-   void      setIsRefed(bool v) { _isRefed = v; }
    };
 
 /**
@@ -170,95 +140,6 @@ class S390WritableDataSnippet : public TR::S390ConstantDataSnippet
 
    virtual Kind getKind() { return IsWritableData; }
    };
-
-/**
- * TargetAddress Snippet is used to hold address of snippet which exceed the branch limit
- */
-class S390TargetAddressSnippet : public TR::Snippet
-   {
-   uintptrj_t   _targetaddress;
-   TR::Snippet *_targetsnippet;
-   TR::Symbol   *_targetsym;
-   TR::LabelSymbol   *_targetlabel;
-
-   public:
-
-   S390TargetAddressSnippet(TR::CodeGenerator *cg, TR::Node *, TR::LabelSymbol *targetLabel);
-   S390TargetAddressSnippet(TR::CodeGenerator *cg, TR::Node *, TR::Snippet *s);
-   S390TargetAddressSnippet(TR::CodeGenerator *cg, TR::Node *, uintptrj_t addr);
-   S390TargetAddressSnippet(TR::CodeGenerator *cg, TR::Node *, TR::Symbol *sym);
-
-   TR::Snippet *getTargetSnippet()   { return _targetsnippet; }
-   uintptrj_t  getTargetAddress()   { return _targetaddress; }
-   TR::Symbol   *getTargetSym()       { return _targetsym; }
-   TR::LabelSymbol   *getTargetLabel()   { return _targetlabel; }
-
-   virtual Kind getKind() { return IsTargetAddress; }
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
-
-
-class S390LookupSwitchSnippet : public TR::S390TargetAddressSnippet
-   {
-   public:
-
-   S390LookupSwitchSnippet(TR::CodeGenerator *cg, TR::Node* switchNode);
-
-   virtual Kind getKind() { return IsLookupSwitch; }
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
-
-
-class S390InterfaceCallDataSnippet : public TR::S390ConstantDataSnippet
-   {
-   TR::Instruction * _firstCLFI;
-   uint8_t _numInterfaceCallCacheSlots;
-   uint8_t* _codeRA;
-   uint8_t *thunkAddress;
-   bool _useCLFIandBRCL;
-
-   public:
-
-  S390InterfaceCallDataSnippet(TR::CodeGenerator *,
-                               TR::Node *,
-                               uint8_t,
-                               bool useCLFIandBRCL = false);
-
-  S390InterfaceCallDataSnippet(TR::CodeGenerator *,
-                               TR::Node *,
-                               uint8_t,
-                               uint8_t *,
-                               bool useCLFIandBRCL = false);
-
-   virtual Kind getKind() { return IsInterfaceCallData; }
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-
-   int8_t getNumInterfaceCallCacheSlots() {return _numInterfaceCallCacheSlots;}
-
-   void setUseCLFIandBRCL(bool useCLFIandBRCL) {_useCLFIandBRCL = useCLFIandBRCL;}
-   bool isUseCLFIandBRCL() {return _useCLFIandBRCL;}
-
-   void setFirstCLFI(TR::Instruction* firstCLFI) { _firstCLFI = firstCLFI; }
-   TR::Instruction* getFirstCLFI() { return _firstCLFI;}
-
-   uint8_t* getCodeRA() { return _codeRA;}
-   uint8_t* setCodeRA(uint8_t *codeRA)
-      {
-      return _codeRA = codeRA;
-      }
-
-   virtual uint32_t getCallReturnAddressOffset();
-   virtual uint32_t getSingleDynamicSlotOffset();
-   virtual uint32_t getLastCachedSlotFieldOffset();
-   virtual uint32_t getFirstSlotFieldOffset();
-   virtual uint32_t getLastSlotFieldOffset();
-   virtual uint32_t getFirstSlotOffset();
-   virtual uint32_t getLastSlotOffset();
-  };
-
 
 class S390JNICallDataSnippet : public TR::S390ConstantDataSnippet
    {
@@ -328,24 +209,6 @@ class S390JNICallDataSnippet : public TR::S390ConstantDataSnippet
 
    uint32_t getLength(int32_t estimatedSnippetStart);
   };
-
-class S390LabelTableSnippet : public TR::S390ConstantDataSnippet
-   {
-   public:
-   S390LabelTableSnippet(TR::CodeGenerator *cg, TR::Node *node, uint32_t size);
-   virtual Kind getKind() { return IsLabelTable; }
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-
-   int32_t getSize() { return _size; }
-   TR::LabelSymbol *getLabel(int32_t index) { TR_ASSERT(index < _size, "out of range, index %d, size %d",index,_size); return _labelTable[index]; }
-   TR::LabelSymbol *setLabel(int32_t index, TR::LabelSymbol *label) { TR_ASSERT(index < _size, "out of range, index %d, size %d",index,_size); return _labelTable[index] = label; }
-
-   private:
-   int32_t _size;
-   TR::LabelSymbol **_labelTable;
-   };
-
 }
 
 #endif

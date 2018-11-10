@@ -37,6 +37,7 @@ namespace OMR { typedef OMR::ARM64::MemoryReference MemoryReferenceConnector; }
 
 #include <stddef.h>
 #include <stdint.h>
+#include "codegen/InstOpCode.hpp"
 #include "codegen/Register.hpp"
 #include "env/TRMemory.hpp"
 #include "il/SymbolReference.hpp"
@@ -118,6 +119,15 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
          TR::Register *br,
          int32_t disp,
          TR::CodeGenerator *cg);
+
+   /**
+    * @brief Constructor
+    * @param[in] node : node
+    * @param[in] symRef : symbol reference
+    * @param[in] len : length
+    * @param[in] cg : CodeGenerator object
+    */
+   MemoryReference(TR::Node *node, TR::SymbolReference *symRef, uint32_t len, TR::CodeGenerator *cg);
 
    /**
     * @brief Gets base register
@@ -221,6 +231,47 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
       }
 
    /**
+    * @brief Answers if MemoryReference refs specified register
+    * @param[in] reg : register
+    * @return true if MemoryReference refs the register, false otherwise
+    */
+   bool refsRegister(TR::Register *reg)
+      {
+      return (reg == _baseRegister ||
+              reg == _indexRegister);
+      }
+
+   /**
+    * @brief Blocks registers used by MemoryReference
+    */
+   void blockRegisters()
+      {
+      if (_baseRegister != NULL)
+         {
+         _baseRegister->block();
+         }
+      if (_indexRegister != NULL)
+         {
+         _indexRegister->block();
+         }
+      }
+
+   /**
+    * @brief Unblocks registers used by MemoryReference
+    */
+   void unblockRegisters()
+      {
+      if (_baseRegister != NULL)
+         {
+         _baseRegister->unblock();
+         }
+      if (_indexRegister != NULL)
+         {
+         _indexRegister->unblock();
+         }
+      }
+
+   /**
     * @brief Base register is modifiable or not
     * @return true when base register is modifiable
     */
@@ -275,11 +326,18 @@ class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReference
    TR::SymbolReference *getSymbolReference() {return _symbolReference;}
 
    /**
-    * @brief Estimates the length of generated binary
+    * @brief Assigns registers
+    * @param[in] currentInstruction : current instruction
     * @param[in] cg : CodeGenerator
+    */
+   void assignRegisters(TR::Instruction *currentInstruction, TR::CodeGenerator *cg);
+
+   /**
+    * @brief Estimates the length of generated binary
+    * @param[in] op : opcode of the instruction to attach this memory reference to
     * @return estimated binary length
     */
-   uint32_t estimateBinaryLength(TR::CodeGenerator&);
+   uint32_t estimateBinaryLength(TR::InstOpCode op);
 
    /**
     * @brief Generates binary encoding

@@ -22,6 +22,7 @@
 
 include(OmrCompilerSupport)
 
+find_package(PythonInterp 3.1 REQUIRED)
 
 # JitBuilder Files
 set(JITBUILDER_OBJECTS
@@ -33,7 +34,6 @@ set(JITBUILDER_OBJECTS
 	optimizer/JBOptimizer.cpp
 	optimizer/Optimizer.hpp
 	runtime/JBCodeCacheManager.cpp
-	c-api/nj_api.cpp
 )
 
 if(OMR_ARCH_X86)
@@ -55,16 +55,60 @@ elseif(OMR_ARCH_POWER)
 	)
 endif()
 
-if (NOT OMR_TOOLCONFIG MATCHES "msvc")
-	# On Linux at least creating static library
-	# makes it hard to link with C code
-	set(JITBUILDER_LIB_TYPE SHARED)
-endif() 
+# Generated client API files
+set(CPP_API_GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/apigen/cppgen.py)
+set(JITBUILDER_CPP_API_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/release/cpp/include)
+set(JITBUILDER_CPP_API_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}client/cpp)
+set(JITBUILDER_API_DESCRIPTION ${CMAKE_CURRENT_SOURCE_DIR}/apigen/jitbuilder.api.json)
+
+set(JITBUILDER_API_SOURCES
+	${JITBUILDER_CPP_API_SOURCE_DIR}/BytecodeBuilder.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/IlBuilder.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/IlType.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/IlValue.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/MethodBuilder.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/ThunkBuilder.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/TypeDictionary.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineOperandArray.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineOperandStack.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineRegister.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineRegisterInStruct.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineState.cpp
+	${JITBUILDER_CPP_API_SOURCE_DIR}/JitBuilder.cpp
+)
+
+set(JITBUILDER_API_HEADERS
+	${JITBUILDER_CPP_API_HEADER_DIR}/BytecodeBuilder.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/IlBuilder.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/IlType.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/IlValue.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/MethodBuilder.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/ThunkBuilder.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/TypeDictionary.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/VirtualMachineOperandArray.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/VirtualMachineOperandStack.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/VirtualMachineRegister.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/VirtualMachineRegisterInStruct.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/VirtualMachineState.hpp
+	${JITBUILDER_CPP_API_HEADER_DIR}/JitBuilder.hpp
+)
+
+add_custom_command(
+	OUTPUT ${JITBUILDER_API_SOURCES} ${JITBUILDER_API_HEADERS}
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_CPP_API_SOURCE_DIR}
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_CPP_API_HEADER_DIR}
+	COMMAND ${PYTHON_EXECUTABLE} ${CPP_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION} --sourcedir ${JITBUILDER_CPP_API_SOURCE_DIR} --headerdir ${JITBUILDER_CPP_API_HEADER_DIR}
+	DEPENDS ${CPP_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION}
+	COMMENT "Running JitBuilder C++ API generator"
+)
+
+list(APPEND JITBUILDER_OBJECTS
+	${JITBUILDER_API_SOURCES}
+)
 
 # Create jitbuilder library.
 create_omr_compiler_library(
 	NAME    jitbuilder
-	${JITBUILDER_LIB_TYPE}
 	OBJECTS ${JITBUILDER_OBJECTS}
 	DEFINES PROD_WITH_ASSUMES JITTEST
 )
@@ -75,25 +119,13 @@ create_omr_compiler_library(
 #       install directory.
 target_include_directories(jitbuilder
 	INTERFACE
-		release/include
-		c-api
-		../compiler/
-		../
+		${JITBUILDER_CPP_API_HEADER_DIR}
 )
 
 target_link_libraries(jitbuilder
 )
 
-# For now on Windows exclude samples
 add_subdirectory(release)
-add_subdirectory(c-api-tests)
-
-install(FILES c-api/nj_api.h
-        DESTINATION include/nj)
-install(TARGETS jitbuilder
-        RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib)
 
 # install(TARGETS jitbuilder
 #         ARCHIVE       DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release

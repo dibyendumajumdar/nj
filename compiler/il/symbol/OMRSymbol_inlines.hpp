@@ -133,13 +133,6 @@ TR::StaticSymbol *OMR::Symbol::castToMethodTypeTableEntrySymbol()
    return (TR::StaticSymbol*)this;
    }
 
-
-TR::AutomaticSymbol * OMR::Symbol::castToAutoMarkerSymbol()
-   {
-   TR_ASSERT(self()->isAutoMarkerSymbol(), "OMR::Symbol::castToAutoMarkerSymbol, symbol is not a auto marker symbol");
-   return (TR::AutomaticSymbol *)this;
-   }
-
 TR::AutomaticSymbol * OMR::Symbol::castToVariableSizeSymbol()
    {
    TR_ASSERT(self()->isVariableSizeSymbol(), "OMR::Symbol::castToVariableSizeSymbol, symbol is not a VariableSizeSymbol symbol");
@@ -247,19 +240,6 @@ OMR::Symbol::isSpillTempLoaded()
    }
 
 void
-OMR::Symbol::setAutoMarkerSymbol()
-   {
-   TR_ASSERT(self()->isAuto(), "assertion failure");
-   _flags.set(AutoMarkerSymbol);
-   }
-
-bool
-OMR::Symbol::isAutoMarkerSymbol()
-   {
-   return (self()->isAuto() && _flags.testAny(AutoMarkerSymbol));
-   }
-
-void
 OMR::Symbol::setVariableSizeSymbol()
    {
    TR_ASSERT(self()->isAuto(), "assertion failure");
@@ -342,6 +322,19 @@ bool
 OMR::Symbol::isConstString()
    {
    return self()->isStatic() && _flags.testAny(ConstString);
+   }
+
+void
+OMR::Symbol::setConstantDynamic()
+   {
+   TR_ASSERT(self()->isStatic(), "assertion failure");
+   _flags2.set(ConstantDynamic);
+   }
+
+bool
+OMR::Symbol::isConstantDynamic()
+   {
+   return self()->isStatic() && _flags2.testAny(ConstantDynamic);
    }
 
 void
@@ -546,7 +539,7 @@ OMR::Symbol::isStartOfColdInstructionStream()
 void
 OMR::Symbol::setStartInternalControlFlow()
    {
-   TR_ASSERT(self()->isLabel(), "assertion failure"); _flags.set(StartInternalControlFlow);
+   TR_ASSERT(self()->isLabel(), "can only set start ICF on a label"); _flags.set(StartInternalControlFlow);
    }
 
 bool
@@ -558,13 +551,13 @@ OMR::Symbol::isStartInternalControlFlow()
 void
 OMR::Symbol::setEndInternalControlFlow()
    {
-   TR_ASSERT(self()->isLabel(), "assertion failure"); _flags.set(EndInternalControlFlow);
+   TR_ASSERT(self()->isLabel(), "can only set end ICF on a label"); _flags.set(EndInternalControlFlow);
    }
 
 bool
 OMR::Symbol::isEndInternalControlFlow()
    {
-   return self()->isLabel() && !self()->isGlobalLabel() && _flags.testAny(EndInternalControlFlow) && !self()->isGlobalLabel();
+   return self()->isLabel() && !self()->isGlobalLabel() && _flags.testAny(EndInternalControlFlow);
    }
 
 void
@@ -656,7 +649,7 @@ OMR::Symbol::isConstMethodHandle()
 bool
 OMR::Symbol::isConstObjectRef()
    {
-   return self()->isStatic() && (_flags.testAny(ConstString) || _flags2.testAny(ConstMethodType|ConstMethodHandle));
+   return self()->isStatic() && (_flags.testAny(ConstString) || _flags2.testAny(ConstMethodType|ConstMethodHandle|ConstantDynamic));
    }
 
 bool

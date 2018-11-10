@@ -30,7 +30,6 @@
 #include "codegen/Register.hpp"                    // for Register
 #include "codegen/RegisterConstants.hpp"
 #include "codegen/Relocation.hpp"
-#include "codegen/TreeEvaluator.hpp"               // for IS_32BIT_SIGNED, etc
 #include "codegen/UnresolvedDataSnippet.hpp"
 #include "compile/Compilation.hpp"                 // for Compilation
 #include "compile/ResolvedMethod.hpp"              // for TR_ResolvedMethod
@@ -87,7 +86,7 @@ OMR::X86::MemoryReference::getDisplacement()
    }
 
 
-OMR::X86::MemoryReference::MemoryReference(TR::IA32DataSnippet *cds, TR::CodeGenerator   *cg):
+OMR::X86::MemoryReference::MemoryReference(TR::X86DataSnippet *cds, TR::CodeGenerator   *cg):
    _baseRegister(NULL),
    _baseNode(NULL),
    _indexRegister(NULL),
@@ -290,10 +289,10 @@ OMR::X86::MemoryReference::setUnresolvedDataSnippet(TR::UnresolvedDataSnippet *s
    return ( (TR::UnresolvedDataSnippet *) (_dataSnippet = s) );
    }
 
-TR::IA32DataSnippet *
+TR::X86DataSnippet*
 OMR::X86::MemoryReference::getDataSnippet()
    {
-   return (self()->hasUnresolvedDataSnippet() || self()->hasUnresolvedVirtualCallSnippet()) ? NULL : (TR::IA32DataSnippet *)_dataSnippet;
+   return (self()->hasUnresolvedDataSnippet() || self()->hasUnresolvedVirtualCallSnippet()) ? NULL : (TR::X86DataSnippet*)_dataSnippet;
    }
 
 
@@ -1229,9 +1228,21 @@ OMR::X86::MemoryReference::addMetaDataForCodeAddress(
                      if (cg->needClassAndMethodPointerRelocations())
                         {
                         *(int32_t *)cursor = (int32_t)(TR::Compiler->cls.persistentClassPointerFromClassPointer(cg->comp(), (TR_OpaqueClassBlock*)(self()->getSymbolReference().getOffset() + (intptrj_t)staticSym->getStaticAddress())));
-                        cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)&self()->getSymbolReference(),
-                                                                                                 node ? (uint8_t *)(intptrj_t)node->getInlinedSiteIndex() : (uint8_t *)-1,
-                                                                                                 TR_ClassAddress, cg), __FILE__, __LINE__, node);
+                        if (cg->comp()->getOption(TR_UseSymbolValidationManager))
+                           {
+                           cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(cursor,
+                                                                                                     (uint8_t *)(self()->getSymbolReference().getOffset() + (intptrj_t)staticSym->getStaticAddress()),
+                                                                                                     (uint8_t *)TR::SymbolType::typeClass,
+                                                                                                     TR_SymbolFromManager,
+                                                                                                     cg),
+                                                                                           __FILE__, __LINE__, node);
+                           }
+                        else
+                           {
+                           cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(cursor, (uint8_t *)&self()->getSymbolReference(),
+                                                                                                    node ? (uint8_t *)(intptrj_t)node->getInlinedSiteIndex() : (uint8_t *)-1,
+                                                                                                    TR_ClassAddress, cg), __FILE__, __LINE__, node);
+                           }
                         }
 
                      if (cg->wantToPatchClassPointer(NULL, cursor)) // might not point to beginning of class
@@ -1298,7 +1309,7 @@ OMR::X86::MemoryReference::addMetaDataForCodeAddress(
             }
          else
             {
-            TR::IA32DataSnippet *cds = self()->getDataSnippet();
+            TR::X86DataSnippet* cds = self()->getDataSnippet();
             TR::LabelSymbol *label = NULL;
 
             if (cds)
@@ -1549,7 +1560,7 @@ OMR::X86::MemoryReference::generateBinaryEncoding(
             }
          else
             {
-            TR::IA32DataSnippet *cds = self()->getDataSnippet();
+            TR::X86DataSnippet* cds = self()->getDataSnippet();
             TR_ASSERT(cds == NULL || self()->getLabel() == NULL,
                    "a memRef cannot have both a constant data snippet and a label");
             TR::LabelSymbol *label = NULL;
@@ -1844,7 +1855,7 @@ generateX86MemoryReference(TR::SymbolReference * sr, intptrj_t displacement, TR:
    }
 
 TR::MemoryReference  *
-generateX86MemoryReference(TR::IA32DataSnippet * cds, TR::CodeGenerator *cg)
+generateX86MemoryReference(TR::X86DataSnippet* cds, TR::CodeGenerator *cg)
    {
    return new (cg->trHeapMemory()) TR::MemoryReference(cds, cg);
    }

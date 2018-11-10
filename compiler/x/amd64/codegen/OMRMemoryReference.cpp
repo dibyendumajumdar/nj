@@ -30,7 +30,6 @@
 #include "codegen/RegisterConstants.hpp"
 #include "codegen/Relocation.hpp"
 #include "codegen/ScratchRegisterManager.hpp"
-#include "codegen/TreeEvaluator.hpp"               // for IS_32BIT_SIGNED
 #include "codegen/UnresolvedDataSnippet.hpp"
 #include "compile/Compilation.hpp"                 // for Compilation, isSMP
 #include "control/Options.hpp"
@@ -95,7 +94,7 @@ OMR::X86::AMD64::MemoryReference::MemoryReference(TR::Register *br, TR::Register
    self()->finishInitialization(cg, NULL);
    }
 
-OMR::X86::AMD64::MemoryReference::MemoryReference(TR::IA32DataSnippet *cds, TR::CodeGenerator *cg):
+OMR::X86::AMD64::MemoryReference::MemoryReference(TR::X86DataSnippet *cds, TR::CodeGenerator *cg):
    OMR::X86::MemoryReference(cds, cg)
    {
    self()->finishInitialization(cg, NULL);
@@ -401,10 +400,26 @@ OMR::X86::AMD64::MemoryReference::addMetaDataForCodeAddressWithLoad(
          if (sr.getSymbol()->isStatic())
             {
             if (cg->needClassAndMethodPointerRelocations())
-               cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(displacementLocation, (uint8_t *)srCopy,
-                                                                                         (uint8_t *)(uintptr_t)containingInstruction->getNode()->getInlinedSiteIndex(),
-                                                                                         TR_ClassAddress, cg),__FILE__, __LINE__,
-                                                                                         containingInstruction->getNode());
+               {
+               if (cg->comp()->getOption(TR_UseSymbolValidationManager))
+                  {
+                  cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(displacementLocation,
+                                                                                            (uint8_t *)sr.getSymbol()->castToStaticSymbol()->getStaticAddress(),
+                                                                                            (uint8_t *)TR::SymbolType::typeClass,
+                                                                                            TR_SymbolFromManager,
+                                                                                            cg),
+                                                                                   __FILE__, __LINE__,
+                                                                                   containingInstruction->getNode());
+                  }
+               else
+                  {
+                  cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation(displacementLocation, (uint8_t *)srCopy,
+                                                                                            (uint8_t *)(uintptr_t)containingInstruction->getNode()->getInlinedSiteIndex(),
+                                                                                            TR_ClassAddress, cg),__FILE__, __LINE__,
+                                                                                            containingInstruction->getNode());
+                  }
+               }
+
             if (cg->wantToPatchClassPointer(NULL, displacementLocation)) // may not point to beginning of class
                {
                cg->jitAddPicToPatchOnClassRedefinition(((void *)displacement), displacementLocation);

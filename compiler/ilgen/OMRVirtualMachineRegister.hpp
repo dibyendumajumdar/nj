@@ -22,12 +22,12 @@
 #ifndef OMR_VIRTUALMACHINEREGISTER_INCL
 #define OMR_VIRTUALMACHINEREGISTER_INCL
 
-
-#include "ilgen/VirtualMachineRegister.hpp"
+#include "ilgen/VirtualMachineState.hpp"
 #include "ilgen/IlBuilder.hpp"
 #include "ilgen/TypeDictionary.hpp"
 
 namespace TR { class IlBuilder; }
+namespace TR { class VirtualMachineRegister; }
 
 namespace OMR
 {
@@ -84,18 +84,26 @@ class VirtualMachineRegister : public TR::VirtualMachineState
                           const char * const localName,
                           TR::IlType * pointerToRegisterType,
                           uint32_t adjustByStep,
+                          TR::IlValue * addressOfRegister);
+   /**
+    * @brief public constructor used to create a virtual machine state variable
+    * @param localName the name of the local variable where the simulated value is to be stored
+    * @param pointerToRegisterType must be pointer to the type of the register
+    * @param adjustByStep is a multiplier for the value passed to Adjust()
+    * @param addressOfRegister is the address of the actual register
+    */
+   VirtualMachineRegister(const char * const localName,
+                          TR::IlType * pointerToRegisterType,
+                          uint32_t adjustByStep,
                           TR::IlValue * addressOfRegister)
       : TR::VirtualMachineState(),
       _localName(localName),
       _addressOfRegister(addressOfRegister),
       _pointerToRegisterType(pointerToRegisterType),
-      _elementType(pointerToRegisterType->baseType()->baseType()),
       _adjustByStep(adjustByStep)
       {
-      Reload(b);
       }
 
-  
    /**
     * @brief write the simulated register value to the virtual machine
     * @param b the builder where the operation will be placed to store the virtual machine value
@@ -117,6 +125,12 @@ class VirtualMachineRegister : public TR::VirtualMachineState
       b->   LoadAt((TR::IlType *)_pointerToRegisterType,
                _addressOfRegister));
       }
+
+   /**
+    * @brief create an identical copy of the current object.
+    * @returns the copy of the current object
+    */
+   virtual TR::VirtualMachineState *MakeCopy();
 
    /**
     * @brief used in the compiled method to load the (simulated) register's value
@@ -147,7 +161,7 @@ class VirtualMachineRegister : public TR::VirtualMachineState
    virtual void Adjust(TR::IlBuilder *b, TR::IlValue *amount)
       {
       TR::IlValue *off=b->Mul(amount,
-                       b->    ConstInteger(_elementType, _adjustByStep));
+                       b->    ConstInteger(_integerTypeForAdjustments, _adjustByStep));
       adjust(b, off);
       }
 
@@ -160,22 +174,45 @@ class VirtualMachineRegister : public TR::VirtualMachineState
     */
    virtual void Adjust(TR::IlBuilder *b, int64_t amount)
       {
-      adjust(b, b->ConstInteger(_elementType, amount * _adjustByStep));
+      adjust(b, b->ConstInteger(_integerTypeForAdjustments, amount * _adjustByStep));
+      }
+
+   /**
+    * @brief returns the client object associated with this object
+    */
+   virtual void *client();
+
+   /**
+    * @brief Set the Client Allocator function
+    */
+   static void setClientAllocator(ClientAllocator allocator)
+      {
+      _clientAllocator = allocator;
+      }
+
+   /**
+    * @brief Set the Get Impl function
+    *
+    * @param getter function pointer to the impl getter
+    */
+   static void setGetImpl(ImplGetter getter)
+      {
+      _getImpl = getter;
       }
 
    protected:
-   void adjust(TR::IlBuilder *b, TR::IlValue *rawAmount)
-      {
-      b->Store(_localName,
-      b->   Add(
-      b->      Load(_localName),
-               rawAmount));
-      }
+   void adjust(TR::IlBuilder *b, TR::IlValue *rawAmount);
+
    const char  * const _localName;
    TR::IlValue * _addressOfRegister;
    TR::IlType  * _pointerToRegisterType;
-   TR::IlType  * _elementType;
+   TR::IlType  * _integerTypeForAdjustments;
    uint32_t      _adjustByStep;
+   bool          _isAdjustable;
+
+private:
+   static ClientAllocator _clientAllocator;
+   static ImplGetter _getImpl;
    };
 }
 

@@ -110,7 +110,6 @@ const char * objectName[] =
    "LocalOpts",
    "LocalReordering",
    "LocalLiveRangeReduction",
-   "LongRegAllocation",
    "LoopAliasRefiner",
    "LoopTransformer",
    "MonitorElimination",
@@ -130,7 +129,6 @@ const char * objectName[] =
    "InterProceduralAnalyzer",
    "InductionVariableAnalysis",
    "CoarseningInterProceduralAnalyzer",
-   "ShrinkWrapping",
 
    "AheadOfTimeCompile",
    "HWProfile",
@@ -302,7 +300,9 @@ const char * objectName[] =
    "Debug",
 
    "ClientSessionData",
-   "ROMClass"
+   "ROMClass",
+
+   "SymbolValidationManager"
    };
 
 

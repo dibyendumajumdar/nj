@@ -62,6 +62,25 @@ TR::ILOpCodes OMR::IL::opCodesForDirectLoad[] =
    TR::BadILOp,  // TR::Aggregate
    };
 
+TR::ILOpCodes OMR::IL::opCodesForDirectReadBarrier[] =
+   {
+   TR::BadILOp,  // NoType
+   TR::brdbar,   // Int8
+   TR::srdbar,   // Int16
+   TR::irdbar,   // Int32
+   TR::lrdbar,   // Int64
+   TR::frdbar,   // Float
+   TR::drdbar,   // Double
+   TR::ardbar,   // Address
+   TR::BadILOp,  // VectorInt8
+   TR::BadILOp,  // VectorInt16
+   TR::BadILOp,  // VectorInt32
+   TR::BadILOp,  // VectorInt64
+   TR::BadILOp,  // VectorFloat
+   TR::BadILOp,  // VectorDouble
+   TR::BadILOp,  // TR::Aggregate
+   };
+
 TR::ILOpCodes OMR::IL::opCodesForDirectStore[] =
    {
    TR::BadILOp,  // NoType
@@ -78,6 +97,25 @@ TR::ILOpCodes OMR::IL::opCodesForDirectStore[] =
    TR::vstore,   // VectorInt64
    TR::vstore,   // VectorFloat
    TR::vstore,   // VectorDouble
+   TR::BadILOp,  // TR::Aggregate
+   };
+
+TR::ILOpCodes OMR::IL::opCodesForDirectWriteBarrier[] =
+   {
+   TR::BadILOp,  // NoType
+   TR::bwrtbar,   // Int8
+   TR::swrtbar,   // Int16
+   TR::iwrtbar,   // Int32
+   TR::lwrtbar,   // Int64
+   TR::fwrtbar,   // Float
+   TR::dwrtbar,   // Double
+   TR::awrtbar,   // Address
+   TR::BadILOp,   // VectorInt8
+   TR::BadILOp,   // VectorInt16
+   TR::BadILOp,   // VectorInt32
+   TR::BadILOp,   // VectorInt64
+   TR::BadILOp,   // VectorFloat
+   TR::BadILOp,   // VectorDouble
    TR::BadILOp,  // TR::Aggregate
    };
 
@@ -100,6 +138,25 @@ TR::ILOpCodes OMR::IL::opCodesForIndirectLoad[] =
    TR::BadILOp,  // TR::Aggregate
    };
 
+TR::ILOpCodes OMR::IL::opCodesForIndirectReadBarrier[] =
+   {
+   TR::BadILOp,  // NoType
+   TR::brdbari,  // Int8
+   TR::srdbari,  // Int16
+   TR::irdbari,  // Int32
+   TR::lrdbari,  // Int64
+   TR::frdbari,  // Float
+   TR::drdbari,  // Double
+   TR::ardbari,  // Address
+   TR::BadILOp,  // TR::VectorInt8
+   TR::BadILOp,  // TR::VectorInt16
+   TR::BadILOp,  // TR::VectorInt32
+   TR::BadILOp,  // TR::VectorInt64
+   TR::BadILOp,  // TR::VectorFloat
+   TR::BadILOp,  // TR::VectorDouble
+   TR::BadILOp,  // TR::Aggregate
+   };
+
 TR::ILOpCodes OMR::IL::opCodesForIndirectStore[] =
    {
    TR::BadILOp,  // NoType
@@ -116,6 +173,25 @@ TR::ILOpCodes OMR::IL::opCodesForIndirectStore[] =
    TR::vstorei,  // TR::VectorInt64
    TR::vstorei,  // TR::VectorFloat
    TR::vstorei,  // TR::VectorDouble
+   TR::BadILOp,  // TR::Aggregate
+   };
+
+TR::ILOpCodes OMR::IL::opCodesForIndirectWriteBarrier[] =
+   {
+   TR::BadILOp,  // NoType
+   TR::bwrtbari,   // Int8
+   TR::swrtbari,   // Int16
+   TR::iwrtbari,   // Int32
+   TR::lwrtbari,   // Int64
+   TR::fwrtbari,   // Float
+   TR::dwrtbari,   // Double
+   TR::awrtbari,   // Address
+   TR::BadILOp,   // VectorInt8
+   TR::BadILOp,   // VectorInt16
+   TR::BadILOp,   // VectorInt32
+   TR::BadILOp,   // VectorInt64
+   TR::BadILOp,   // VectorFloat
+   TR::BadILOp,   // VectorDouble
    TR::BadILOp,  // TR::Aggregate
    };
 
@@ -524,7 +600,13 @@ OMR::IL::opCodeForCorrespondingIndirectLoad(TR::ILOpCodes loadOpCode)
       case TR::iuload: return TR::iustore;
       case TR::iuloadi: return TR::iustorei;
       case TR::luloadi: return TR::lustorei;
-
+      case TR::brdbari: return TR::bwrtbari;
+      case TR::srdbari: return TR::swrtbari;
+      case TR::irdbari: return TR::iwrtbari;
+      case TR::lrdbari: return TR::lwrtbari;
+      case TR::frdbari: return TR::fwrtbari;
+      case TR::drdbari: return TR::dwrtbari;
+      case TR::ardbari: return TR::awrtbari;
       default: break;
       }
 
@@ -546,7 +628,7 @@ OMR::IL::opCodeForCorrespondingIndirectStore(TR::ILOpCodes storeOpCode)
       case TR::fstorei:  return TR::floadi;
       case TR::dstorei:  return TR::dloadi;
       case TR::astorei:  return TR::aloadi;
-      case TR::wrtbari:  return TR::aloadi;
+      case TR::awrtbari:  return TR::aloadi;
       case TR::vstorei:  return TR::vloadi;
       case TR::cstorei: return TR::cloadi;
       case TR::bustorei: return TR::buloadi;
@@ -586,12 +668,29 @@ OMR::IL::opCodeForDirectLoad(TR::DataType dt)
    }
 
 TR::ILOpCodes
+OMR::IL::opCodeForDirectReadBarrier(TR::DataType dt)
+   {
+   TR_ASSERT(dt < TR::NumOMRTypes, "unexpected opcode");
+
+   return OMR::IL::opCodesForDirectReadBarrier[dt];
+   }
+
+TR::ILOpCodes
 OMR::IL::opCodeForDirectStore(TR::DataType dt)
    {
    TR_ASSERT(dt < TR::NumOMRTypes, "unexpected opcode");
 
    return OMR::IL::opCodesForDirectStore[dt];
    }
+
+TR::ILOpCodes
+OMR::IL::opCodeForDirectWriteBarrier(TR::DataType dt)
+   {
+   TR_ASSERT(dt < TR::NumOMRTypes, "unexpected opcode");
+
+   return OMR::IL::opCodesForDirectWriteBarrier[dt];
+   }
+
 
 TR::ILOpCodes
 OMR::IL::opCodeForIndirectLoad(TR::DataType dt)
@@ -602,11 +701,27 @@ OMR::IL::opCodeForIndirectLoad(TR::DataType dt)
    }
 
 TR::ILOpCodes
+OMR::IL::opCodeForIndirectReadBarrier(TR::DataType dt)
+   {
+   TR_ASSERT(dt < TR::NumOMRTypes, "unexpected opcode");
+
+   return OMR::IL::opCodesForIndirectReadBarrier[dt];
+   }
+
+TR::ILOpCodes
 OMR::IL::opCodeForIndirectStore(TR::DataType dt)
    {
    TR_ASSERT(dt < TR::NumOMRTypes, "unexpected opcode");
 
    return OMR::IL::opCodesForIndirectStore[dt];
+   }
+
+TR::ILOpCodes
+OMR::IL::opCodeForIndirectWriteBarrier(TR::DataType dt)
+   {
+   TR_ASSERT(dt < TR::NumOMRTypes, "unexpected opcode");
+
+   return OMR::IL::opCodesForIndirectWriteBarrier[dt];
    }
 
 TR::ILOpCodes

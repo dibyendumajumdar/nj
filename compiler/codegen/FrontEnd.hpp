@@ -157,13 +157,14 @@ public:
 
    virtual int32_t getLineNumberForMethodAndByteCodeIndex(TR_OpaqueMethodBlock *, int32_t);
 
+   virtual bool canDevirtualizeDispatch()     { return true; }
+
    // --------------------------------------------------------------------------
    // Codegen
    // --------------------------------------------------------------------------
 
    virtual void generateBinaryEncodingPrologue(TR_BinaryEncodingData *beData, TR::CodeGenerator *cg) { return; }
    virtual uint8_t * allocateRelocationData(TR::Compilation *, uint32_t numBytes);
-   virtual size_t findOrCreateLiteral(TR::Compilation *comp, void *value, size_t len) { TR_ASSERT(0, "findOrCreateLiteral unimplemented\n"); return 0; }
 
    // --------------------------------------------------------------------------
    // Optimizer

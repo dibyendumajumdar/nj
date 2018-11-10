@@ -20,7 +20,6 @@
  *******************************************************************************/
 
 #if defined(OMR_OS_WINDOWS)
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
 #include <sys/mman.h>
@@ -59,7 +58,7 @@ FEBase<Derived>::allocateCodeMemory(TR::Compilation *comp, uint32_t warmCodeSize
       {
       // Either we didn't get a code cache, or the one we get should be reserved
       TR_ASSERT(!codeCache || codeCache->isReserved(), "Substitute code cache isn't marked as reserved");
-      comp->setAotMethodCodeStart(warmCode);
+      comp->setRelocatableMethodCodeStart(warmCode);
       switchCodeCache(codeCache);
       }
 
@@ -103,23 +102,23 @@ FEBase<Derived>::allocateRelocationData(TR::Compilation* comp, uint32_t size)
       way to allocate this */
    if (size == 0) return 0;
    TR_ASSERT(size >= 2048, "allocateRelocationData should be used for whole-sale memory allocation only");
-#ifndef OMR_OS_WINDOWS
-   return (uint8_t *) mmap(0,
-                           size,
-                           PROT_READ | PROT_WRITE,
-                           MAP_PRIVATE | MAP_ANONYMOUS,
-                           -1,
-                           0);
+
+#if defined(OMR_OS_WINDOWS)
+   return reinterpret_cast<uint8_t *>(
+         VirtualAlloc(NULL,
+            size,
+            MEM_COMMIT,
+            PAGE_READWRITE));
 #else
-   // FIXME - where is the memory freed?
-   uint8_t *memorySlab = (uint8_t *)VirtualAlloc(NULL, size,
-      MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READWRITE);
-   if (!memorySlab) {
-      abort();
-   }
-   return memorySlab;
+   return reinterpret_cast<uint8_t *>(
+         mmap(0,
+              size,
+              PROT_READ | PROT_WRITE,
+              MAP_PRIVATE | MAP_ANONYMOUS,
+              -1,
+              0));
 #endif /* OMR_OS_WINDOWS */
-}
+   }
 
 // keep the impact of this fix localized
 #if defined(NO_MAP_ANONYMOUS)

@@ -241,19 +241,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    bool canTransformUnsafeCopyToArrayCopy() { return true; }
    bool canTransformUnsafeSetMemory();
 
-   bool processInstruction(TR::Instruction *instr, TR_BitVector ** registerUsageInfo, int32_t &blockNum, int32_t &isFence, bool traceIt);
-   uint32_t isPreservedRegister(int32_t regIndex);
-   bool isReturnInstruction(TR::Instruction *instr);
-   bool isBranchInstruction(TR::Instruction *instr);
-   bool isLabelInstruction(TR::Instruction *instr);
-   int32_t isFenceInstruction(TR::Instruction *instr);
-   bool isAlignmentInstruction(TR::Instruction *instr);
-   TR::Instruction *splitEdge(TR::Instruction *cursor, bool isFallThrough, bool needsJump, TR::Instruction *newSplitLabel, TR::list<TR::Instruction*> *jmpInstrs, bool firstJump = false);
-   TR::Instruction *splitBlockEntry(TR::Instruction *instr);
-   int32_t computeRegisterSaveDescription(TR_BitVector *regs, bool populateInfo = false);
-   void processIncomingParameterUsage(TR_BitVector **registerUsageInfo, int32_t blockNum);
-   void updateSnippetMapWithRSD(TR::Instruction *cur, int32_t rsd);
-   bool isTargetSnippetOrOutOfLine(TR::Instruction *instr, TR::Instruction **start, TR::Instruction **end);
    virtual bool supportsAESInstructions();
 
    virtual bool getSupportsTLE()
@@ -434,9 +421,9 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    // PPC specific thresholds for constant re-materialization
    int64_t getLargestNegConstThatMustBeMaterialized() {return -32769;}  // minimum 16-bit signed int minux 1
    int64_t getSmallestPosConstThatMustBeMaterialized() {return 32768;}  // maximum 16-bit signed int plus 1
-   bool shouldValueBeInACommonedNode(int64_t); // no virt, cast
+   bool shouldValueBeInACommonedNode(int64_t);
 
-   bool ilOpCodeIsSupported(TR::ILOpCodes);
+   static bool isILOpCodeSupported(TR::ILOpCodes);
    // Constant Data update
    bool checkAndFetchRequestor(TR::Instruction *instr, TR::Instruction **q);
 
@@ -449,8 +436,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, TR::Register *deltaReg, TR::RegisterDependencyConditions *cond);
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, int32_t delta, TR_ScratchRegisterManager &srm);
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, TR::Register *deltaReg, TR_ScratchRegisterManager &srm);
-
-   bool supportsDebugCounters(TR::DebugCounterInjectionPoint injectionPoint){ return injectionPoint != TR::TR_AfterRegAlloc; }
 
    int32_t arrayTranslateMinimumNumberOfElements(bool isByteSource, bool isByteTarget) { return 8; } //FIXME
    int32_t arrayTranslateAndTestMinimumNumberOfIterations() { return 8; } //FIXME

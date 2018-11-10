@@ -135,11 +135,9 @@ OMR::CodeGenerator::_nodeToInstrEvaluators[] =
    #include "codegen/TreeEvaluatorTable.hpp"
    };
 
-#if !defined(TR_TARGET_ARM64)
 static_assert(TR::NumIlOps ==
               (sizeof(OMR::CodeGenerator::_nodeToInstrEvaluators) / sizeof(OMR::CodeGenerator::_nodeToInstrEvaluators[0])),
               "NodeToInstrEvaluators is not the correct size");
-#endif
 
 #define OPT_DETAILS "O^O CODE GENERATION: "
 
@@ -208,8 +206,6 @@ OMR::CodeGenerator::CodeGenerator() :
      _lastGlobalFPR(0),
      _firstOverlappedGlobalFPR(0),
      _lastOverlappedGlobalFPR(0),
-     _firstGlobalAR(0),
-     _lastGlobalAR(0),
      _last8BitGlobalGPR(0),
      _globalGPRPartitionLimit(0),
      _globalFPRPartitionLimit(0),
@@ -255,13 +251,11 @@ OMR::CodeGenerator::CodeGenerator() :
      _staticRelocationList(_compilation->allocator()),
      _breakPointList(getTypedAllocator<uint8_t*>(TR::comp()->allocator())),
      _jniCallSites(getTypedAllocator<TR_Pair<TR_ResolvedMethod,TR::Instruction> *>(TR::comp()->allocator())),
-     _lowestSavedReg(0),
      _preJitMethodEntrySize(0),
      _jitMethodEntryPaddingSize(0),
      _lastInstructionBeforeCurrentEvaluationTreeTop(NULL),
      _unlatchedRegisterList(NULL),
      _indentation(2),
-     _preservedRegsInPrologue(NULL),
      _currentBlock(NULL),
      _realVMThreadRegister(NULL),
      _internalControlFlowNestingDepth(0),
@@ -856,17 +850,11 @@ bool
 OMR::CodeGenerator::use64BitRegsOn32Bit()
    {
 #ifdef TR_TARGET_S390
-   if (!(TR::Compiler->target.isZOS() || TR::Compiler->target.isLinux()))
-      return false;
-   else if (TR::Compiler->target.is64Bit())
+   if (TR::Compiler->target.is64Bit())
       return false;
    else
       {
-      bool longReg = self()->comp()->getOption(TR_Enable64BitRegsOn32Bit);
-      bool longRegHeur = self()->comp()->getOption(TR_Enable64BitRegsOn32BitHeuristic);
-      bool use64BitRegs = (longReg && !longRegHeur && self()->comp()->getJittedMethodSymbol()->mayHaveLongOps()) ||
-                          (longReg && longRegHeur && self()->comp()->useLongRegAllocation());
-      return use64BitRegs;
+      return !self()->comp()->getOption(TR_Disable64BitRegsOn32Bit);
       }
 #endif // TR_TARGET_S390
    return false;
@@ -1152,7 +1140,7 @@ OMR::CodeGenerator::getNumberOfGlobalRegisters()
 #ifdef TR_HOST_S390
 uint16_t OMR::CodeGenerator::getNumberOfGlobalGPRs()
    {
-   if (self()->comp()->cg()->supportsHighWordFacility() && !self()->comp()->getOption(TR_DisableHighWordRA))
+   if (self()->supportsHighWordFacility() && !self()->comp()->getOption(TR_DisableHighWordRA))
       {
       return _firstGlobalHPR;
       }
@@ -1545,16 +1533,18 @@ OMR::CodeGenerator::nodeMatches(TR::Node *addr1, TR::Node *addr2, bool addresses
       }
    else if (self()->uniqueAddressOccurrence(addr1, addr2, addressesUnderSameTreeTop))
       {
-      if (addr1->getOpCodeValue() == TR::aload && addr2->getOpCodeValue() == TR::aload &&
+      TR::ILOpCode op1 = addr1->getOpCode();
+      TR::ILOpCode op2 = addr2->getOpCode();
+      if (op1.getOpCodeValue() == op2.getOpCodeValue() &&
+            op1.isLoadVar() && op1.getDataType() == TR::Address &&
                addr1->getSymbolReference() == addr2->getSymbolReference())
          {
-         foundMatch = true;
-         }
-      else if (addr1->getOpCodeValue() == TR::aloadi && addr2->getOpCodeValue() == TR::aloadi &&
-               addr1->getSymbolReference() == addr2->getSymbolReference() &&
-               self()->nodeMatches(addr1->getFirstChild(), addr2->getFirstChild(),addressesUnderSameTreeTop))
-         {
-         foundMatch = true;
+         // aload, ardbar etc
+         if (op1.isLoadDirect())
+            foundMatch = true;
+         // aloadi, ardbari etc
+         else if (op1.isLoadIndirect() && self()->nodeMatches(addr1->getFirstChild(), addr2->getFirstChild(),addressesUnderSameTreeTop))
+            foundMatch = true;
          }
       }
 
@@ -1713,112 +1703,6 @@ OMR::CodeGenerator::addressesMatch(TR::Node *addr1, TR::Node *addr2, bool addres
       }
 
    return foundMatch;
-   }
-
-
-void
-OMR::CodeGenerator::zeroOutAutoOnEdge(
-      TR::SymbolReference *liveAutoSymRef,
-      TR::Block *block,
-      TR::Block *succBlock,
-      TR::list<TR::Block*> *newBlocks,
-      TR_ScratchList<TR::Node> *fsdStores)
-   {
-   TR::Block *storeBlock = NULL;
-   if ((succBlock->getPredecessors().size() == 1))
-      storeBlock = succBlock;
-   else
-      {
-      for (auto blocksIt = newBlocks->begin(); blocksIt != newBlocks->end(); ++blocksIt)
-         {
-         if ((*blocksIt)->getSuccessors().front()->getTo()->asBlock() == succBlock)
-            {
-            storeBlock = *blocksIt;
-            break;
-            }
-         }
-      }
-
-   if (!storeBlock)
-      {
-      TR::TreeTop * startTT = succBlock->getEntry();
-      TR::Node * startNode = startTT->getNode();
-      TR::Node * glRegDeps = NULL;
-      if (startNode->getNumChildren() > 0)
-         glRegDeps = startNode->getFirstChild();
-
-      TR::Block * newBlock = block->splitEdge(block, succBlock, self()->comp(), NULL, false);
-
-      if (debug("traceFSDSplit"))
-         diagnostic("\nSplitting edge, create new intermediate block_%d", newBlock->getNumber());
-
-      if (glRegDeps)
-         {
-         TR::Node *duplicateGlRegDeps = glRegDeps->duplicateTree();
-         TR::Node *origDuplicateGlRegDeps = duplicateGlRegDeps;
-         duplicateGlRegDeps = TR::Node::copy(duplicateGlRegDeps);
-         newBlock->getEntry()->getNode()->setNumChildren(1);
-         newBlock->getEntry()->getNode()->setAndIncChild(0, origDuplicateGlRegDeps);
-         for (int32_t i = origDuplicateGlRegDeps->getNumChildren() - 1; i >= 0; --i)
-            {
-            TR::Node * dep = origDuplicateGlRegDeps->getChild(i);
-            if(self()->comp()->getOption(TR_MimicInterpreterFrameShape) || self()->comp()->getOption(TR_PoisonDeadSlots))
-               dep->setRegister(NULL); // basically need to do prepareNodeForInstructionSelection
-            duplicateGlRegDeps->setAndIncChild(i, dep);
-            }
-         if(self()->comp()->getOption(TR_MimicInterpreterFrameShape) || self()->comp()->getOption(TR_PoisonDeadSlots))
-            {
-            TR::Node *glRegDepsParent;
-            if (  (newBlock->getSuccessors().size() == 1)
-               && newBlock->getSuccessors().front()->getTo()->asBlock()->getEntry() == newBlock->getExit()->getNextTreeTop())
-               {
-               glRegDepsParent = newBlock->getExit()->getNode();
-               }
-            else
-               {
-               glRegDepsParent = newBlock->getExit()->getPrevTreeTop()->getNode();
-               TR_ASSERT(glRegDepsParent->getOpCodeValue() == TR::Goto, "Expected block to fall through or end in goto; it ends with %s %s\n",
-                  self()->getDebug()->getName(glRegDepsParent->getOpCodeValue()), self()->getDebug()->getName(glRegDepsParent));
-               }
-            if (self()->comp()->getOption(TR_TraceCG))
-               traceMsg(self()->comp(), "zeroOutAutoOnEdge: glRegDepsParent is %s\n", self()->getDebug()->getName(glRegDepsParent));
-            glRegDepsParent->setNumChildren(1);
-            glRegDepsParent->setAndIncChild(0, duplicateGlRegDeps);
-            }
-         else           //original path
-            {
-            newBlock->getExit()->getNode()->setNumChildren(1);
-            newBlock->getExit()->getNode()->setAndIncChild(0, duplicateGlRegDeps);
-            }
-         }
-
-      newBlock->setLiveLocals(new (self()->trHeapMemory()) TR_BitVector(*succBlock->getLiveLocals()));
-      newBlock->getEntry()->getNode()->setLabel(generateLabelSymbol(self()));
-
-
-      if (self()->comp()->getOption(TR_PoisonDeadSlots))
-         {
-         if (self()->comp()->getOption(TR_TraceCG))
-            traceMsg(self()->comp(), "POISON DEAD SLOTS --- New Block Created %d\n", newBlock->getNumber());
-         newBlock->setIsCreatedAtCodeGen();
-         }
-
-      newBlocks->push_front(newBlock);
-      storeBlock = newBlock;
-      }
-   TR::Node *storeNode;
-
-   if (self()->comp()->getOption(TR_PoisonDeadSlots))
-      storeNode = generatePoisonNode(self()->comp(), block, liveAutoSymRef);
-   else
-      storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(block->getEntry()->getNode(), 0));
-
-   if (storeNode)
-      {
-      TR::TreeTop *storeTree = TR::TreeTop::create(self()->comp(), storeNode);
-      storeBlock->prepend(storeTree);
-      fsdStores->add(storeNode);
-      }
    }
 
 
@@ -2311,7 +2195,7 @@ OMR::CodeGenerator::alignBinaryBufferCursor()
    if (boundary && (boundary & boundary - 1) == 0)
       {
       uintptr_t round = boundary - 1;
-      uintptr_t offset = self()->comp()->cg()->getPreJitMethodEntrySize();
+      uintptr_t offset = self()->getPreJitMethodEntrySize();
 
       _binaryBufferCursor += offset;
       _binaryBufferCursor = (uint8_t *)(((uintptr_t)_binaryBufferCursor + round) & ~round);
@@ -2330,11 +2214,6 @@ OMR::CodeGenerator::setEstimatedLocationsForSnippetLabels(int32_t estimatedSnipp
    TR::Snippet *cursor;
 
    self()->setEstimatedSnippetStart(estimatedSnippetStart);
-
-   if (self()->hasTargetAddressSnippets())
-      {
-      estimatedSnippetStart = self()->setEstimatedLocationsForTargetAddressSnippetLabels(estimatedSnippetStart);
-      }
 
    for (auto iterator = _snippetList.begin(); iterator != _snippetList.end(); ++iterator)
       {
@@ -2371,13 +2250,6 @@ OMR::CodeGenerator::emitSnippets()
       }
 
    retVal = self()->getBinaryBufferCursor();
-
-   // Emit target address snippets first.
-   //
-   if (self()->hasTargetAddressSnippets())
-      {
-      self()->emitTargetAddressSnippets();
-      }
 
    // Emit constant data snippets last.
    //
@@ -2701,99 +2573,6 @@ OMR::CodeGenerator::sizeOfInstructionToBePatchedHCRGuard(TR::Instruction *vgdnop
    return accumulatedSize;
    }
 
-
-TR::Instruction *
-OMR::CodeGenerator::saveOrRestoreRegisters(TR_BitVector *regs, TR::Instruction *cursor, bool doSaves)
-   {
-   // use store/load multiple to save or restore registers
-   // in the prologue/epilogue on platforms that support store/load
-   // multiple instructions (e.g. ppc32 and z)
-   //
-
-   // the registers need to be in sequence
-   //
-   int32_t startIdx = -1;
-   int32_t endIdx = -1;
-   int32_t prevIdx = -1;
-   int32_t i = 0;
-   int32_t numRegs = regs->elementCount();
-   traceMsg(self()->comp(), "numRegs %d at cursor %p\n", numRegs, cursor);
-
-   int32_t savedRegs = 0;
-   TR_BitVectorIterator resIt(*regs);
-   while (resIt.hasMoreElements())
-      {
-      int32_t curIdx = resIt.getNextElement();
-      if (prevIdx != -1)
-         {
-         if (curIdx == prevIdx+1)
-            {
-            if (startIdx == -1) startIdx = prevIdx; // new pattern
-            endIdx = curIdx;
-            }
-         else
-            {
-            // pattern broken, so insert a load/store multiple
-            // for the regs upto this point
-            //
-            if (i > 1)
-               {
-               // insert store/load multiple
-               //
-               traceMsg(self()->comp(), "found pattern for start %d end %d at cursor %p\n", startIdx, endIdx, cursor);
-               cursor = self()->getLinkage()->composeSavesRestores(cursor, startIdx, endIdx, -1 /*_mapRegsToStack[startIdx]*/, numRegs, doSaves);
-               savedRegs += i;
-               }
-            else
-               {
-               // insert a single store/load for prevIdx
-               //
-               traceMsg(self()->comp(), "pattern broken idx %d at cursor %p doSaves %d\n", prevIdx, cursor, doSaves);
-               if (doSaves)
-                  cursor = self()->getLinkage()->savePreservedRegister(cursor, prevIdx, -1);
-               else
-                  cursor =self()->getLinkage()->restorePreservedRegister(cursor, prevIdx, -1);
-               savedRegs++;
-               }
-            startIdx = -1;
-            endIdx = -1;
-            i = 0;
-            }
-        }
-      else
-         startIdx = curIdx;
-      i++;
-      prevIdx = curIdx;
-      }
-
-   traceMsg(self()->comp(), "savedRegs %d at cursor %p startIdx %d endIdx %d\n", savedRegs, cursor, startIdx, endIdx);
-   // do the remaining
-   if ((numRegs > 1) &&
-         (startIdx != -1))
-      {
-      // compose save restores
-      cursor = self()->getLinkage()->composeSavesRestores(cursor, startIdx, endIdx, -1 /*_mapRegsToStack[startIdx]*/, numRegs, doSaves);
-      savedRegs += (endIdx - startIdx + 1);
-      }
-
-   if (savedRegs != numRegs)
-      {
-      resIt.setBitVector(*regs);
-      for (; savedRegs; --savedRegs) resIt.getNextElement();
-      while (resIt.hasMoreElements())
-         {
-         int32_t curIdx = resIt.getNextElement();
-         // insert a single store for curIdx
-         //
-         if (doSaves)
-            cursor = self()->getLinkage()->savePreservedRegister(cursor, curIdx, -1);
-         else
-            cursor = self()->getLinkage()->restorePreservedRegister(cursor, curIdx, -1);
-         }
-      }
-   return cursor;
-   }
-
 #ifdef DEBUG
 
 void
@@ -2977,7 +2756,7 @@ OMR::CodeGenerator::canNullChkBeImplicit(TR::Node *node, bool doChecks)
    return false;
    }
 
-bool OMR::CodeGenerator::ilOpCodeIsSupported(TR::ILOpCodes o)
+bool OMR::CodeGenerator::isILOpCodeSupported(TR::ILOpCodes o)
    {
 	return (_nodeToInstrEvaluators[o] != TR::TreeEvaluator::unImpOpEvaluator) &&
 	      (_nodeToInstrEvaluators[o] != TR::TreeEvaluator::badILOpEvaluator);

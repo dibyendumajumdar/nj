@@ -31,6 +31,7 @@
 //                          compiler/x/i386/codegen/TreeEvaluatorTable.cpp
 //                          compiler/p/codegen/TreeEvaluatorTable.cpp
 //                          compiler/z/codegen/TreeEvaluatorTable.cpp
+//                          compiler/aarch64/codegen/TreeEvaluatorTable.cpp
 //                          compiler/arm/codegen/TreeEvaluatorTable.cpp
 //                          compiler/il/OMRILOpCodesEnum.hpp
 //                          compiler/il/ILOpCodes.hpp
@@ -53,6 +54,18 @@
    bload,    // load byte
    sload,    // load short integer
    lload,    // load long integer
+
+   //Read barrier is used to represent loads with side effects like check for GC, debugging etc.
+   //It is the same as the corresponding load except that it needs to be anchored under a
+   //treetop. The children and symbol of a read barrier are the same as the corresponding load.
+   irdbar,   // read barrier for load integer
+   frdbar,   // read barrier for load float
+   drdbar,   // read barrier for load double
+   ardbar,   // read barrier for load address
+   brdbar,   // read barrier for load byte
+   srdbar,   // load short integer
+   lrdbar,   // load long integer
+
    iloadi,   // load indirect integer
    floadi,   // load indirect float
    dloadi,   // load indirect double
@@ -60,30 +73,59 @@
    bloadi,   // load indirect byte
    sloadi,   // load indirect short integer
    lloadi,   // load indirect long integer
+   irdbari,  // read barrier for load indirect integer
+   frdbari,  // read barrier for load indirect float
+   drdbari,  // read barrier for load indirect double
+   ardbari,  // read barrier for load indirect address
+   brdbari,  // read barrier for load indirect byte
+   srdbari,  // read barrier for load indirect short integer
+   lrdbari,  // read barrier for load indirect long integer
    istore,   // store integer
    lstore,   // store long integer
    fstore,   // store float
    dstore,   // store double
    astore,   // store address
-   wrtbar,   // direct write barrier store checks for new space in old space reference store
-                // the first child is the value as in astore.  The second child is
-                // the address of the object that must be checked for old space
-                // the symbol reference holds addresses, flags and offsets as in astore
    bstore,   // store byte
    sstore,   // store short integer
+   // direct write barrier represent both the write and side effects of
+   // the write like checks for GC, debugging etc.
+   //
+   // In case of GC checks, write barrier checks for new space in old
+   // space reference store. The first child is the value as in astore.
+   // The second child is the address of the object that must be checked
+   // for old space the symbol reference holds addresses, flags and offsets
+   // as in astore
+   iwrtbar,  // write barrier for store direct integer
+   lwrtbar,  // write barrier for store direct long integer
+   fwrtbar,  // write barrier for store direct float
+   dwrtbar,  // write barrier for store direct double
+   awrtbar,  // write barrier for store direct address
+   bwrtbar,  // write barrier for store direct byte
+   swrtbar,  // write barrier for store direct short integer
    lstorei,  // store indirect long integer           (child1 a, child2 l)
    fstorei,  // store indirect float                  (child1 a, child2 f)
    dstorei,  // store indirect double                 (child1 a, child2 d)
    astorei,  // store indirect address                (child1 a dest, child2 a value)
-   wrtbari,  // indirect write barrier store checks for new space in old space reference store
-                // The first two children are as in astorei.  The third child is address
-                // of the beginning of the destination object.  For putfield this will often
-                // be the same as the first child (when the offset is on the symbol reference.
-                // But for array references, children 1 and 3 will be quite different although
-                // child 1's subtree will contain a reference to child 3's subtree
    bstorei,  // store indirect byte                   (child1 a, child2 b)
    sstorei,  // store indirect short integer          (child1 a, child2 s)
    istorei,  // store indirect integer                (child1 a, child2 i)
+   // indirect write barrier represent both the write and side effects of
+   // the write like checks for GC, debugging etc.
+   //
+   // In case of GC checks, indirect write barrier store checks for new space
+   // in old space reference store.
+   // The first two children are as in astorei.  The third child is address
+   // of the beginning of the destination object.  For putfield this will often
+   // be the same as the first child (when the offset is on the symbol reference.
+   // But for array references, children 1 and 3 will be quite different although
+   // child 1's subtree will contain a reference to child 3's subtree
+   lwrtbari, // write barrier for store indirect long integer
+   fwrtbari, // write barrier for store indirect float
+   dwrtbari, // write barrier for store indirect double
+   awrtbari, // write barrier for store indirect address
+   bwrtbari, // write barrier for store indirect byte
+   swrtbari, // write barrier for store indirect short integer
+   iwrtbari, // write barrier for store indirect integer
    Goto,     // goto label address
    ireturn,  // return an integer
    lreturn,  // return a long integer

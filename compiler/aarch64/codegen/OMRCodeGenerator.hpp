@@ -42,6 +42,25 @@ class TR_ARM64OutOfLineCodeSection;
 namespace TR { class ARM64LinkageProperties; }
 namespace TR { class ConstantDataSnippet; }
 
+/**
+ * @brief Generates instructions for loading 32-bit integer value to a register
+ * @param[in] cg : CodeGenerator
+ * @param[in] node : node
+ * @param[in] value : integer value
+ * @param[in] trgReg : target register
+ * @param[in] cursor : instruction cursor
+ */
+extern TR::Instruction *loadConstant32(TR::CodeGenerator *cg, TR::Node *node, int32_t value, TR::Register *trgReg, TR::Instruction *cursor = NULL);
+/**
+ * @brief Generates instructions for loading 64-bit integer value to a register
+ * @param[in] cg : CodeGenerator
+ * @param[in] node : node
+ * @param[in] value : integer value
+ * @param[in] trgReg : target register
+ * @param[in] cursor : instruction cursor
+ */
+extern TR::Instruction *loadConstant64(TR::CodeGenerator *cg, TR::Node *node, int64_t value, TR::Register *trgReg, TR::Instruction *cursor = NULL);
+
 namespace OMR
 {
 
@@ -238,6 +257,9 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
     */
    void buildRegisterMapForInstruction(TR_GCStackMap *map);
 
+   TR_GlobalRegisterNumber _gprLinkageGlobalRegisterNumbers[TR::RealRegister::NumRegisters]; // could be smaller
+   TR_GlobalRegisterNumber _fprLinkageGlobalRegisterNumbers[TR::RealRegister::NumRegisters]; // could be smaller
+
    private:
 
    enum // flags
@@ -248,7 +270,11 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    flags32_t _flags;
 
+   uint32_t _numGPR;
+   uint32_t _numFPR;
+
    TR::RealRegister *_methodMetaDataRegister;
+   TR::ARM64ImmInstruction *_returnTypeInfoInstruction;
    TR::ConstantDataSnippet *_constantData;
    const TR::ARM64LinkageProperties *_linkageProperties;
    TR::list<TR_ARM64OutOfLineCodeSection*> _outOfLineCodeSectionList;

@@ -19,8 +19,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#include <stdint.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include "compile/Method.hpp"
 #include "env/jittypes.h"
 #include "gtest/gtest.h"
@@ -104,6 +105,9 @@ X86OpCodesTest::compileUnaryTestMethods()
    compileOpCodeMethod(_fAbs, _numberOfUnaryArgs, TR::fabs, "fAbs", _argTypesUnaryFloat, TR::Float, rc);
    compileOpCodeMethod(_lAbs, _numberOfUnaryArgs, TR::labs, "lAbs", _argTypesUnaryLong, TR::Int64, rc);
 
+   compileOpCodeMethod(_dSqrt, _numberOfUnaryArgs, TR::dsqrt, "dSqrt", _argTypesUnaryDouble, TR::Double, rc);
+   compileOpCodeMethod(_fSqrt, _numberOfUnaryArgs, TR::fsqrt, "fSqrt", _argTypesUnaryFloat, TR::Float, rc);
+
    compileOpCodeMethod(_lReturn, _numberOfUnaryArgs, TR::lreturn, "lReturn", _argTypesUnaryLong, TR::Int64, rc);
    compileOpCodeMethod(_dReturn, _numberOfUnaryArgs, TR::dreturn, "dReturn", _argTypesUnaryDouble, TR::Double, rc);
    compileOpCodeMethod(_fReturn, _numberOfUnaryArgs, TR::freturn, "fReturn", _argTypesUnaryFloat, TR::Float, rc);
@@ -170,10 +174,7 @@ X86OpCodesTest::compileDirectCallTestMethods()
    compileDirectCallOpCodeMethod(_iCall, _numberOfUnaryArgs, TR::ireturn, TR::icall, "iCompiledMethod", "iCall", _argTypesUnaryInt, TR::Int32, rc);
    compileDirectCallOpCodeMethod(_dCall, _numberOfUnaryArgs, TR::dreturn, TR::dcall, "dCompiledMethod", "dCall", _argTypesUnaryDouble, TR::Double, rc);
    compileDirectCallOpCodeMethod(_fCall, _numberOfUnaryArgs, TR::freturn, TR::fcall, "fCompiledMethod", "fCall", _argTypesUnaryFloat, TR::Float, rc);
-
-#if defined(TR_TARGET_64BIT)
    compileDirectCallOpCodeMethod(_lCall, _numberOfUnaryArgs, TR::lreturn, TR::lcall, "lCompiledMethod", "lCall", _argTypesUnaryLong, TR::Int64, rc);
-#endif
    }
 
 void
@@ -252,7 +253,6 @@ X86OpCodesTest::compileCompareTestMethods()
    compileOpCodeMethod(_ifFcmplt, _numberOfBinaryArgs, TR::iffcmplt, "ifFcmplt", _argTypesBinaryFloat, TR::Int32, rc);
    compileOpCodeMethod(_ifFcmpge, _numberOfBinaryArgs, TR::iffcmpge, "ifFcmpge", _argTypesBinaryFloat, TR::Int32, rc);
    compileOpCodeMethod(_ifFcmple, _numberOfBinaryArgs, TR::iffcmple, "ifFcmple", _argTypesBinaryFloat, TR::Int32, rc);
-
 
    compileOpCodeMethod(_ifScmpeq, _numberOfBinaryArgs, TR::ifscmpeq, "ifScmpeq", _argTypesBinaryShort, TR::Int32, rc);
    compileOpCodeMethod(_ifScmpne, _numberOfBinaryArgs, TR::ifscmpne, "ifScmpne", _argTypesBinaryShort, TR::Int32, rc);
@@ -1517,6 +1517,46 @@ X86OpCodesTest::invokeUnaryTests()
       compileOpCodeMethod(dUnaryCons, 
             _numberOfUnaryArgs, TR::dabs, resolvedMethodName, _argTypesUnaryDouble, TR::Double, rc, 2, 1, &doubleDataArray[i]);
       OMR_CT_EXPECT_EQ(dUnaryCons, abs(doubleDataArray[i]), dUnaryCons(DOUBLE_PLACEHOLDER_1));
+      }
+
+   //fsqrt
+   testCaseNum = sizeof(floatDataArray) / sizeof(floatDataArray[0]);
+   for (uint32_t i = 0; i < testCaseNum; ++i)
+      {
+      union
+         {
+         float    f;
+         uint32_t ui32;
+         } gold, result;
+      gold.f = sqrt(floatDataArray[i]);
+      result.f = _fSqrt(floatDataArray[i]);
+      OMR_CT_EXPECT_EQ(_fSqrt, gold.ui32, result.ui32);
+      sprintf(resolvedMethodName, "fSqrtConst%d", i + 1);
+      compileOpCodeMethod(fUnaryCons, 
+            _numberOfUnaryArgs, TR::fsqrt, resolvedMethodName, _argTypesUnaryFloat, TR::Float, rc, 2, 1, &floatDataArray[i]);
+      gold.f = sqrt(floatDataArray[i]);
+      result.f = fUnaryCons(FLOAT_PLACEHOLDER_1);
+      OMR_CT_EXPECT_EQ(fUnaryCons, gold.ui32, result.ui32);
+      }
+
+   //dsqrt
+   testCaseNum = sizeof(doubleDataArray) / sizeof(doubleDataArray[0]);
+   for (uint32_t i = 0; i < testCaseNum; ++i)
+      {
+      union
+         {
+         double   d;
+         uint64_t ui64;
+         } gold, result;
+      gold.d = sqrt(doubleDataArray[i]);
+      result.d = _dSqrt(doubleDataArray[i]);
+      OMR_CT_EXPECT_EQ(_dSqrt, gold.ui64, result.ui64);
+      sprintf(resolvedMethodName, "dSqrtConst%d", i + 1);
+      compileOpCodeMethod(dUnaryCons, 
+            _numberOfUnaryArgs, TR::dsqrt, resolvedMethodName, _argTypesUnaryDouble, TR::Double, rc, 2, 1, &doubleDataArray[i]);
+      gold.d = sqrt(doubleDataArray[i]);
+      result.d = dUnaryCons(DOUBLE_PLACEHOLDER_1);
+      OMR_CT_EXPECT_EQ(dUnaryCons, gold.ui64, result.ui64);
       }
 
    //lReturn
@@ -4734,9 +4774,7 @@ X86OpCodesTest::invokeDirectCallTests()
       OMR_CT_EXPECT_EQ(_iCall, intDataArray[i], _iCall(intDataArray[i]));
       OMR_CT_EXPECT_DOUBLE_EQ(_dCall, doubleDataArray[i], _dCall(doubleDataArray[i]));
       OMR_CT_EXPECT_FLOAT_EQ(_fCall, floatDataArray[i], _fCall(floatDataArray[i]));
-#if defined(TR_TARGET_64BIT)
       OMR_CT_EXPECT_EQ(_lCall, longDataArray[i], _lCall(longDataArray[i]));
-#endif
       }
    }
 

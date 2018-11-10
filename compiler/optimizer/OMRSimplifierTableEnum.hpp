@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -37,6 +37,13 @@
    directLoadSimplifier,    // TR::bload
    directLoadSimplifier,    // TR::sload
    directLoadSimplifier,    // TR::lload
+   directLoadSimplifier,    // TR::irdbar
+   directLoadSimplifier,    // TR::frdbar
+   directLoadSimplifier,    // TR::drdbar
+   directLoadSimplifier,    // TR::ardbar
+   directLoadSimplifier,    // TR::brdbar
+   directLoadSimplifier,    // TR::srdbar
+   directLoadSimplifier,    // TR::lrdbar
    indirectLoadSimplifier,  // TR::iloadi
    indirectLoadSimplifier,  // TR::floadi
    indirectLoadSimplifier,  // TR::dloadi
@@ -44,22 +51,41 @@
    indirectLoadSimplifier,  // TR::bloadi
    indirectLoadSimplifier,  // TR::sloadi
    indirectLoadSimplifier,  // TR::lloadi
+   indirectLoadSimplifier,  // TR::irdbari
+   indirectLoadSimplifier,  // TR::frdbari
+   indirectLoadSimplifier,  // TR::drdbari
+   indirectLoadSimplifier,  // TR::ardbari
+   indirectLoadSimplifier,  // TR::brdbari
+   indirectLoadSimplifier,  // TR::srdbari
+   indirectLoadSimplifier,  // TR::lrdbari
    directStoreSimplifier,   // TR::istore
    lstoreSimplifier,        // TR::lstore
    dftSimplifier,           // TR::fstore
    dftSimplifier,           // TR::dstore
    astoreSimplifier,        // TR::astore
-   dftSimplifier,           // TR::wrtbar
    dftSimplifier,           // TR::bstore
    dftSimplifier,           // TR::sstore
+   directStoreSimplifier,   // TR::iwrtbar
+   lstoreSimplifier,        // TR::lwrtbar
+   dftSimplifier,           // TR::fwrtbar
+   dftSimplifier,           // TR::dwrtbar
+   dftSimplifier,           // TR::awrtbar
+   dftSimplifier,           // TR::bwrtbar
+   dftSimplifier,           // TR::swrtbar
    indirectStoreSimplifier, // TR::lstorei
    indirectStoreSimplifier, // TR::fstorei
    indirectStoreSimplifier, // TR::dstorei
    indirectStoreSimplifier, // TR::astorei
-   indirectStoreSimplifier, // TR::wrtbari
    indirectStoreSimplifier, // TR::bstorei
    indirectStoreSimplifier, // TR::sstorei
    indirectStoreSimplifier, // TR::istorei
+   indirectStoreSimplifier, // TR::lwrtbari
+   indirectStoreSimplifier, // TR::fwrtbari
+   indirectStoreSimplifier, // TR::dwrtbari
+   indirectStoreSimplifier, // TR::awrtbari
+   indirectStoreSimplifier, // TR::bwrtbari
+   indirectStoreSimplifier, // TR::swrtbari
+   indirectStoreSimplifier, // TR::iwrtbari
    gotoSimplifier,          // TR::Goto
    dftSimplifier,           // TR::ireturn
    dftSimplifier,           // TR::lreturn
@@ -117,11 +143,10 @@
    bnegSimplifier,          // TR::bneg
    snegSimplifier,          // TR::sneg
 
-
-   iabsSimplifier,           // TR::iabs
-   labsSimplifier,           // TR::labs
-   dftSimplifier,            // TR::fabs   todo
-   dftSimplifier,            // TR::dabs   todo
+   ilfdabsSimplifier,       // TR::iabs
+   ilfdabsSimplifier,       // TR::labs
+   ilfdabsSimplifier,       // TR::fabs
+   ilfdabsSimplifier,       // TR::dabs
 
    ishlSimplifier,          // TR::ishl
    lshlSimplifier,          // TR::lshl
@@ -727,8 +752,8 @@
    dftSimplifier,           // TR::fnint
    dftSimplifier,           // TR::dnint
 
-   dftSimplifier,           // TR::fsqrt
-   dftSimplifier,           // TR::dsqrt
+   fsqrtSimplifier,         // TR::fsqrt
+   dsqrtSimplifier,         // TR::dsqrt
 
    dftSimplifier,           // TR::getstack
    dftSimplifier,           // TR::dealloca

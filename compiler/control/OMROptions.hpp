@@ -205,7 +205,7 @@ enum TR_CompilationOptions
    TR_DisableAsyncCompilation             = 0x00004000 + 3,
    TR_DisableCompilationThread            = 0x00008000 + 3,
    TR_EnableCompilationThread             = 0x00010000 + 3,
-   TR_Enable390AccessRegs                 = 0x00020000 + 3,
+   // Available                           = 0x00020000 + 3,
    TR_SoftFailOnAssume                    = 0x00040000 + 3,
    TR_DisableNewBlockOrdering             = 0x00080000 + 3,
    TR_DisableZNext                        = 0x00100000 + 3,
@@ -234,7 +234,7 @@ enum TR_CompilationOptions
    TR_TraceMarkingOfHotFields             = 0x00001000 + 4,
    TR_EnableAnnotations                   = 0x00002000 + 4, // change to disable when on by default
    TR_UnresolvedAreNotColdAtCold          = 0x00004000 + 4, // cold block marker marks unresolved blocks as cold at hotness cold or less
-   // AVAILABLE                           = 0x00008000 + 4,
+   TR_UseSymbolValidationManager          = 0x00008000 + 4,
    TR_EnablePIDExtension                  = 0x00010000 + 4,
    TR_GenerateCompleteInlineRanges        = 0x00020000 + 4,
    TR_DisableInliningOfNatives            = 0x00040000 + 4,
@@ -264,7 +264,7 @@ enum TR_CompilationOptions
    TR_enableProfiledDevirtualization      = 0x00001000 + 5,
    TR_EnableValueTracing                  = 0x00002000 + 5, // run-time value tracing
    TR_IgnoreAssert                        = 0x00004000 + 5, // ignore failing assertions
-   // AVAILABLE                           = 0x00008000 + 5,
+   TR_EnableSymbolValidationManager       = 0x00008000 + 5,
    TR_EnableNewAllocationProfiling        = 0x00010000 + 5, // enable tracing of fields load and store
    TR_IgnoreIEEERestrictions              = 0x00020000 + 5, // enable more aggressive, nonIEEE compliant xforms
    TR_ProcessHugeMethods                  = 0x00040000 + 5, // allow processing of huge methods
@@ -316,7 +316,7 @@ enum TR_CompilationOptions
    TR_DisableCodeCacheSnippets            = 0x00000020 + 7,
    TR_EnableReassociation                 = 0x00000040 + 7,
    TR_DisableSSOpts                       = 0x00000080 + 7,
-   //Available                            = 0x00000100 + 7,
+   TR_EnableFieldWatch                    = 0x00000100 + 7,
    TR_DisableDelayRelocationForAOTCompilations   = 0x00000200 + 7,
    TR_DisableRecompDueToInlinedMethodRedefinition = 0x00000400 + 7,
    TR_DisableLoopReplicatorColdSideEntryCheck = 0x00000800 + 7,
@@ -456,13 +456,13 @@ enum TR_CompilationOptions
    TR_DisablePrexistenceDuringGracePeriod     = 0x02000000 + 11,
    // Available                               = 0x04000000 + 11,
    TR_DisableInlineWriteBarriersRT            = 0x08000000 + 11, // RTJ
-   // Available                               = 0x10000000 + 11, // WCODE
+   // Available                               = 0x10000000 + 11,
    TR_DisableNewInliningInfrastructure        = 0x20000000 + 11,
-   // Available                               = 0x40000000 + 11, // WCODE
-   // Avaiable                                = 0x80000000 + 11,
+   // Available                               = 0x40000000 + 11,
+   // Available                               = 0x80000000 + 11,
 
    // Option word 12
-   TR_TraceShrinkWrapping                     = 0x00000020 + 12,
+   // Available                               = 0x00000020 + 12,
    TR_DisableZ13LoadAndMask                   = 0x00000040 + 12,
    TR_DisablePartialInlining                  = 0x00000080 + 12,
    TR_AssumeStartupPhaseUntilToldNotTo        = 0x00000100 + 12,
@@ -567,7 +567,7 @@ enum TR_CompilationOptions
    TR_DisableOSRLiveRangeAnalysis                     = 0x00200000 + 15,
    // Available                                       = 0x00400000 + 15,
    // Available                                       = 0x00800000 + 15,
-   //                                                 = 0x01000000 + 15,   AVAILABLE
+   // Available                                       = 0x01000000 + 15,
    // Available                                       = 0x02000000 + 15,
    TR_DisableDowngradeToColdOnVMPhaseStartup          = 0x04000000 + 15,
    TR_DontDowngradeToCold                             = 0x08000000 + 15,
@@ -587,7 +587,7 @@ enum TR_CompilationOptions
    TR_DisableEmptyPreHeaderCheck                      = 0x00001000 + 16,
    TR_SinkOnlyCCStores                                = 0x00002000 + 16,
    TR_EnableDeterministicOrientedCompilation          = 0x00004000 + 16,
-   TR_DisableShrinkWrapping                           = 0x00008000 + 16,
+   // Available                                       = 0x00008000 + 16,
    TR_EnableAOTStats                                  = 0x00010000 + 16,
    // Available                                       = 0x00020000 + 16,
    TR_DisableSynchronizedFieldLoad                    = 0x00040000 + 16,
@@ -647,10 +647,10 @@ enum TR_CompilationOptions
    // Available                                       = 0x00008000 + 18,
    // Available                                       = 0x00010000 + 18,
    // Available                                       = 0x00040000 + 18,
-   TR_DisableProloguePushes                           = 0x00080000 + 18, // Use stores instead of pushes in x86 prologues
-   TR_EnableOutlinedPrologues                         = 0x00100000 + 18, // Call a helper to do some of the prologue logic
+   // Available                                       = 0x00080000 + 18,
+   // Available                                       = 0x00100000 + 18,
    TR_DisableOutlinedNew                              = 0x00200000 + 18, // Expand object allocation logic inline instead of using a fast jit helper
-   // Available                                       = 0x00400000 + 18, // enable register(*) support in PLX
+   // Available                                       = 0x00400000 + 18,
    // Available                                       = 0x00800000 + 18,
    // Available                                       = 0x01000000 + 18,
    TR_TraceOpts                                       = 0x02000000 + 18, // list optimization group in its dynamic order
@@ -664,24 +664,24 @@ enum TR_CompilationOptions
    // Option word 19
    // Available                                       = 0x00000020 + 19,
    TR_NoClassGC                                       = 0x00000040 + 19,  // -Xnoclassgc
-   // Available                                       = 0x00000080 + 19,  //disable assign unique index for defs on entry
+   // Available                                       = 0x00000080 + 19,
    // Available                                       = 0x00000400 + 19,
    // Available                                       = 0x00000800 + 19,
    // Available                                       = 0x00001000 + 19,
    // Available                                       = 0x00002000 + 19,
-   // Available                                       = 0x00004000 + 19,  //enable pretty printing of IL trees
+   // Available                                       = 0x00004000 + 19,
    TR_Server                                          = 0x00008000 + 19,  // -server
    // Available                                       = 0x00010000 + 19,
    // Available                                       = 0x00020000 + 19,
    // Available                                       = 0x00040000 + 19,
    // Available                                       = 0x00080000 + 19,
    // Available                                       = 0x00100000 + 19,
-   // Available                                       = 0x00200000 + 19,  // only propagate const nodes and not conversions of const nodes in VariableInitializerPropagation
+   // Available                                       = 0x00200000 + 19,
    // Available                                       = 0x00400000 + 19,
    // Available                                       = 0x00800000 + 19,
    TR_EnableRATPurging                                = 0x01000000 + 19,  // enable periodic RAT table purging
    // Available                                       = 0x02000000 + 19,
-   // Available                                       = 0x04000000 + 19,  // disable refining exit use
+   // Available                                       = 0x04000000 + 19,
    // Available                                       = 0x08000000 + 19,
    TR_UpgradeBootstrapAtWarm                          = 0x10000000 + 19,
    TR_ForceLargeRAMoves                               = 0x20000000 + 19,  // force 64 register moves in RA
@@ -694,8 +694,8 @@ enum TR_CompilationOptions
    TR_PrivatizeOverlaps                               = 0x00000080 + 20,  // avoid overlapping BCD stores
    // Available                                       = 0x00000100 + 20,
    TR_DisableKnownObjectTable                         = 0x00000200 + 20,
-   // Available                                       = 0x00000400 + 20,  // enable support for packed objects/arrays
-   // Available                                       = 0x00000800 + 20,  // disable passing nested autos as parameters
+   // Available                                       = 0x00000400 + 20,
+   // Available                                       = 0x00000800 + 20,
    TR_DisableAOTResolveDiffCLMethods                  = 0x00001000 + 20,  // disable passing nested autos as parameters
    TR_DisableMethodHandleInvokeOpts                   = 0x00002000 + 20,  // JSR292
    TR_InhibitRecompilation                            = 0x00004000 + 20,
@@ -851,7 +851,7 @@ enum TR_CompilationOptions
    // Available                                       = 0x08000000 + 25,
    // Available                                       = 0x10000000 + 25,
    // Available                                       = 0x20000000 + 25,
-   // Available                                       = 0x40000000 + 25, //MGMSTARTHERE
+   // Available                                       = 0x40000000 + 25,
    TR_DisableSIMDArrayTranslate                       = 0x80000000 + 25,
 
    //Option word 26
@@ -965,7 +965,7 @@ enum TR_CompilationOptions
    TR_DontRIUpgradeAOTWarmMethods                     = 0x20000000 + 29,
    TR_UseRIOnlyForLargeQSZ                            = 0x20000000 + 29,
    TR_EnableAggressiveLiveness                        = 0x40000000 + 29,
-   // Available                                       = 0x80000000 + 29,
+   TR_DisableGuardedStaticFinalFieldFolding           = 0x80000000 + 29,
 
 
    // Option word 30

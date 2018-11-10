@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2016 IBM Corp. and others
+ * Copyright (c) 2016, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -51,7 +51,7 @@ namespace TR { class TreeTop; }
 namespace TR { class IlType; }
 namespace TR { class TypeDictionary; }
 
-// This macro reduces dependencies for this header file to be used with libjit.a
+// This macro reduces dependencies for this header file
 #ifndef TR_ALLOC
 #define TR_ALLOC(x)
 #endif
@@ -128,7 +128,7 @@ public:
    void                           gotoBlock(TR::Block *block);
    void                           branchToBlock(int32_t num) { gotoBlock(_blocks[num]); }
    void                           generateFallThrough();
-   TR::Node                     * createWithoutSymRef(TR::ILOpCodes opCode, uint16_t numArgs, ...);
+   TR::Node                     * createWithoutSymRef(TR::ILOpCodes opCode, uint32_t numArgs, ...);
 
 private:
    void                           validateTargetBlock();
@@ -153,6 +153,7 @@ protected:
    TR::Block                   ** _blocks;
    bool                           _blocksAllocatedUpFront;
 
+public:
    TR::IlType                   * NoType;
    TR::IlType                   * Int8;
    TR::IlType                   * Int16;

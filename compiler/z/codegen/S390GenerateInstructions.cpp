@@ -621,6 +621,13 @@ generateRRDInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op, TR::
    }
 
 TR::Instruction *
+generateRRFInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op, TR::Node * n, uint8_t mask, bool isMask3,
+                       TR::Instruction * preced)
+   {
+   return new (INSN_HEAP) TR::S390RRFInstruction(op, n, mask, isMask3, cg);
+   }
+
+TR::Instruction *
 generateRRFInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op, TR::Node * n, TR::Register * treg, TR::Register * sreg,
                        TR::Register * sreg2, TR::Instruction * preced)
    {
@@ -933,7 +940,7 @@ generateRXFInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op, TR::
    if (preced)
       instr = new (INSN_HEAP) TR::S390RXFInstruction(op, n, treg, sreg, mf, preced, cg);
    else
-   	  instr = new (INSN_HEAP) TR::S390RXFInstruction(op, n, treg, sreg, mf, cg);
+           instr = new (INSN_HEAP) TR::S390RXFInstruction(op, n, treg, sreg, mf, cg);
 
    return instr;
    }
@@ -1355,7 +1362,7 @@ generateS390MemInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op, 
    if (preced)
       instr = new (INSN_HEAP) TR::S390MemInstruction(op, n, constantField, memAccessMode, mf, preced, cg);
    else
-   	  instr = new (INSN_HEAP) TR::S390MemInstruction(op, n, constantField, memAccessMode, mf, cg);
+           instr = new (INSN_HEAP) TR::S390MemInstruction(op, n, constantField, memAccessMode, mf, cg);
 
    return instr;
    }
@@ -1435,7 +1442,7 @@ generateSS1Instruction(TR::CodeGenerator * cg,
    if (preced)
       instr = new (INSN_HEAP) TR::S390SS1Instruction(op, n, len, mf1, mf2, cond, preced, cg);
    else
-   	  instr = new (INSN_HEAP) TR::S390SS1Instruction(op, n, len, mf1, mf2, cond, cg);
+           instr = new (INSN_HEAP) TR::S390SS1Instruction(op, n, len, mf1, mf2, cond, cg);
 
    return instr;
    }
@@ -2179,7 +2186,7 @@ generateS390PseudoInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic o
       instr=new (INSN_HEAP) TR::S390PseudoInstruction(op, n, fenceNode, cond, preced, cg);
       }
    else
-   	  {
+           {
       instr= new (INSN_HEAP) TR::S390PseudoInstruction(op, n, fenceNode, cond, cg);
       }
 
@@ -2299,7 +2306,7 @@ generateDirectCall(TR::CodeGenerator * cg, TR::Node * callNode, bool myself, TR:
 
    // Direct calls on 64-bit systems may require a trampoline. As the trampoline will kill the EP register we should
    // always see the EP register defined in the post-dependencies of such calls.
-#if defined(TR_TARGET_64BIT) 
+#if defined(TR_TARGET_64BIT)
 #if defined(J9ZOS390)
    if (comp->getOption(TR_EnableRMODE64))
 #endif
@@ -2327,8 +2334,6 @@ generateDirectCall(TR::CodeGenerator * cg, TR::Node * callNode, bool myself, TR:
 
    AOTcgDiag2(comp, "\nimm=%x isHelper=%x\n", imm, isHelper);
 
-   TR::S390TargetAddressSnippet * targetsnippet;
-
    // Since N3 generate TR::InstOpCode::BRASL -- only need 1 instruction, and no worry
    // about the displacement
    // Calling myself
@@ -2350,11 +2355,11 @@ generateDirectCall(TR::CodeGenerator * cg, TR::Node * callNode, bool myself, TR:
             {
             static int minFR = (feGetEnv("TR_minFR") != NULL) ? atoi(feGetEnv("TR_minFR")) : 0;
             static int maxFR = (feGetEnv("TR_maxFR") != NULL) ? atoi(feGetEnv("TR_maxFR")) : 0;
-             
+
             int32_t frequency = comp->getCurrentBlock()->getFrequency();
             if (frequency > 6 && frequency >= minFR && (maxFR == 0 || frequency > maxFR))
                {
-               TR::LabelSymbol * callLabel = TR::LabelSymbol::create(cg->trHeapMemory(), cg);
+               TR::LabelSymbol * callLabel = generateLabelSymbol(cg);
                TR::Instruction * instr = generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, callNode, callLabel);
                cg->createBranchPreloadCallData(callLabel, callSymRef, instr);
                }
@@ -2395,7 +2400,7 @@ generateDirectCall(TR::CodeGenerator * cg, TR::Node * callNode, bool myself, TR:
          }
 #endif
 
-      }  
+      }
    }
 
 TR::Instruction* generateDataConstantInstruction(TR::CodeGenerator* cg, TR::InstOpCode::Mnemonic op, TR::Node* node, uint32_t data, TR::Instruction* preced)
@@ -2435,7 +2440,7 @@ generateSnippetCall(TR::CodeGenerator * cg, TR::Node * callNode, TR::Snippet * s
       // Need to put the preDeps on the label, and not on the BRASL
       // because we use virtual reg from preDeps after the BRASL
       // In particular, we use the this pointer reg, which  has a preDep to GPR1
-      generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, callNode, TR::LabelSymbol::create(INSN_HEAP, cg), preDeps);
+      generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, callNode, generateLabelSymbol(cg), preDeps);
 
       callInstr = new (INSN_HEAP) TR::S390RILInstruction(TR::InstOpCode::BRASL, callNode, killRegRA, s,
          postDeps, callSymRef, cg);
@@ -2448,7 +2453,6 @@ generateSnippetCall(TR::CodeGenerator * cg, TR::Node * callNode, TR::Snippet * s
       callInstr = new (INSN_HEAP) TR::S390RILInstruction(TR::InstOpCode::BRASL, callNode, RegRA, s, cond, callSymRef, cg);
       }
 
-   TR_ASSERT( s->isCallSnippet(), "targetSnippet is NOT CallSnippet ");
    ((TR::S390CallSnippet *) s)->setBranchInstruction(callInstr);
    return callInstr;
    }
@@ -2532,7 +2536,7 @@ generateRegLitRefInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op
          {
          TR_OpaqueClassBlock* unloadableClass = NULL;
          bool isMethod = node->getOpCodeValue() == TR::loadaddr ? false : node->isMethodPointerConstant();
-	 if (isMethod)
+       if (isMethod)
             {
             unloadableClass = (TR_OpaqueClassBlock *) cg->fe()->createResolvedMethod(cg->trMemory(), (TR_OpaqueMethodBlock *)(intptr_t)imm,
                comp->getCurrentMethod())->classOfMethod();
@@ -2675,7 +2679,11 @@ generateRegLitRefInstruction(TR::CodeGenerator * cg, TR::InstOpCode::Mnemonic op
    TR::S390RILInstruction *LGRLinst = 0;
    TR::Compilation *comp = cg->comp();
 
-   if (TR::InstOpCode(op).getInstructionFormat() == RIL_FORMAT)
+   auto instructionFormat = TR::InstOpCode(op).getInstructionFormat();
+
+   if (instructionFormat == RILa_FORMAT ||
+       instructionFormat == RILb_FORMAT ||
+       instructionFormat == RILc_FORMAT)
       {
       TR::S390ConstantDataSnippet * constDataSnip = cg->create64BitLiteralPoolSnippet(TR::Int64, imm);
 
@@ -3123,70 +3131,6 @@ generateSerializationInstruction(TR::CodeGenerator *cg, TR::Node *node, TR::Inst
    return instr;
    }
 
-// detecting case of SS instructions
-// with AR base register
-// with the same GPR, but different AR registers
-// For example:
-// MVC      0(5,GPR_1968:AR_1920(GPR_1968:AR_1920)), 0(GPR_1968:AR_1888(GPR_1968:AR_1888))
-//
-// also need to take care of the reverse, i.e different GPR's but the same AR's, i.e:
-// MVC      0(1,GPR64_8472:AR_8455(GPR64_8472:AR_8455)), 0(GPR64_8450:AR_8455(GPR64_8450:AR_8455))
-
-
-TR::Instruction *
-splitBaseRegisterIfNeeded(TR::MemoryReference *mf1, TR::MemoryReference *mf2, TR::CodeGenerator *cg, TR::Node *node, TR::Instruction *preced)
-   {
-   TR::Instruction * instr = preced;
-
-   if (mf1) return instr;
-   if (mf2) return instr;
-
-   if (!mf1->getBaseRegister()->isArGprPair())  return instr;
-   if (!mf2->getBaseRegister()->isArGprPair())  return instr;
-
-   if (mf1->getBaseRegister()->getGPRofArGprPair() == mf2->getBaseRegister()->getGPRofArGprPair())
-      {
-      // same GPR's and same AR's - all good
-      if (mf1->getBaseRegister()->getARofArGprPair() == mf2->getBaseRegister()->getARofArGprPair()) return instr;
-
-      TR::Register * baseGPRmf2 = mf2->getBaseRegister()->getGPRofArGprPair();
-      TR::Register * baseARmf2 = mf2->getBaseRegister()->getARofArGprPair();
-
-      TR::Register * tempReg = cg->allocateRegister(baseGPRmf2->getKind());
-
-      TR::InstOpCode::Mnemonic copyOp = TR::InstOpCode::LR;
-
-      if (baseGPRmf2->getKind() == TR_GPR64) copyOp = TR::InstOpCode::LGR;
-
-      instr = generateRRInstruction(cg, copyOp, node, tempReg, baseGPRmf2, preced);
-
-      TR::RegisterPair *regpair = cg->allocateArGprPair(baseARmf2, tempReg);
-      mf2->setBaseRegister(regpair, cg);
-      cg->stopUsingRegister(regpair);
-      cg->stopUsingRegister(tempReg);
-    }
-   else
-      {
-      // different GPR's and different AR's - all good
-      if (mf1->getBaseRegister()->getARofArGprPair() != mf2->getBaseRegister()->getARofArGprPair()) return instr;
-
-      TR::Register * baseGPRmf2 = mf2->getBaseRegister()->getGPRofArGprPair();
-      TR::Register * baseARmf2 = mf2->getBaseRegister()->getARofArGprPair();
-
-      TR::Register * tempReg = cg->allocateRegister(baseARmf2->getKind());
-
-      instr = generateRRInstruction(cg, TR::InstOpCode::CPYA, node, tempReg, baseARmf2, preced);
-
-      TR::RegisterPair *regpair = cg->allocateArGprPair(tempReg, baseGPRmf2);
-      mf2->setBaseRegister(regpair, cg);
-      cg->stopUsingRegister(regpair);
-      cg->stopUsingRegister(tempReg);
-      }
-
-   return instr;
-
-   }
-
 /**
  * Generate Highword instructions using extended-mnemonic syntax
  * for example:
@@ -3515,7 +3459,7 @@ generateS390DAAExceptionRestoreSnippet(TR::CodeGenerator* cg,
       TR::LabelSymbol * handlerLabel = cg->getCurrentBCDCHKHandlerLabel();
       TR_ASSERT(handlerLabel, "BCDCHK node handler label should not be null");
 
-      TR::LabelSymbol* restoreGPR7SnippetHandler = TR::LabelSymbol::create(INSN_HEAP,cg);
+      TR::LabelSymbol* restoreGPR7SnippetHandler = generateLabelSymbol(cg);
       TR::S390RestoreGPR7Snippet * restoreSnippet =
                      new (INSN_HEAP) TR::S390RestoreGPR7Snippet(cg, n, restoreGPR7SnippetHandler, handlerLabel);
       cg->addSnippet(restoreSnippet);

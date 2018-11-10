@@ -336,68 +336,84 @@ namespace Z
 */
 #define   PSEUDO        0
 #define   DC_FORMAT     1
-#define   E_FORMAT      2   //83180:  This define is busting a pragma report(level,E) in Node.hpp
-#define   RR_FORMAT     3
-#define   RRE_FORMAT    4
-#define   RRF_FORMAT    5
-#define   RRF2_FORMAT   6
-#define   RRF3_FORMAT   7
-#define   RX_FORMAT     8
-#define   RS_FORMAT     9
-#define   RSI_FORMAT    10
-#define   RI_FORMAT     11
-#define   SI_FORMAT     12
-#define   S_FORMAT      13
-#define   RXE_FORMAT    14
-#define   RXF_FORMAT    15
-#define   SS_FORMAT     16
-#define   SSE_FORMAT    17
-#define   SS1_FORMAT    18
-#define   RIL_FORMAT    19
-#define   RSE_FORMAT    20
-#define   RSL_FORMAT    21
-#define   RIE_FORMAT    22
-#define   RXY_FORMAT    23
-#define   RSY_FORMAT    24
-#define   SIY_FORMAT    25
-#define   RRR_FORMAT    26
-#define   RRS_FORMAT    27
-#define   RIS_FORMAT    28
-#define   SIL_FORMAT    29
-#define   I_FORMAT      30
-#define   SSF_FORMAT    31
-#define   SMI_FORMAT    32
-#define   MII_FORMAT    33
-#define   IE_FORMAT     34
-
-#define   VRIa_FORMAT   35 // VRI denotes a vector register-and-immediate operation and an extended op-code field.
-#define   VRIb_FORMAT   36
-#define   VRIc_FORMAT   37
-#define   VRId_FORMAT   38
-#define   VRIe_FORMAT   39
-#define   VRIf_FORMAT   40
-#define   VRIg_FORMAT   41
-#define   VRIh_FORMAT   42
-#define   VRIi_FORMAT   43
-
-#define   VRRa_FORMAT   44 // VRR denotes a vector register-and-register operation and an extended op-code field.
-#define   VRRb_FORMAT   45
-#define   VRRc_FORMAT   46
-#define   VRRd_FORMAT   47
-#define   VRRe_FORMAT   48
-#define   VRRf_FORMAT   49
-#define   VRRg_FORMAT   50
-#define   VRRh_FORMAT   51
-#define   VRRi_FORMAT   52
-
-#define   VRSa_FORMAT   53 // VRS denotes a vector register-and-storage operation and an extended op-code field.
-#define   VRSb_FORMAT   54
-#define   VRSc_FORMAT   55
-#define   VRSd_FORMAT   56
-
-#define   VRV_FORMAT    57 // VRV denotes a vector register-and-vector-index-storage operation and an extended op-code field.
-#define   VRX_FORMAT    58 // VRX denotes a vector register-and-index-storage operation and an extended op-code field
-#define   VSI_FORMAT    59
+#define   E_FORMAT      2
+#define   I_FORMAT      3
+#define   IE_FORMAT     4
+#define   MII_FORMAT    5
+#define   RIa_FORMAT    7
+#define   RIb_FORMAT    8
+#define   RIc_FORMAT    9
+#define   RIEa_FORMAT   11
+#define   RIEb_FORMAT   12
+#define   RIEc_FORMAT   13
+#define   RIEd_FORMAT   14
+#define   RIEe_FORMAT   15
+#define   RIEf_FORMAT   16
+#define   RIEg_FORMAT   17
+#define   RILa_FORMAT   19
+#define   RILb_FORMAT   20
+#define   RILc_FORMAT   21
+#define   RIS_FORMAT    22
+#define   RR_FORMAT     23
+#define   RRD_FORMAT    24
+#define   RRE_FORMAT    25
+#define   RRFa_FORMAT   29
+#define   RRFb_FORMAT   30
+#define   RRFc_FORMAT   31
+#define   RRFd_FORMAT   32
+#define   RRFe_FORMAT   33
+#define   RRS_FORMAT    34
+#define   RSa_FORMAT    36
+#define   RSb_FORMAT    37
+#define   RSI_FORMAT    38
+#define   RSLa_FORMAT   40 
+#define   RSLb_FORMAT   41
+#define   RSYa_FORMAT   43
+#define   RSYb_FORMAT   44
+#define   RXa_FORMAT    46
+#define   RXb_FORMAT    47
+#define   RXE_FORMAT    48
+#define   RXF_FORMAT    49
+#define   RXYa_FORMAT   51
+#define   RXYb_FORMAT   52
+#define   S_FORMAT      53
+#define   SI_FORMAT     54
+#define   SIL_FORMAT    55
+#define   SIY_FORMAT    56
+#define   SMI_FORMAT    57
+#define   SSa_FORMAT    60
+#define   SSb_FORMAT    61
+#define   SSc_FORMAT    62
+#define   SSd_FORMAT    63
+#define   SSe_FORMAT    64
+#define   SSf_FORMAT    65
+#define   SSE_FORMAT    66
+#define   SSF_FORMAT    67
+#define   VRIa_FORMAT   68
+#define   VRIb_FORMAT   69
+#define   VRIc_FORMAT   70
+#define   VRId_FORMAT   71
+#define   VRIe_FORMAT   72
+#define   VRIf_FORMAT   73
+#define   VRIg_FORMAT   74
+#define   VRIh_FORMAT   75
+#define   VRIi_FORMAT   76
+#define   VRRa_FORMAT   77
+#define   VRRb_FORMAT   78
+#define   VRRc_FORMAT   79
+#define   VRRd_FORMAT   80
+#define   VRRe_FORMAT   81
+#define   VRRf_FORMAT   82
+#define   VRRg_FORMAT   83
+#define   VRRh_FORMAT   84
+#define   VRRi_FORMAT   85
+#define   VRSa_FORMAT   86
+#define   VRSb_FORMAT   87
+#define   VRSc_FORMAT   88
+#define   VRSd_FORMAT   89
+#define   VRV_FORMAT    90
+#define   VRX_FORMAT    91
+#define   VSI_FORMAT    92
 
 /* Instruction Properties (One hot encoding) */
 #define S390OpProp_None                   static_cast<uint64_t>(0x0000000000000000ull)
@@ -434,11 +450,11 @@ namespace Z
 #define S390OpProp_SetsFPC                static_cast<uint64_t>(0x0000000040000000ull)
 // Available                              static_cast<uint64_t>(0x0000000080000000ull)
 #define S390OpProp_TargetHW               static_cast<uint64_t>(0x0000000100000000ull)
-#define S390OpProp_TargetLW               static_cast<uint64_t>(0x0000000200000000ull)
+// Available                              static_cast<uint64_t>(0x0000000200000000ull)
 #define S390OpProp_SrcHW                  static_cast<uint64_t>(0x0000000400000000ull)
-#define S390OpProp_SrcLW                  static_cast<uint64_t>(0x0000000800000000ull)
+// Available                              static_cast<uint64_t>(0x0000000800000000ull)
 #define S390OpProp_Src2HW                 static_cast<uint64_t>(0x0000001000000000ull)
-#define S390OpProp_Src2LW                 static_cast<uint64_t>(0x0000002000000000ull)
+// Available                              static_cast<uint64_t>(0x0000002000000000ull)
 #define S390OpProp_HasTwoMemoryReferences static_cast<uint64_t>(0x0000004000000000ull)
 #define S390OpProp_ImplicitlyUsesGPR0     static_cast<uint64_t>(0x0000008000000000ull)
 #define S390OpProp_ImplicitlyUsesGPR1     static_cast<uint64_t>(0x0000010000000000ull)
@@ -625,7 +641,6 @@ class InstOpCode: public OMR::InstOpCode
    uint32_t isAdmin();
    uint32_t isHighWordInstruction();
    uint64_t isOperandHW(uint32_t i);
-   uint64_t isOperandLW(uint32_t i);
    uint64_t setsOperand(uint32_t opNum);
 
    uint64_t singleFPOp() {return metadata[_mnemonic].properties & S390OpProp_SingleFP;}
@@ -640,12 +655,6 @@ class InstOpCode: public OMR::InstOpCode
    uint64_t isCall() {return metadata[_mnemonic].properties & S390OpProp_IsCall;}
    uint64_t isCompare() {return metadata[_mnemonic].properties & S390OpProp_IsCompare;}
    uint64_t isExtendedImmediate() {return metadata[_mnemonic].properties & S390OpProp_IsExtendedImmediate;}
-   uint64_t isTargetHW() {return metadata[_mnemonic].properties & S390OpProp_TargetHW;}
-   uint64_t isTargetLW() {return metadata[_mnemonic].properties & S390OpProp_TargetLW;}
-   uint64_t isSrcHW() {return metadata[_mnemonic].properties & S390OpProp_SrcHW;}
-   uint64_t isSrcLW() {return metadata[_mnemonic].properties & S390OpProp_SrcLW;}
-   uint64_t isSrc2HW() {return metadata[_mnemonic].properties & S390OpProp_Src2HW;}
-   uint64_t isSrc2LW() {return metadata[_mnemonic].properties & S390OpProp_Src2LW;}
    uint64_t usesTarget() {return metadata[_mnemonic].properties & S390OpProp_UsesTarget;}
 
    uint64_t is64bit() {return metadata[_mnemonic].properties & S390OpProp_Is64Bit;}
@@ -691,7 +700,6 @@ class InstOpCode: public OMR::InstOpCode
    uint64_t setsFPC() {return metadata[_mnemonic].properties & S390OpProp_SetsFPC; }
 
    uint64_t isLabel() {return _mnemonic == LABEL;}
-   uint64_t isBeginBlock() {return _mnemonic == LABEL;}
 
    uint64_t usesM3() {return metadata[_mnemonic].properties & S390OpProp_UsesM3;}
    uint64_t usesM4() {return metadata[_mnemonic].properties & S390OpProp_UsesM4;}
@@ -761,15 +769,14 @@ class InstOpCode: public OMR::InstOpCode
    static Mnemonic getXORRegOpCode();
    static Mnemonic getXORThreeRegOpCode();
    static Mnemonic getCmpTrapOpCode();
-   static Mnemonic getCmpWidenTrapOpCode();
    static Mnemonic getCmpImmOpCode();
    static Mnemonic getCmpImmTrapOpCode();
    static Mnemonic getCmpImmBranchRelOpCode();
    static Mnemonic getCmpLogicalTrapOpCode();
-   static Mnemonic getCmpLogicalWidenTrapOpCode();
    static Mnemonic getCmpLogicalImmTrapOpCode();
    static Mnemonic getCmpOpCode();
    static Mnemonic getCmpRegOpCode();
+   static Mnemonic getCmpRegAndBranchRelOpCode();
    static Mnemonic getCmpLogicalOpCode();
    static Mnemonic getCmpLogicalRegOpCode();
    static Mnemonic getCmpAndSwapOpCode();
@@ -777,6 +784,7 @@ class InstOpCode: public OMR::InstOpCode
    static Mnemonic getShiftLeftLogicalSingleOpCode();
    static Mnemonic getShiftRightLogicalSingleOpCode();
    static Mnemonic getAddHalfWordImmOpCode();
+   static Mnemonic getAddHalfWordImmDistinctOperandOpCode();
    static Mnemonic getAddLogicalOpCode();
    static Mnemonic getAddLogicalRegOpCode();
    static Mnemonic getBranchOnIndexHighOpCode();

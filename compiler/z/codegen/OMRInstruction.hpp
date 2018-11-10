@@ -125,12 +125,6 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
    bool isCCuseKnown() { return _flags.testAny(CCuseKnown); }
    void setCCuseKnown() {_flags.set(CCuseKnown);}
 
-   bool isStartInternalControlFlow(){ return _flags.testAny(StartInternalControlFlow); }
-   void setStartInternalControlFlow() {_flags.set(StartInternalControlFlow);}
-
-   bool isEndInternalControlFlow(){ return _flags.testAny(EndInternalControlFlow); }
-   void setEndInternalControlFlow() {_flags.set(EndInternalControlFlow);}
-
    // Region numbers start life as just the inline indexes
    // but are later extended by any optimization that duplicates
    // IL (e.g. loopCanonicalizer)
@@ -199,13 +193,10 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
    virtual bool isLabel()             { return _opcode.isLabel() > 0; }
    virtual bool isFloat()             { return _opcode.singleFPOp() > 0 || _opcode.doubleFPOp() > 0; }
    virtual bool isAdmin()             { return _opcode.isAdmin() > 0; }
-   virtual bool isBeginBlock()        { return _opcode.isBeginBlock() > 0; }
    virtual bool isDebugFence()        { return false; }
 
    virtual bool is4ByteLoad();
-   virtual bool isAsmGen();
    virtual bool isRet();
-   virtual bool isTailCall();
 
    virtual bool implicitlyUsesGPR0() { return _opcode.implicitlyUsesGPR0() > 0; }
    virtual bool implicitlyUsesGPR1() { return _opcode.implicitlyUsesGPR1() > 0; }
@@ -264,7 +255,6 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
    void setCCInfo();
    void readCCInfo();
    void clearCCInfo();
-   void addARDependencyCondition(TR::Register * virtAR, TR::Register * assignedGPR);
 
    const char *getName(TR_Debug * debug);
    bool isBreakPoint() {return (_index & BreakPoint) != 0;}
@@ -291,7 +281,7 @@ class OMR_EXTENSIBLE Instruction : public OMR::Instruction
       CCuseKnown                          = 0x0100, ///< Usage of CC set by current instruction is known.
       CCused                              = 0x0200, ///< CC set by current instruction is used by subsequent instructions.
       OutOfLineEX                         = 0x0400, ///< TR::InstOpCode::EX instruction references a ConstantInstructionSnippet object
-                                                    ///< or an SS_FORMAT instruction is the target of an TR::InstOpCode::EX instruction
+                                                    ///< or an SSx instruction is the target of an TR::InstOpCode::EX instruction
       ThrowsImplicitException             = 0x0800,
       ThrowsImplicitNullPointerException  = 0x1000,
       StartInternalControlFlow            = 0x2000,

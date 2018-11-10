@@ -81,7 +81,7 @@
    _targetRegSize(0), _sourceRegSize(0), _sourceMemSize(0), _targetMemSize(0), _sourceStart(-1), _targetStart(-1)
 
 OMR::Z::Instruction::Instruction(TR::CodeGenerator* cg, TR::InstOpCode::Mnemonic op, TR::Node* node)
-   : 
+   :
    OMR::Instruction(cg, op, node),
    CTOR_INITIALIZER_LIST
    {
@@ -91,7 +91,7 @@ OMR::Z::Instruction::Instruction(TR::CodeGenerator* cg, TR::InstOpCode::Mnemonic
    }
 
 OMR::Z::Instruction::Instruction(TR::CodeGenerator*cg, TR::Instruction* precedingInstruction, TR::InstOpCode::Mnemonic op, TR::Node* node)
-   : 
+   :
    OMR::Instruction(cg, precedingInstruction, op, node),
    CTOR_INITIALIZER_LIST
    {
@@ -434,19 +434,6 @@ OMR::Z::Instruction::useRegister(TR::Register * reg, bool isDummy)
 
       OMR::Instruction::useRegister(firstRegister);
       OMR::Instruction::useRegister(lastRegister);
-
-      if (firstRegister->isArGprPair())
-         {
-        OMR::Instruction::useRegister(firstRegister->getARofArGprPair());
-        OMR::Instruction::useRegister(firstRegister->getGPRofArGprPair());
-         }
-
-      if (lastRegister->isArGprPair())
-         {
-        OMR::Instruction::useRegister(lastRegister->getARofArGprPair());
-        OMR::Instruction::useRegister(lastRegister->getGPRofArGprPair());
-         }
-
       }
    else
       {
@@ -1164,11 +1151,6 @@ static bool isInternalControlFlowOneEntryOneExit(TR::Instruction *regionEnd, TR:
       done=true;
       regionStart=curr->getPrev();
       }
-    else if(curr->isStartInternalControlFlow())
-      {
-      done=true;
-      regionStart=curr->getPrev();
-      }
     }
 
   // Now check if all branches jump to lables inside region
@@ -1379,16 +1361,13 @@ OMR::Z::Instruction::assignRegisters(TR_RegisterKinds kindToBeAssigned)
       self()->cg()->tracePreRAInstruction(outOfLineEXInstr);
       self()->cg()->setCurrentBlockIndex(outOfLineEXInstr->getBlockIndex());
       outOfLineEXInstr->assignRegisters(kindToBeAssigned);
-      if (!self()->cg()->getRAPassAR())
+      TR::RegisterDependencyConditions *deps = outOfLineEXInstr->getDependencyConditions();
+      if (deps) // merge the dependency into the EX deps
          {
-         TR::RegisterDependencyConditions *deps = outOfLineEXInstr->getDependencyConditions();
-         if (deps) // merge the dependency into the EX deps
-            {
-            outOfLineEXInstr->resetDependencyConditions();
-            TR::RegisterDependencyConditions * exDeps = (self())->getDependencyConditions();
-            TR::RegisterDependencyConditions * newDeps = new (self()->cg()->trHeapMemory()) TR::RegisterDependencyConditions(deps, exDeps, self()->cg());
-            (self())->setDependencyConditionsNoBookKeeping(newDeps);
-            }
+         outOfLineEXInstr->resetDependencyConditions();
+         TR::RegisterDependencyConditions * exDeps = (self())->getDependencyConditions();
+         TR::RegisterDependencyConditions * newDeps = new (self()->cg()->trHeapMemory()) TR::RegisterDependencyConditions(deps, exDeps, self()->cg());
+         (self())->setDependencyConditionsNoBookKeeping(newDeps);
          }
 
       outOfLineEXInstr->setPrev(savePrev); // Restore Prev() of snippet
@@ -1816,8 +1795,6 @@ TR::InstOpCode::Mnemonic OMR::Z::Instruction::opCodeCanBeAdjustedTo(TR::InstOpCo
          return TR::InstOpCode::LAY;
       case TR::InstOpCode::LAE:
          return TR::InstOpCode::LAEY;
-      case TR::InstOpCode::LAM:
-         return TR::InstOpCode::LAMY;
       case TR::InstOpCode::LRA:
          return TR::InstOpCode::LRAY;
       case TR::InstOpCode::LH:
@@ -1844,8 +1821,6 @@ TR::InstOpCode::Mnemonic OMR::Z::Instruction::opCodeCanBeAdjustedTo(TR::InstOpCo
          return TR::InstOpCode::SLY;
       case TR::InstOpCode::ST:
          return TR::InstOpCode::STY;
-       case TR::InstOpCode::STAM:
-         return TR::InstOpCode::STAMY;
       case TR::InstOpCode::STC:
          return TR::InstOpCode::STCY;
       case TR::InstOpCode::STH:
@@ -1898,11 +1873,15 @@ OMR::Z::Instruction::attemptOpAdjustmentForLongDisplacement()
    if (n_op != TR::InstOpCode::BAD)
       self()->setOpCodeValue(n_op);
 
-   if (self()->getOpCode().getInstructionFormat(self()->getOpCodeValue()) == RXY_FORMAT)
+   auto instructionFormat = self()->getOpCode().getInstructionFormat(self()->getOpCodeValue());
+
+   if (instructionFormat == RXYa_FORMAT ||
+       instructionFormat == RXYb_FORMAT)
       self()->setKind(IsRXY);
-   else if (self()->getOpCode().getInstructionFormat(self()->getOpCodeValue()) == RSY_FORMAT)
+   else if (instructionFormat == RSYa_FORMAT ||
+            instructionFormat == RSYb_FORMAT)
       self()->setKind(IsRSY);
-   else if (self()->getOpCode().getInstructionFormat(self()->getOpCodeValue()) == SIY_FORMAT)   // LL: Add SIY
+   else if (instructionFormat == SIY_FORMAT)
       self()->setKind(IsSIY);
    else if (self()->cg()->getDebug())
       TR_ASSERT(0, "only RX, RS and SI instructions can be safely mapped to long displacement: opCode: %s", self()->cg()->getDebug()->getOpCodeName(&self()->getOpCode()));
@@ -1981,9 +1960,6 @@ OMR::Z::Instruction::gatherRegPairsAtFrontOfArray(TR::Register** regArr, int32_t
 TR::Register *
 OMR::Z::Instruction::assignRegisterNoDependencies(TR::Register * reg)
    {
-   // don't assign gpr in AR pass (preserve futureUseCount)
-   if (self()->cg()->getRAPassAR() && reg->getKind() != TR_AR)
-      return reg;
    TR::Compilation *comp = self()->cg()->comp();
    bool enableHighWordRA = self()->cg()->supportsHighWordFacility() && !comp->getOption(TR_DisableHighWordRA);
 
@@ -2322,19 +2298,6 @@ OMR::Z::Instruction::assignOrderedRegisters(TR_RegisterKinds kindToBeAssigned)
             continue;
 
          registerOperandNum = (_targetReg < _sourceReg) ? i+1 : _sourceRegSize+i+1;
-
-         /*
-           When we are mixing 32 and 64 bit registers, we have to ensure that 64 bit instructions use 64 bit registers.
-           If this assertion is triggered, it is probably because an evaluator called allocateRegister() when it should
-           have called allocate64bitRegister().
-          */
-         if ((_opcode.is64bit() || _opcode.is32to64bit()) && self()->cg()->use64BitRegsOn32Bit() && TR::Compiler->target.is32Bit() &&
-             !_targetReg[i]->getRealRegister()) // skip check if the target reg is already a real register.
-            {
-            TR_ASSERT(_targetReg[i]->getKind() != TR_GPR, "Using GPR for 64 bit instruction %s [%s] in 32 bit mode",
-                      self()->cg()->getDebug()->getOpCodeName(&_opcode),
-                      self()->cg()->getDebug()->getName(self()));
-            }
 
          if (self()->cg()->supportsHighWordFacility() && !comp->getOption(TR_DisableHighWordRA))
             {
@@ -2962,7 +2925,7 @@ OMR::Z::Instruction::setUseDefRegisters(bool updateDependencies)
                (*_useRegs)[indexSource++] = _sourceReg[i];
                }
             else if (self()->getOpCodeValue() != TR::InstOpCode::LM && self()->getOpCodeValue() != TR::InstOpCode::LMG && self()->getOpCodeValue() != TR::InstOpCode::LMH &&
-                self()->getOpCodeValue() != TR::InstOpCode::LAM && self()->getOpCodeValue() != TR::InstOpCode::LMY)
+                self()->getOpCodeValue() != TR::InstOpCode::LMY)
                {
                (*_useRegs)[indexSource++] = _sourceReg[i];
                }
@@ -3008,10 +2971,10 @@ OMR::Z::Instruction::setUseDefRegisters(bool updateDependencies)
       }
 
    if (self()->getOpCodeValue() == TR::InstOpCode::LM || self()->getOpCodeValue() == TR::InstOpCode::LMG || self()->getOpCodeValue() == TR::InstOpCode::LMH ||
-       self()->getOpCodeValue() == TR::InstOpCode::LAM || self()->getOpCodeValue() == TR::InstOpCode::LMY)
+       self()->getOpCodeValue() == TR::InstOpCode::LMY)
      loadOrStoreMultiple = 0; //load
    else if (self()->getOpCodeValue() == TR::InstOpCode::STM || self()->getOpCodeValue() == TR::InstOpCode::STMG || self()->getOpCodeValue() == TR::InstOpCode::STMH ||
-            self()->getOpCodeValue() == TR::InstOpCode::STAM || self()->getOpCodeValue() == TR::InstOpCode::STMY)
+            self()->getOpCodeValue() == TR::InstOpCode::STMY)
      loadOrStoreMultiple = 1; //store
 
    if (loadOrStoreMultiple >= 0)
@@ -3041,7 +3004,6 @@ OMR::Z::Instruction::setUseDefRegisters(bool updateDependencies)
          fReg = toRealRegister(firstReg->getAssignedRealRegister());
          }
 
-      bool isAR = ((self()->getOpCodeValue() == TR::InstOpCode::LAM) || (self()->getOpCodeValue() == TR::InstOpCode::STAM));
       uint32_t lowRegNum = ANYREGINDEX(fReg->getRegisterNumber());
       uint32_t highRegNum = ANYREGINDEX(lReg->getRegisterNumber());
 
@@ -3056,7 +3018,7 @@ OMR::Z::Instruction::setUseDefRegisters(bool updateDependencies)
          lowRegNum = (lowRegNum == 15) ? 0 : lowRegNum + 1;
          for (uint32_t i = lowRegNum; i != highRegNum; i = ((i == 15) ? 0 : i + 1))  // wrap around to 0 at 15
             {
-            TR::RealRegister *reg = self()->cg()->machine()->getS390RealRegister(i + (isAR ? TR::RealRegister::AR0 : TR::RealRegister::GPR0));
+            TR::RealRegister *reg = self()->cg()->machine()->getS390RealRegister(i + TR::RealRegister::GPR0);
             if (loadOrStoreMultiple == 0) // load
                (*_defRegs)[indexTarget++] = reg;
             else if (loadOrStoreMultiple == 1) // store
@@ -3307,84 +3269,6 @@ OMR::Z::Instruction::isCall()
       return false;
    }
 
-
-
-void
-OMR::Z::Instruction::addARDependencyCondition(TR::Register * virtAR, TR::Register * assignedGPR)
-   {
-   bool assignPreCondition = false;
-   bool newCondition = false;
-
-   // AR register for stack pointer doesn't need to be set
-   for (uint32_t x=1; x <= self()->cg()->getS390Linkage()->getNumStackPointerRegisters(); x++)
-      {
-      if (REGINDEX((toRealRegister(assignedGPR->getRealRegister()))->getRegisterNumber()) ==
-          REGINDEX(self()->cg()->getS390Linkage()->getStackPointerRealRegister(x)->getRegisterNumber()))
-         {
-         virtAR->decTotalUseCount();
-         virtAR->decFutureUseCount();
-         return;
-         }
-      }
-
-   if (self()->getDependencyConditions())
-      {
-      if (self()->getDependencyConditions()->searchPreConditionRegister(assignedGPR->getAssignedRegister()))
-          {
-          // add another pre condition to current list
-          TR::RegisterDependencyConditions * tmp = new (self()->cg()->trHeapMemory()) TR::RegisterDependencyConditions(self()->getDependencyConditions(), 1, 0, self()->cg());
-          self()->resetDependencyConditions(tmp);
-          assignPreCondition = true;
-          }
-       else
-          {
-          // add another post condition to current list
-          TR::RegisterDependencyConditions * tmp = new (self()->cg()->trHeapMemory()) TR::RegisterDependencyConditions(self()->getDependencyConditions(), 0, 1, self()->cg());
-          self()->resetDependencyConditions(tmp);
-         }
-      }
-   else
-      {
-      // add new post condition
-      TR::RegisterDependencyConditions * tmp = new (self()->cg()->trHeapMemory()) TR::RegisterDependencyConditions(0, 1, self()->cg());
-      self()->resetDependencyConditions(tmp);
-      }
-   if (assignPreCondition)
-      {
-       self()->cg()->traceRegisterAssignment("PRE dependancy for instruction %p on virtual reg %s -> %s to be added\n",
-      self(),self()->cg()->getDebug()->getName(virtAR), self()->cg()->getDebug()->getName(assignedGPR));
-      newCondition = self()->getDependencyConditions()->addPreConditionIfNotAlreadyInserted(virtAR, REGNUM(TR::RealRegister::FirstAR - TR::RealRegister::FirstGPR + toRealRegister(assignedGPR)->getRegisterNumber()));
-      }
-   else
-      {
-      self()->cg()->traceRegisterAssignment("POST dependancy for instruction %p on virtual reg %s -> %s to be added\n",
-      self(),self()->cg()->getDebug()->getName(virtAR), self()->cg()->getDebug()->getName(assignedGPR));
-      newCondition = self()->getDependencyConditions()->addPostConditionIfNotAlreadyInserted(virtAR, REGNUM(TR::RealRegister::FirstAR - TR::RealRegister::FirstGPR + toRealRegister(assignedGPR)->getRegisterNumber()));
-      }
-
-   if (newCondition)
-      {
-      self()->cg()->traceRegisterAssignment("dependancy for instruction %p on virtual reg %s -> %s added\n",
-        self(),self()->cg()->getDebug()->getName(virtAR), self()->cg()->getDebug()->getName(assignedGPR));
-      }
-   else
-        {
-
-        self()->cg()->traceRegisterAssignment("duplicate dependancy for instruction %p on virtual reg %s ->  %s not added\n",
-        self(),self()->cg()->getDebug()->getName(virtAR), self()->cg()->getDebug()->getName(assignedGPR));
-      virtAR->decTotalUseCount();
-      virtAR->decFutureUseCount();
-      }
-   //account for merged EX deps from the 1st RA pass
-   if (self()->getOpCodeValue() == TR::InstOpCode::EX || self()->getOpCodeValue() == TR::InstOpCode::EXRL )
-      {
-      virtAR->decTotalUseCount();
-      virtAR->decFutureUseCount();
-      }
-   self()->cg()->traceRegAssigned(virtAR, assignedGPR);
-   }
-
-
 void OMR::Z::Instruction::setMaskField(uint32_t *instruction, int8_t mask, int8_t nibbleIndex)
   {
   TR_ASSERT(nibbleIndex>=0 && nibbleIndex<=7,
@@ -3393,8 +3277,6 @@ void OMR::Z::Instruction::setMaskField(uint32_t *instruction, int8_t mask, int8_
   *instruction ^= maskInstruction; // clear out the memory of byte
   *instruction |= (mask << nibbleIndex*4);
   }
-
-
 
 TR::Register *
 OMR::Z::Instruction::tgtRegArrElem(int32_t i)
@@ -3428,21 +3310,9 @@ OMR::Z::Instruction::is4ByteLoad()
    }
 
 bool
-OMR::Z::Instruction::isAsmGen()
-   {
-   return self()->getOpCodeValue() == TR::InstOpCode::ASM;
-   }
-
-bool
 OMR::Z::Instruction::isRet()
    {
    return self()->getOpCodeValue() == TR::InstOpCode::RET;
-   }
-
-bool
-OMR::Z::Instruction::isTailCall()
-   {
-   return self()->getOpCodeValue() == TR::InstOpCode::TAILCALL;
    }
 
 int8_t

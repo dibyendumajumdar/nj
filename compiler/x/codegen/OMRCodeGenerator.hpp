@@ -61,8 +61,8 @@ namespace OMR { typedef OMR::X86::CodeGenerator CodeGeneratorConnector; }
 #include "codegen/GCStackAtlas.hpp"
 
 class TR_GCStackMap;
-namespace TR { class IA32ConstantDataSnippet; }
-namespace TR { class IA32DataSnippet; }
+namespace TR { class X86ConstantDataSnippet; }
+namespace TR { class X86DataSnippet; }
 class TR_OutlinedInstructions;
 namespace OMR { namespace X86 { class CodeGenerator; } }
 namespace TR { class CodeGenerator; }
@@ -305,7 +305,8 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    bool supportsMergingGuards();
 
-   bool supportsAtomicAdd()                {return true;}
+   bool supportsNonHelper(TR::SymbolReferenceTable::CommonNonhelperSymbol symbol);
+
    bool hasTMEvaluator()                       {return true;}
 
    int64_t getLargestNegConstThatMustBeMaterialized() { TR_ASSERT(0, "Not Implemented on x86"); return 0; }
@@ -342,24 +343,9 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    void buildRegisterMapForInstruction(TR_GCStackMap *map);
 
-   bool processInstruction(TR::Instruction *instr, TR_BitVector ** registerUsageInfo, int32_t &blockNum, int32_t &isFence, bool traceIt);
-   uint32_t isPreservedRegister(int32_t regIndex);
    bool isReturnInstruction(TR::Instruction *instr);
    bool isBranchInstruction(TR::Instruction *instr);
-   bool isLabelInstruction(TR::Instruction *instr);
-   int32_t isFenceInstruction(TR::Instruction *instr);
-   bool isAlignmentInstruction(TR::Instruction *instr);
-   TR::Instruction *splitEdge(TR::Instruction *cursor, bool isFallThrough, bool needsJump, TR::Instruction *newSplitLabel, TR::list<TR::Instruction*> *jmpInstrs, bool firstJump = false);
-   TR::Instruction *splitBlockEntry(TR::Instruction *instr);
-   int32_t computeRegisterSaveDescription(TR_BitVector *regs, bool populateInfo = false);
-   void processIncomingParameterUsage(TR_BitVector **registerUsageInfo, int32_t blockNum);
-   void updateSnippetMapWithRSD(TR::Instruction *cur, int32_t rsd);
-   bool isTargetSnippetOrOutOfLine(TR::Instruction *instr, TR::Instruction **start, TR::Instruction **end);
 
-   TR::SymbolReference *getWordConversionTemp();
-   TR::SymbolReference *getDoubleWordConversionTemp();
-
-   TR::SymbolReference *findOrCreateCurrentTimeMillisTempSymRef();
    TR::SymbolReference *getNanoTimeTemp();
 
    int32_t branchDisplacementToHelperOrTrampoline(uint8_t *nextInstructionAddress, TR::SymbolReference *helper);
@@ -430,7 +416,7 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    void setLowestCommonCodePatchingAlignmentBoundary(int32_t b) {_lowestCommonCodePatchingAlignmentBoundary = b;}
 
    // NOT NEEDED, overridden in amd64/i386
-   bool internalPointerSupportImplemented() {return false;} // no virt
+   bool internalPointerSupportImplemented() {return false;}
 
    bool supportsSinglePrecisionSQRT() {return true;}
 
@@ -522,14 +508,54 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    void dumpDataSnippets(TR::FILE *pOutFile);
 
-   TR::IA32ConstantDataSnippet *findOrCreate2ByteConstant(TR::Node *, int16_t c);
-   TR::IA32ConstantDataSnippet *findOrCreate4ByteConstant(TR::Node *, int32_t c);
-   TR::IA32ConstantDataSnippet *findOrCreate8ByteConstant(TR::Node *, int64_t c);
-   TR::IA32ConstantDataSnippet *findOrCreate16ByteConstant(TR::Node *, void *c);
-   TR::IA32DataSnippet *create2ByteData(TR::Node *, int16_t c);
-   TR::IA32DataSnippet *create4ByteData(TR::Node *, int32_t c);
-   TR::IA32DataSnippet *create8ByteData(TR::Node *, int64_t c);
-   TR::IA32DataSnippet *create16ByteData(TR::Node *, void *c);
+   TR::X86ConstantDataSnippet *findOrCreate2ByteConstant(TR::Node *, int16_t c);
+   TR::X86ConstantDataSnippet *findOrCreate4ByteConstant(TR::Node *, int32_t c);
+   TR::X86ConstantDataSnippet *findOrCreate8ByteConstant(TR::Node *, int64_t c);
+   TR::X86ConstantDataSnippet *findOrCreate16ByteConstant(TR::Node *, void *c);
+   TR::X86DataSnippet *create2ByteData(TR::Node *, int16_t c);
+   TR::X86DataSnippet *create4ByteData(TR::Node *, int32_t c);
+   TR::X86DataSnippet *create8ByteData(TR::Node *, int64_t c);
+   TR::X86DataSnippet *create16ByteData(TR::Node *, void *c);
+
+   /*
+    * \brief create a data snippet.
+    *
+    * \param[in] node : the node which this data snippet belongs to
+    * \param[in] data : a pointer to initial data or NULL for skipping initialization
+    * \param[in] size : the size of this data snippet
+    *
+    * \return : a data snippet with specified size
+    */
+   TR::X86DataSnippet* createDataSnippet(TR::Node* node, void* data, size_t size);
+   /*
+    * \brief create a data snippet
+    *
+    * \param[in] node : the node which this data snippet belongs to
+    * \param[in] data : the data which this data snippet holds
+    *
+    * \return : a data snippet containing one type T element
+    */
+   template<typename T> inline TR::X86DataSnippet* createDataSnippet(TR::Node* node, T data) { return createDataSnippet(node, &data, sizeof(data)); }
+   /*
+    * \brief find or create a constant data snippet.
+    *
+    * \param[in] node : the node which this constant data snippet belongs to
+    * \param[in] data : a pointer to initial data or NULL for skipping initialization
+    * \param[in] size : the size of this constant data snippet
+    *
+    * \return : a constant data snippet with specified size
+    */
+   TR::X86ConstantDataSnippet* findOrCreateConstantDataSnippet(TR::Node* node, void* data, size_t size);
+   /*
+    * \brief find or create a constant data snippet.
+    *
+    * \param[in] node : the node which this constant data snippet belongs to
+    * \param[in] data : the data which this constant data snippet holds
+    *
+    * \return : a constant data snippet containing one type T element
+    */
+   template<typename T> inline TR::X86ConstantDataSnippet* findOrCreateConstantDataSnippet(TR::Node* node, T data) { return findOrCreateConstantDataSnippet(node, &data, sizeof(data)); }
+
 
    static TR_X86ProcessorInfo _targetProcessorInfo;
 
@@ -540,7 +566,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    TR_OutlinedInstructions *findOutlinedInstructionsFromLabel(TR::LabelSymbol *label);
    TR_OutlinedInstructions *findOutlinedInstructionsFromMergeLabel(TR::LabelSymbol *label);
-   TR_OutlinedInstructions *findOutlinedInstructionsFromLabelForShrinkWrapping(TR::LabelSymbol *label);
 
    const TR_VFPState         &vfpState()           { return _vfpState; }
    TR::X86VFPSaveInstruction  *vfpResetInstruction(){ return _vfpResetInstruction; }
@@ -554,8 +579,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, TR::Register *deltaReg, TR::RegisterDependencyConditions *cond);
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, int32_t delta, TR_ScratchRegisterManager &srm);
    TR::Instruction *generateDebugCounterBump(TR::Instruction *cursor, TR::DebugCounterBase *counter, TR::Register *deltaReg, TR_ScratchRegisterManager &srm);
-
-   bool supportsDebugCounters(TR::DebugCounterInjectionPoint injectionPoint){ return true; }
 
    virtual uint8_t nodeResultGPRCount  (TR::Node *node, TR_RegisterPressureState *state);
 
@@ -592,27 +615,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
 
    bool nodeIsFoldableMemOperand(TR::Node *node, TR::Node *parent, TR_RegisterPressureState *state);
 
-   /*
-    * \brief create a data snippet.
-    *
-    * \param[in] n : the node which this data snippet belongs to
-    * \param[in] c : a pointer to initial data or NULL for skipping initialization
-    * \param[in] s : the size of this data snippet
-    *
-    * \return : a data snippet with size s
-    */
-   TR::IA32DataSnippet         *createDataSnippet(TR::Node *n, void *c, uint8_t s);
-   /*
-    * \brief find or create a constant data snippet.
-    *
-    * \param[in] n : the node which this constant data snippet belongs to
-    * \param[in] c : a pointer to initial data or NULL for skipping initialization
-    * \param[in] s : the size of this constant data snippet
-    *
-    * \return : a constant data snippet with size s
-    */
-   TR::IA32ConstantDataSnippet *findOrCreateConstantDataSnippet(TR::Node *n, void *c, uint8_t s);
-
    TR::RealRegister             *_frameRegister;
 
    TR::SymbolReference             *_wordConversionTemp;
@@ -623,13 +625,13 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
    TR::Instruction                 *_lastCatchAppendInstruction;
    TR_BetterSpillPlacement        *_betterSpillPlacements;
 
-   TR::vector<TR::IA32DataSnippet*>      _dataSnippetList;
+   TR::vector<TR::X86DataSnippet*>       _dataSnippetList;
    TR::list<TR::Register*>               _spilledIntRegisters;
    TR::list<TR::Register*>               _liveDiscardableRegisters;
    TR::list<TR::Register*>               _dependentDiscardableRegisters;
    TR::list<TR::ClobberingInstruction*>  _clobberingInstructions;
    std::list<TR::ClobberingInstruction*, TR::typed_allocator<TR::ClobberingInstruction*, TR::Allocator> >::iterator _clobIterator;
-   TR::list<TR_OutlinedInstructions*>   _outlinedInstructionsList;
+   TR::list<TR_OutlinedInstructions*>    _outlinedInstructionsList;
 
    RegisterAssignmentDirection     _assignmentDirection;
    TR::RegisterIterator            *_x87RegisterIterator;
@@ -661,8 +663,8 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
       GenerateMasmListingSyntax                = 0x00000200, ///< generate Masm-style syntax in the debug listings
       MapAutosTo8ByteSlots                     = 0x00000400, ///< don't round up sizes of autos to an 8-byte slot size when the stack is mapped
       EnableTLHPrefetching                     = 0x00000800, ///< enable software prefetches on TLH allocates
-      UseGPRsForWin32CTMConversion             = 0x00001000, ///< use magic number approach for long division for CTM conversion to milliseconds
-      UseLongDivideHelperForWin32CTMConversion = 0x00002000, ///< use long division helper for CTM conversion to milliseconds
+      // Available                             = 0x00001000,
+      // Available                             = 0x00002000,
       TargetSupportsSoftwarePrefetches         = 0x00004000, ///< target processor and OS both support software prefetch instructions
       MethodEnterExitTracingEnabled            = 0x00008000, ///< trace method enter/exits
       // Available                             = 0x00010000,
@@ -731,18 +733,6 @@ class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGenerator
       }
 
    bool useSSEFor(TR::DataType type);
-
-   bool useGPRsForWin32CTMConversion()
-      {
-      return _flags.testAny(UseGPRsForWin32CTMConversion);
-      }
-   void setUseGPRsForWin32CTMConversion() {_flags.set(UseGPRsForWin32CTMConversion);}
-
-   bool useLongDivideHelperForWin32CTMConversion()
-      {
-      return _flags.testAny(UseLongDivideHelperForWin32CTMConversion);
-      }
-   void setUseLongDivideHelperForWin32CTMConversion() {_flags.set(UseLongDivideHelperForWin32CTMConversion);}
 
    bool targetSupportsSoftwarePrefetches()
       {

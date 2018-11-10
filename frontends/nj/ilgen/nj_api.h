@@ -248,6 +248,16 @@ enum JIT_NodeOpCode {
   OP_bload,       // load byte
   OP_sload,       // load short integer
   OP_lload,       // load long integer
+  //Read barrier is used to represent loads with side effects like check for GC, debugging etc.
+  //It is the same as the corresponding load except that it needs to be anchored under a
+  //treetop. The children and symbol of a read barrier are the same as the corresponding load.
+  OP_irdbar,   // read barrier for load integer
+  OP_frdbar,   // read barrier for load float
+  OP_drdbar,   // read barrier for load double
+  OP_ardbar,   // read barrier for load address
+  OP_brdbar,   // read barrier for load byte
+  OP_srdbar,   // load short integer
+  OP_lrdbar,   // load long integer
   OP_iloadi,      // load indirect integer
   OP_floadi,      // load indirect float
   OP_dloadi,      // load indirect double
@@ -255,33 +265,61 @@ enum JIT_NodeOpCode {
   OP_bloadi,      // load indirect byte
   OP_sloadi,      // load indirect short integer
   OP_lloadi,      // load indirect long integer
+  OP_irdbari,  // read barrier for load indirect integer
+  OP_frdbari,  // read barrier for load indirect float
+  OP_drdbari,  // read barrier for load indirect double
+  OP_ardbari,  // read barrier for load indirect address
+  OP_brdbari,  // read barrier for load indirect byte
+  OP_srdbari,  // read barrier for load indirect short integer
+  OP_lrdbari,  // read barrier for load indirect long integer
   OP_istore,      // store integer
   OP_lstore,      // store long integer
   OP_fstore,      // store float
   OP_dstore,      // store double
   OP_astore,      // store address
-  OP_wrtbar,  // direct write barrier store checks for new space in old space
-              // reference store the first child is the value as in astore.  The
-              // second child is the address of the object that must be checked
-              // for old space the symbol reference holds addresses, flags and
-              // offsets as in astore
   OP_bstore,  // store byte
   OP_sstore,  // store short integer
+   // direct write barrier represent both the write and side effects of
+   // the write like checks for GC, debugging etc.
+   //
+   // In case of GC checks, write barrier checks for new space in old
+   // space reference store. The first child is the value as in astore.
+   // The second child is the address of the object that must be checked
+   // for old space the symbol reference holds addresses, flags and offsets
+   // as in astore
+  OP_iwrtbar,  // write barrier for store direct integer
+  OP_lwrtbar,  // write barrier for store direct long integer
+  OP_fwrtbar,  // write barrier for store direct float
+  OP_dwrtbar,  // write barrier for store direct double
+  OP_awrtbar,  // write barrier for store direct address
+  OP_bwrtbar,  // write barrier for store direct byte
+  OP_swrtbar,  // write barrier for store direct short integer
+
   OP_lstorei, // store indirect long integer           (child1 a, child2 l)
   OP_fstorei, // store indirect float                  (child1 a, child2 f)
   OP_dstorei, // store indirect double                 (child1 a, child2 d)
   OP_astorei, // store indirect address                (child1 a dest, child2 a
               // value)
-  OP_wrtbari, // indirect write barrier store checks for new space in old space
-              // reference store The first two children are as in astorei.  The
-  // third child is address of the beginning of the destination object.
-  // For putfield this will often be the same as the first child (when
-  // the offset is on the symbol reference. But for array references,
-  // children 1 and 3 will be quite different although child 1's
-  // subtree will contain a reference to child 3's subtree
   OP_bstorei,    // store indirect byte                   (child1 a, child2 b)
   OP_sstorei,    // store indirect short integer          (child1 a, child2 s)
   OP_istorei,    // store indirect integer                (child1 a, child2 i)
+   // indirect write barrier represent both the write and side effects of
+   // the write like checks for GC, debugging etc.
+   //
+   // In case of GC checks, indirect write barrier store checks for new space
+   // in old space reference store.
+   // The first two children are as in astorei.  The third child is address
+   // of the beginning of the destination object.  For putfield this will often
+   // be the same as the first child (when the offset is on the symbol reference.
+   // But for array references, children 1 and 3 will be quite different although
+   // child 1's subtree will contain a reference to child 3's subtree
+  OP_lwrtbari, // write barrier for store indirect long integer
+  OP_fwrtbari, // write barrier for store indirect float
+  OP_dwrtbari, // write barrier for store indirect double
+  OP_awrtbari, // write barrier for store indirect address
+  OP_bwrtbari, // write barrier for store indirect byte
+  OP_swrtbari, // write barrier for store indirect short integer
+  OP_iwrtbari, // write barrier for store indirect integer
   OP_Goto,       // goto label address
   OP_ireturn,    // return an integer
   OP_lreturn,    // return a long integer
@@ -1358,6 +1396,14 @@ extern JIT_SymbolRef JIT_GetSymbolForNode(JIT_NodeRef noderef);
  */
 extern void JIT_SetMayHaveLoops(JIT_ILInjectorRef ilinjector);
 extern void JIT_SetMayHaveNestedLoops(JIT_ILInjectorRef ilinjector);
+
+/**
+ * Inform the compiler that the automatic variable had its 
+ * address taken, hence the variable should be considered as aliased
+ * when calling functions etc.
+ */
+extern void JIT_SetAutoAddressTaken(JIT_ILInjectorRef ilinjector,
+	JIT_SymbolRef symbol);
 
 #ifdef __cplusplus
 }

@@ -92,7 +92,6 @@
 #include "optimizer/LoopVersioner.hpp"
 #include "optimizer/OrderBlocks.hpp"
 #include "optimizer/RedundantAsyncCheckRemoval.hpp"
-#include "optimizer/ShrinkWrapping.hpp"
 #include "optimizer/Simplifier.hpp"
 #include "optimizer/VirtualGuardCoalescer.hpp"
 #include "optimizer/VirtualGuardHeadMerger.hpp"
@@ -489,9 +488,6 @@ const OptimizationStrategy lateLocalOpts[] =
    { OMR::globalDeadStoreGroup,                    },
    { OMR::eachLocalAnalysisPassGroup               },
    { OMR::treeSimplification                       },
-#ifdef TR_HOST_S390
-   { OMR::longRegAllocation                        },
-#endif
    { OMR::endGroup                                 }
    };
 
@@ -799,8 +795,6 @@ OMR::Optimizer::Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *metho
       new (comp->allocator()) TR::OptimizationManager(self(), TR_LocalLiveRangeReduction::create, OMR::localLiveRangeReduction);
    _opts[OMR::localReordering] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR_LocalReordering::create, OMR::localReordering);
-   _opts[OMR::longRegAllocation] =
-      new (comp->allocator()) TR::OptimizationManager(self(), TR_LongRegAllocation::create, OMR::longRegAllocation);
    _opts[OMR::loopCanonicalization] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR_LoopCanonicalizer::create, OMR::loopCanonicalization);
    _opts[OMR::loopVersioner] =
@@ -817,8 +811,6 @@ OMR::Optimizer::Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *metho
       new (comp->allocator()) TR::OptimizationManager(self(), TR_EliminateRedundantGotos::create, OMR::redundantGotoElimination);
    _opts[OMR::rematerialization] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR_Rematerialization::create, OMR::rematerialization);
-   _opts[OMR::shrinkWrapping] =
-      new (comp->allocator()) TR::OptimizationManager(self(), TR_ShrinkWrap::create, OMR::shrinkWrapping);
    _opts[OMR::treesCleansing] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR_CleanseTrees::create, OMR::treesCleansing);
    _opts[OMR::treeSimplification] =
@@ -2334,31 +2326,6 @@ bool OMR::Optimizer::prepareForNodeRemoval(TR::Node *node , bool deferInvalidati
             useDefInfoAreInvalid = true;
       }
    return useDefInfoAreInvalid;
-   }
-
-void OMR::Optimizer::performVeryLateOpts()
-   {
-   // perform shrinkWrapping here
-   // possibly other late opts in the future
-   //
-   bool trace = comp()->getOption(TR_TraceOptDetails) || comp()->getOption(TR_TraceOptTrees);
-   if (!comp()->getOption(TR_DisableShrinkWrapping))
-      {
-      if (!comp()->getFlowGraph()->getStructure())
-         {
-         if (trace)
-            traceMsg(comp(), "   (Doing Structural Analysis)\n");
-         doStructuralAnalysis();
-         }
-      if (trace)
-         traceMsg(comp(), "\nPerforming shrinkWrapping\n");
-      TR::OptimizationManager *manager = getOptimization(shrinkWrapping);
-      TR_ASSERT(manager, "Shrink wrapping optimization should be initialized.");
-      TR::Optimization *opt = manager->factory()(manager);
-      opt->prePerform();
-      opt->perform();
-      opt->postPerform();
-      }
    }
 
 void OMR::Optimizer::getStaticFrequency(TR::Block *block, int32_t *currentWeight)
