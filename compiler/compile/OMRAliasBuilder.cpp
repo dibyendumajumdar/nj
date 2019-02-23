@@ -28,8 +28,8 @@
 #include "env/TRMemory.hpp"
 #include "il/Block.hpp"
 #include "il/DataTypes.hpp"
-#include "il/Node.hpp"                       // for Node
-#include "il/Node_inlines.hpp"               // for Node::getFirstChild, etc
+#include "il/Node.hpp"
+#include "il/Node_inlines.hpp"
 #include "il/SymbolReference.hpp"
 #include "infra/BitVector.hpp"
 

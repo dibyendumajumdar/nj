@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -31,21 +31,21 @@ namespace OMR { class Node; }
 namespace OMR { typedef OMR::Node NodeConnector; }
 #endif
 
-#include <limits.h>                       // for UINT_MAX, USHRT_MAX
-#include <stddef.h>                       // for size_t
-#include <stdint.h>                       // for uint16_t, int32_t, int64_t
-#include <string.h>                       // for memset
-#include "codegen/RegisterConstants.hpp"  // for TR_GlobalRegisterNumber
-#include "cs2/hashtab.h"                  // for HashTable
-#include "env/TRMemory.hpp"               // for TR_ArenaAllocator
-#include "il/DataTypes.hpp"               // for DataTypes, etc
-#include "il/ILOpCodes.hpp"               // for ILOpCodes
-#include "il/ILOps.hpp"                   // for ILOpCode
-#include "il/NodeUnions.hpp"              // for UnionedWithChildren
-#include "infra/Annotations.hpp"          // for OMR_EXTENSIBLE
-#include "infra/Assert.hpp"               // for TR_ASSERT
-#include "infra/Flags.hpp"                // for flags32_t
-#include "infra/TRlist.hpp"               // for TR::list
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include "codegen/RegisterConstants.hpp"
+#include "cs2/hashtab.h"
+#include "env/TRMemory.hpp"
+#include "il/DataTypes.hpp"
+#include "il/ILOpCodes.hpp"
+#include "il/ILOps.hpp"
+#include "il/NodeUnions.hpp"
+#include "infra/Annotations.hpp"
+#include "infra/Assert.hpp"
+#include "infra/Flags.hpp"
+#include "infra/TRlist.hpp"
 
 class TR_BitVector;
 class TR_Debug;
@@ -267,6 +267,37 @@ public:
    static TR::Node *createArraycopy(TR::Node *first, TR::Node *second, TR::Node *third);
    static TR::Node *createArraycopy(TR::Node *first, TR::Node *second, TR::Node *third, TR::Node *fourth, TR::Node *fifth);
 
+   /**
+    * \brief
+    *    Create a call to potentialOSRPointHelperSymbol, only to be used during ILGen
+    *
+    * \parm originatingByteCodeNode
+    *    The node whose bytecode info is used to create the call.
+    *
+    * \parm osrInductionOffset
+    *    The offset to be added to the originatingByteCodeNode's bytecode index to get the
+    *    target bytecode index. This is to be stored in _unionBase._osrInductionOffset
+    *
+    * \note
+    *    One can not create a potentialOSRPointHelper call and stick it to anywhere in the trees
+    *    without the right exception setup and without the right bookkeeping being in place for
+    *    the call. Preventative checks are required to avoid potential misuses. Due the fact that
+    *    during ILGen the OSR infrastructure may be incomplete, the checks can be done in ILGen are
+    *    different than checks needed after ILGen.
+    *
+    *    This API does checks required to create the helper in ILGen, thus it is only to be used in
+    *    ILGen.
+    */
+   static TR::Node *createPotentialOSRPointHelperCallInILGen(TR::Node* originatingByteCodeNode, int32_t offset);
+   /**
+    * \brief
+    *    Create a call to osrFearPointHelperSymbol
+    *
+    * \parm originatingByteCodeNode  The node whose bytecode info is used to create the call
+    *
+    */
+   static TR::Node *createOSRFearPointHelperCall(TR::Node* originatingByteCodeNode);
+
    static TR::Node *createLoad(TR::SymbolReference * symRef);
    static TR::Node *createLoad(TR::Node *originatingByteCodeNode, TR::SymbolReference *);
 
@@ -484,8 +515,6 @@ public:
 
    bool                   isRematerializable(TR::Node *parent, bool onlyConsiderOpCode);
 
-   bool                   canEvaluate();
-
    bool                   isDoNotPropagateNode();
    bool                   containsDoNotPropagateNode(vcount_t vc);
 
@@ -498,6 +527,22 @@ public:
    bool                   isPureCall();
 
    bool                   isClassUnloadingConst();
+
+   /**
+    * \brief
+    *    Return true if the node is a load of static final field
+    */
+   bool                   isLoadOfStaticFinalField();
+   /**
+    * \brief
+    *    Return true if the node is a call with osrFearPointHelperSymbol
+    */
+   bool                   isOSRFearPointHelperCall();
+   /**
+    * \brief
+    *    Return true if the node is a call with potentialOSRPointHelperSymbol
+    */
+   bool                   isPotentialOSRPointHelperCall();
 
    // A common query used by the optimizer
    inline bool            isSingleRef();
@@ -779,6 +824,9 @@ public:
     */
 
    // These three methods should be used only if you're sure you can't use one of the other ones.
+   inline int32_t          getOSRInductionOffset();
+   inline int32_t          setOSRInductionOffset(int32_t offset);
+
    inline int64_t          getConstValue();
    inline uint64_t         getUnsignedConstValue();
    inline void             setConstValue(int64_t val);
@@ -1664,6 +1712,16 @@ protected:
       int64_t   _constValue;
       float     _fpConstValue;
       double    _dpConstValue;
+
+      // Used only on potentialOSRPointHelper call, which has no children.
+      //
+      // In post-execution OSR, transition occurs after the OSR point has
+      // been evaluated. The intepreter will resume the execution at a bytecode
+      // index after the bytecode index of the OSR point. The target bytecode
+      // index can be calculated by offsetting the OSR point's bytecode index
+      // by the size of the bytecode. This size is stored in _osrInductionOffset.
+      //
+      int32_t _osrInductionOffset;
 
       //intToFloat returns a bag of bits in a uint32_t
       int32_t   _fpConstValueBits;

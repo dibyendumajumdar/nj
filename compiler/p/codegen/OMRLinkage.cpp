@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -21,34 +21,34 @@
 
 #include "codegen/OMRLinkage.hpp"
 
-#include <stddef.h>                            // for NULL
-#include <stdint.h>                            // for int32_t, uint32_t
-#include "codegen/CodeGenerator.hpp"           // for CodeGenerator, etc
-#include "codegen/FrontEnd.hpp"                // for TR_FrontEnd
-#include "codegen/InstOpCode.hpp"              // for InstOpCode, etc
-#include "codegen/Instruction.hpp"             // for Instruction
-#include "codegen/Linkage.hpp"                 // for LinkageBase, etc
-#include "codegen/Machine.hpp"                 // for Machine
-#include "codegen/MemoryReference.hpp"         // for MemoryReference
-#include "codegen/RealRegister.hpp"            // for RealRegister, etc
-#include "codegen/RegisterPair.hpp"            // for RegisterPair
-#include "compile/Compilation.hpp"             // for Compilation
+#include <stddef.h>
+#include <stdint.h>
+#include "codegen/CodeGenerator.hpp"
+#include "codegen/FrontEnd.hpp"
+#include "codegen/InstOpCode.hpp"
+#include "codegen/Instruction.hpp"
+#include "codegen/Linkage.hpp"
+#include "codegen/Machine.hpp"
+#include "codegen/MemoryReference.hpp"
+#include "codegen/RealRegister.hpp"
+#include "codegen/RegisterPair.hpp"
+#include "compile/Compilation.hpp"
 #include "env/CompilerEnv.hpp"
-#include "env/ObjectModel.hpp"                 // for ObjectModel
+#include "env/ObjectModel.hpp"
 #include "env/TRMemory.hpp"
-#include "il/DataTypes.hpp"                    // for DataTypes::Address, etc
-#include "il/ILOps.hpp"                        // for ILOpCode
-#include "il/Node.hpp"                         // for Node
-#include "il/Node_inlines.hpp"                 // for Node::getAddress, etc
-#include "il/TreeTop.hpp"                      // for TreeTop
-#include "il/TreeTop_inlines.hpp"              // for TreeTop::getNode
-#include "il/symbol/ParameterSymbol.hpp"       // for ParameterSymbol
-#include "il/symbol/ResolvedMethodSymbol.hpp"  // for ResolvedMethodSymbol
-#include "infra/Assert.hpp"                    // for TR_ASSERT
-#include "infra/BitVector.hpp"                 // for TR_BitVector
-#include "infra/List.hpp"                      // for ListIterator, List
+#include "il/DataTypes.hpp"
+#include "il/ILOps.hpp"
+#include "il/Node.hpp"
+#include "il/Node_inlines.hpp"
+#include "il/TreeTop.hpp"
+#include "il/TreeTop_inlines.hpp"
+#include "il/symbol/ParameterSymbol.hpp"
+#include "il/symbol/ResolvedMethodSymbol.hpp"
+#include "infra/Assert.hpp"
+#include "infra/BitVector.hpp"
+#include "infra/List.hpp"
 #include "p/codegen/GenerateInstructions.hpp"
-#include "p/codegen/PPCOpsDefines.hpp"         // for Op_st, Op_load
+#include "p/codegen/PPCOpsDefines.hpp"
 #include "runtime/Runtime.hpp"
 
 class TR_OpaqueClassBlock;
@@ -81,7 +81,7 @@ TR::MemoryReference *OMR::Power::Linkage::getOutgoingArgumentMemRef(int32_t argS
    TR::Machine *machine = self()->cg()->machine();
    const TR::PPCLinkageProperties& properties = self()->getProperties();
 
-   TR::MemoryReference *result = new (self()->trHeapMemory()) TR::MemoryReference(machine->getPPCRealRegister(properties.getNormalStackPointerRegister()),
+   TR::MemoryReference *result = new (self()->trHeapMemory()) TR::MemoryReference(machine->getRealRegister(properties.getNormalStackPointerRegister()),
                                                                               argSize+properties.getOffsetToFirstParm(), length, self()->cg());
    memArg.argRegister = argReg;
    memArg.argMemory = result;
@@ -101,7 +101,7 @@ TR::Instruction *OMR::Power::Linkage::saveArguments(TR::Instruction *cursor, boo
 TR::Instruction *OMR::Power::Linkage::saveArguments(TR::Instruction *cursor, bool fsd, bool saveOnly,
                                              List<TR::ParameterSymbol> &parmList)
    {
-   #define  REAL_REGISTER(ri)  machine->getPPCRealRegister(ri)
+   #define  REAL_REGISTER(ri)  machine->getRealRegister(ri)
    #define  REGNUM(ri)         ((TR::RealRegister::RegNum)(ri))
    const TR::PPCLinkageProperties& properties = self()->getProperties();
    TR::Machine *machine = self()->cg()->machine();
@@ -509,7 +509,7 @@ TR::Instruction *OMR::Power::Linkage::loadUpArguments(TR::Instruction *cursor)
             if (hasToLoadFromStack &&
                   numIntArgs<properties.getNumIntArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
+               argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
                cursor = generateTrg1MemInstruction(self()->cg(), TR::InstOpCode::lwz, firstNode, argRegister,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 4, self()->cg()), cursor);
                }
@@ -518,7 +518,7 @@ TR::Instruction *OMR::Power::Linkage::loadUpArguments(TR::Instruction *cursor)
          case TR::Address:
             if (numIntArgs<properties.getNumIntArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
+               argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
                cursor = generateTrg1MemInstruction(self()->cg(),TR::InstOpCode::Op_load, firstNode, argRegister,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, TR::Compiler->om.sizeofReferenceAddress(), self()->cg()), cursor);
                }
@@ -528,7 +528,7 @@ TR::Instruction *OMR::Power::Linkage::loadUpArguments(TR::Instruction *cursor)
             if (hasToLoadFromStack &&
                   numIntArgs<properties.getNumIntArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
+               argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
                if (TR::Compiler->target.is64Bit())
                   cursor = generateTrg1MemInstruction(self()->cg(), TR::InstOpCode::ld, firstNode, argRegister,
                         new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 8, self()->cg()), cursor);
@@ -538,7 +538,7 @@ TR::Instruction *OMR::Power::Linkage::loadUpArguments(TR::Instruction *cursor)
                         new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 4, self()->cg()), cursor);
                   if (numIntArgs < properties.getNumIntArgRegs()-1)
                      {
-                     argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs+1));
+                     argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs+1));
                      cursor = generateTrg1MemInstruction(self()->cg(), TR::InstOpCode::lwz, firstNode, argRegister,
                            new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset+4, 4, self()->cg()), cursor);
                      }
@@ -553,7 +553,7 @@ TR::Instruction *OMR::Power::Linkage::loadUpArguments(TR::Instruction *cursor)
             if (hasToLoadFromStack &&
                   numFloatArgs<properties.getNumFloatArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
+               argRegister = machine->getRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
                cursor = generateTrg1MemInstruction(self()->cg(), TR::InstOpCode::lfs, firstNode, argRegister,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 4, self()->cg()), cursor);
                }
@@ -563,7 +563,7 @@ TR::Instruction *OMR::Power::Linkage::loadUpArguments(TR::Instruction *cursor)
             if (hasToLoadFromStack &&
                   numFloatArgs<properties.getNumFloatArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
+               argRegister = machine->getRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
                cursor = generateTrg1MemInstruction(self()->cg(), TR::InstOpCode::lfd, firstNode, argRegister,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 8, self()->cg()), cursor);
                }
@@ -604,7 +604,7 @@ TR::Instruction *OMR::Power::Linkage::flushArguments(TR::Instruction *cursor)
             if (hasToStoreToStack &&
                   numIntArgs<properties.getNumIntArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
+               argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
                cursor = generateMemSrc1Instruction(self()->cg(), TR::InstOpCode::stw, firstNode,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 4, self()->cg()),
                      argRegister, cursor);
@@ -614,7 +614,7 @@ TR::Instruction *OMR::Power::Linkage::flushArguments(TR::Instruction *cursor)
          case TR::Address:
             if (numIntArgs<properties.getNumIntArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
+               argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
                cursor = generateMemSrc1Instruction(self()->cg(),TR::InstOpCode::Op_st, firstNode,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, TR::Compiler->om.sizeofReferenceAddress(), self()->cg()),
                      argRegister, cursor);
@@ -625,7 +625,7 @@ TR::Instruction *OMR::Power::Linkage::flushArguments(TR::Instruction *cursor)
             if (hasToStoreToStack &&
                   numIntArgs<properties.getNumIntArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
+               argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs));
                if (TR::Compiler->target.is64Bit())
                   cursor = generateMemSrc1Instruction(self()->cg(),TR::InstOpCode::Op_st, firstNode,
                         new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 8, self()->cg()),
@@ -637,7 +637,7 @@ TR::Instruction *OMR::Power::Linkage::flushArguments(TR::Instruction *cursor)
                         argRegister, cursor);
                   if (numIntArgs < properties.getNumIntArgRegs()-1)
                      {
-                     argRegister = machine->getPPCRealRegister(properties.getIntegerArgumentRegister(numIntArgs+1));
+                     argRegister = machine->getRealRegister(properties.getIntegerArgumentRegister(numIntArgs+1));
                      cursor = generateMemSrc1Instruction(self()->cg(), TR::InstOpCode::stw, firstNode,
                            new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset+4, 4, self()->cg()),
                            argRegister, cursor);
@@ -653,7 +653,7 @@ TR::Instruction *OMR::Power::Linkage::flushArguments(TR::Instruction *cursor)
             if (hasToStoreToStack &&
                   numFloatArgs<properties.getNumFloatArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
+               argRegister = machine->getRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
                cursor = generateMemSrc1Instruction(self()->cg(), TR::InstOpCode::stfs, firstNode,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 4, self()->cg()),
                      argRegister, cursor);
@@ -664,7 +664,7 @@ TR::Instruction *OMR::Power::Linkage::flushArguments(TR::Instruction *cursor)
             if (hasToStoreToStack &&
                   numFloatArgs<properties.getNumFloatArgRegs())
                {
-               argRegister = machine->getPPCRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
+               argRegister = machine->getRealRegister(properties.getFloatArgumentRegister(numFloatArgs));
                cursor = generateMemSrc1Instruction(self()->cg(), TR::InstOpCode::stfd, firstNode,
                      new (self()->trHeapMemory()) TR::MemoryReference(stackPtr, offset, 8, self()->cg()),
                      argRegister, cursor);

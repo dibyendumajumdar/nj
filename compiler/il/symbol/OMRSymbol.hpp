@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -45,13 +45,13 @@ namespace OMR { class Symbol; }
 namespace OMR { typedef OMR::Symbol SymbolConnector; }
 #endif
 
-#include <stddef.h>                 // for size_t
-#include <stdint.h>                 // for uint32_t, uint16_t, uint8_t, etc
-#include "infra/Annotations.hpp"    // for OMR_EXTENSIBLE
-#include "env/TRMemory.hpp"         // for TR_Memory, etc
-#include "il/DataTypes.hpp"         // for TR::DataType, DataTypes
-#include "infra/Assert.hpp"         // for TR_ASSERT
-#include "infra/Flags.hpp"          // for flags32_t
+#include <stddef.h>
+#include <stdint.h>
+#include "infra/Annotations.hpp"
+#include "env/TRMemory.hpp"
+#include "il/DataTypes.hpp"
+#include "infra/Assert.hpp"
+#include "infra/Flags.hpp"
 
 class TR_FrontEnd;
 class TR_ResolvedMethod;
@@ -340,6 +340,9 @@ public:
    inline void setGCRPatchPoint();
    inline bool isGCRPatchPoint();
 
+   inline void setConstantPoolAddress();
+   inline bool isConstantPoolAddress();
+
    // flag methods specific to resolved
    //
    inline bool isJittedMethod();
@@ -507,6 +510,7 @@ public:
       StartPC                   = 0x04000000,
       CountForRecompile         = 0x02000000,
       RecompilationCounter      = 0x01000000,
+      ConstantPoolAddress       = 0x00800000,
       GCRPatchPoint             = 0x00400000,
 
       //Only Used by Symbols for which isResolvedMethod is true;

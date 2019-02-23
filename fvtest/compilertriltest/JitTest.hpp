@@ -24,7 +24,8 @@
 
 #include <gtest/gtest.h>
 #include <vector>
-#include <stdexcept> 
+#include <stdexcept>
+#include <iostream>
 #include "control/Options.hpp"
 #include "optimizer/Optimizer.hpp"
 #include "ilgen/MethodBuilder.hpp"
@@ -45,13 +46,17 @@ namespace TRTest
 {
 
 /**
- * @brief The JitBuilderTest class is a basic test fixture for JitBuilder test cases.
+ * @brief The JitTest class is a basic test fixture for OMR compiler test cases.
  *
- * Most JitBuilder test case fixtures should publically inherit from this class.
+ * The fixture does the following for OMR compiler tests that use it:
+ *
+ * - initialize JIT just before the test starts
+ * - shutdown JIT just after the test finishes executing
+ * - makes port library macros available for use in test cases
  *
  * Example use:
  *
- *    class MyTestCase : public JitBuilderTest {};
+ *    class MyTestCase : public TRTest::JitTest {};
  */
 class JitTest : public ::testing::Test
    {
@@ -60,7 +65,7 @@ class JitTest : public ::testing::Test
    JitTest()
       {
       auto initSuccess = initializeJitWithOptions((char*)"-Xjit:acceptHugeMethods,enableBasicBlockHoisting,omitFramePointer,useILValidator,paranoidoptcheck");
-      if (!initSuccess) 
+      if (!initSuccess)
          throw std::runtime_error("Failed to initialize jit");
       }
 
@@ -68,29 +73,29 @@ class JitTest : public ::testing::Test
       {
       shutdownJit();
       }
-   };
+  };
 
 /**
- * @brief A fixture for testing with a customized optimization strategy. 
+ * @brief A fixture for testing with a customized optimization strategy.
  *
- * The design of this is such that it is expected sublasses will 
+ * The design of this is such that it is expected sublasses will
  * call addOptimization inside their constructor, so that SetUp will
  * know what opts to use.
  */
-class JitOptTest : public JitTest 
+class JitOptTest : public JitTest
    {
    public:
 
    JitOptTest() :
       JitTest(), _optimizations(), _strategy(NULL)
       {
-      } 
+      }
 
    virtual void SetUp()
       {
       JitTest::SetUp();
 
-      // This is an allocated pointer because the strategy needs to 
+      // This is an allocated pointer because the strategy needs to
       // live as long as this fixture
       _strategy = new OptimizationStrategy[_optimizations.size() + 1];
 
@@ -99,7 +104,7 @@ class JitOptTest : public JitTest
       }
 
 
-   ~JitOptTest() 
+   ~JitOptTest()
       {
       TR::Optimizer::setMockStrategy(NULL);
       delete[] _strategy;
@@ -243,7 +248,7 @@ std::vector<T> const_values()
                       static_cast<T>(std::numeric_limits<T>::min() + 1),
                       static_cast<T>(std::numeric_limits<T>::max() - 1)
                     };
-   
+
    return std::vector<T>(inputArray, inputArray + sizeof(inputArray) / sizeof(T));
    }
 
@@ -311,5 +316,112 @@ std::vector<std::tuple<L,R>> const_value_pairs()
    }
 
 } // namespace CompTest
+
+/**
+ * @brief Enum values representing the reason for skipping a test
+ *
+ * These values are intended to be short descriptions of why a test is skipped
+ * and are mostly useful for logging and reporting purposes. Additional explanations
+ * should be specified in the skip message.
+ */
+enum SkipReason {
+   KnownBug,               // test is skipped because of a known bug
+   MissingImplementation,  // feature under test is not implemented
+   UnsupportedFeature,     // feature under test is not supported
+   NumSkipReasons_,        // DO NOT USE IN USER CODE
+};
+
+/**
+ * @brief Stringification of SkipReason enum values
+ */
+static const char * const skipReasonStrings[] = {
+   "Known Bug",
+   "Missing Implementation",
+   "Unsupported Feature",
+};
+
+static_assert(SkipReason::NumSkipReasons_ == sizeof(skipReasonStrings)/sizeof(char*),
+             "SkipReason and skipReasonStrings do not have the same number of elements");
+
+/**
+ * @breif allow SkipReason instances to be streamed
+ */
+inline std::ostream& operator << (std::ostream& os, SkipReason reason)
+   {
+   return os <<  skipReasonStrings[static_cast<int>(reason)];
+   }
+
+/**
+ * @brief A helper class to allow streaming messages to the SKIP_IF macro
+ *
+ * The strategy used to allow message streaming is based on the technique
+ * used to implement message streaming in Google Tests ASSERT*() macros.
+ *
+ * This class serves a similar purpose as the `AssertHelper` class in
+ * Google Test.
+ */
+class SkipHelper
+   {
+   public:
+
+   explicit SkipHelper(SkipReason reason)
+      : reason_(reason)
+      {}
+
+   /**
+    * @brief Hack to allow a message to be streamed to the SKIP_IF macro
+    *
+    * The overload for this operator implements the "side effects" the SKIP_IF
+    * macro performs when a test is skipped:
+    *
+    * - prints to stdout:
+    *   - the reason for skipping
+    *   - the name of the skipped test
+    *   - the skip message
+    * - records the skip reason as a property of the current test in Google Test generated logs
+    * - emits a "success" event with the skip message
+    *
+    * @param stream object that represents the messages for a SKIP_IF invocation
+    * @return void so that the result of an assignment can be used
+    *         as the "return value" of a void retuning function
+    */
+   void operator = (const ::testing::Message& message) const
+      {
+      const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+      ::testing::Test::RecordProperty("skipped", skipReasonStrings[static_cast<int>(reason_)]);
+      std::cout << reason_ << ": Skipping test: " << test_info->name() << "\n    " << message << "\n";
+      SUCCEED() << message;
+      }
+
+   private:
+
+   SkipReason reason_;
+   };
+
+/**
+ * @brief A macro to allow a test to be conditionally skipped
+ *
+ * This macro allows a test to be conditionally skipped without failing the test.
+ * Multiple invocations can be specified per test. While the macro can can be used
+ * anywhere within the scope of a test, it is best to only use at at the beginning,
+ * before the main body of a test.
+ *
+ * To skip a test, a condition aswell as a "reason" for skipping must be specified.
+ * The condition may be any boolean expression. The "reason" must be a value from
+ * the `SkipReason` enum (see its documentation for further details). Optionally,
+ * a more detailed message can also be specified using the `<<` stream operator;
+ * as is done with `ASSERT*()` macros. When the test suite is executed, skipped
+ * tests will print the (short) reason for skipping, the test name, and the skip
+ * message to stdout.
+ *
+ * The basic syntax for using this macro is:
+ *
+ *    SKIP_IF(<condition>, <reason>) << <message>;
+ */
+#define SKIP_IF(condition, reason) \
+   switch (0) case 0: default: /* guard against ambiguous else */ \
+   if (!(condition)) { /* allow test to proceed normally */ } \
+   else \
+      return SkipHelper(SkipReason::reason) = ::testing::Message()
 
 #endif // JITTEST_HPP

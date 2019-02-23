@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -21,44 +21,44 @@
 
 #include "x/codegen/FPTreeEvaluator.hpp"
 
-#include <stdint.h>                                   // for uint8_t, etc
-#include <stdio.h>                                    // for NULL, printf, etc
-#include "codegen/CodeGenerator.hpp"                  // for CodeGenerator, etc
+#include <stdint.h>
+#include <stdio.h>
+#include "codegen/CodeGenerator.hpp"
 #include "codegen/ConstantDataSnippet.hpp"
-#include "codegen/FrontEnd.hpp"                       // for feGetEnv
-#include "codegen/Linkage.hpp"                        // for Linkage
+#include "codegen/FrontEnd.hpp"
+#include "codegen/Linkage.hpp"
 #include "codegen/LinkageConventionsEnum.hpp"
 #include "codegen/LiveRegister.hpp"
-#include "codegen/Machine.hpp"                        // for Machine
+#include "codegen/Machine.hpp"
 #include "codegen/MemoryReference.hpp"
 #include "codegen/RealRegister.hpp"
-#include "codegen/Register.hpp"                       // for Register
+#include "codegen/Register.hpp"
 #include "codegen/RegisterConstants.hpp"
 #include "codegen/RegisterDependency.hpp"
-#include "codegen/RegisterPair.hpp"                   // for RegisterPair
+#include "codegen/RegisterPair.hpp"
 #include "codegen/TreeEvaluator.hpp"
-#include "compile/Compilation.hpp"                    // for Compilation
+#include "compile/Compilation.hpp"
 #include "compile/ResolvedMethod.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
 #include "env/CompilerEnv.hpp"
-#include "env/TRMemory.hpp"                           // for TR_HeapMemory, etc
-#include "env/jittypes.h"                             // for intptrj_t
-#include "il/DataTypes.hpp"                           // for DataTypes, etc
-#include "il/ILOpCodes.hpp"                           // for ILOpCodes, etc
-#include "il/ILOps.hpp"                               // for ILOpCode
-#include "il/Node.hpp"                                // for Node, etc
+#include "env/TRMemory.hpp"
+#include "env/jittypes.h"
+#include "il/DataTypes.hpp"
+#include "il/ILOpCodes.hpp"
+#include "il/ILOps.hpp"
+#include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
-#include "il/Symbol.hpp"                              // for Symbol
+#include "il/Symbol.hpp"
 #include "il/SymbolReference.hpp"
-#include "il/TreeTop.hpp"                             // for TreeTop
+#include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
-#include "il/symbol/LabelSymbol.hpp"                  // for LabelSymbol
-#include "il/symbol/MethodSymbol.hpp"                 // for MethodSymbol
+#include "il/symbol/LabelSymbol.hpp"
+#include "il/symbol/MethodSymbol.hpp"
 #include "il/symbol/ResolvedMethodSymbol.hpp"
-#include "infra/Assert.hpp"                           // for TR_ASSERT
-#include "infra/List.hpp"                             // for List, etc
+#include "infra/Assert.hpp"
+#include "infra/List.hpp"
 #include "runtime/Runtime.hpp"
 #include "x/codegen/FPBinaryArithmeticAnalyser.hpp"
 #include "x/codegen/FPCompareAnalyser.hpp"
@@ -66,9 +66,8 @@
 #include "x/codegen/RegisterRematerialization.hpp"
 #include "x/codegen/X86FPConversionSnippet.hpp"
 #include "x/codegen/X86Instruction.hpp"
-#include "x/codegen/X86Ops.hpp"                       // for ::LABEL, ::JE4, etc
+#include "x/codegen/X86Ops.hpp"
 #include "x/codegen/X86Register.hpp"
-#include "x/codegen/XMMBinaryArithmeticAnalyser.hpp"
 
 namespace TR { class Instruction; }
 
@@ -562,26 +561,9 @@ TR::Register *OMR::X86::TreeEvaluator::fpBinaryArithmeticEvaluator(TR::Node     
                                                               bool              isFloat,
                                                               TR::CodeGenerator *cg)
    {
-   static auto Disable3OpForFP = (bool)feGetEnv("TR_Disable3OpForFP");
-   if (!Disable3OpForFP && cg->useSSEForSinglePrecision() && cg->useSSEForDoublePrecision())
+   if (cg->useSSEForSinglePrecision() && cg->useSSEForDoublePrecision())
       {
       return TR::TreeEvaluator::FloatingPointAndVectorBinaryArithmeticEvaluator(node, cg);
-      }
-   // Attempt to use SSE/SSE2 instructions if the CPU supports them, and
-   // either neither child is in a register, or at least one of them is
-   // already in an XMM register.
-   TR::Register *firstRegister  = node->getFirstChild()->getRegister();
-   TR::Register *secondRegister = node->getSecondChild()->getRegister();
-
-   if ((( isFloat && cg->useSSEForSinglePrecision())  ||
-        (!isFloat && cg->useSSEForDoublePrecision()))  &&
-       ((!firstRegister && !secondRegister)                      ||
-        (firstRegister  && firstRegister->getKind()  == TR_FPR) ||
-        (secondRegister && secondRegister->getKind() == TR_FPR)))
-      {
-      TR_X86XMMBinaryArithmeticAnalyser temp(node, cg);
-      temp.genericXMMAnalyser(node);
-      return node->getRegister();
       }
    else
       {
@@ -1193,7 +1175,7 @@ TR::Register *OMR::X86::TreeEvaluator::fpConvertToLong(TR::Node *node, TR::Symbo
       TR::Register        *doubleReg = cg->evaluate(child);
       TR::Register        *lowReg    = cg->allocateRegister(TR_GPR);
       TR::Register        *highReg   = cg->allocateRegister(TR_GPR);
-      TR::RealRegister *espReal   = cg->machine()->getX86RealRegister(TR::RealRegister::esp);
+      TR::RealRegister *espReal   = cg->machine()->getRealRegister(TR::RealRegister::esp);
 
       deps = generateRegisterDependencyConditions((uint8_t) 0, 3, cg);
       deps->addPostCondition(lowReg, TR::RealRegister::NoReg, cg);

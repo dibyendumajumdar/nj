@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -21,65 +21,65 @@
 
 #include "il/OMRNode.hpp"
 
-#include <stddef.h>                             // for size_t, NULL
-#include <stdint.h>                             // for uint16_t, int32_t, uint32_t, etc
-#include <string.h>                             // for memcpy
-#include "codegen/CodeGenerator.hpp"            // for CodeGenerator
-#include "codegen/FrontEnd.hpp"                 // for TR_FrontEnd, feGetEnv
-#include "codegen/Linkage.hpp"                  // for Linkage
-#include "codegen/LiveRegister.hpp"             // for TR_LiveRegisterInfo
-#include "codegen/RecognizedMethods.hpp"        // for RecognizedMethod, etc
-#include "codegen/Register.hpp"                 // for Register
-#include "codegen/RegisterPair.hpp"             // for RegisterPair
-#include "compile/Compilation.hpp"              // for Compilation, comp
-#include "compile/Method.hpp"                   // for TR_Method, etc
-#include "compile/ResolvedMethod.hpp"           // for TR_ResolvedMethod
-#include "compile/SymbolReferenceTable.hpp"     // for SymbolReferenceTable
-#include "control/Options.hpp"                  // for Options
-#include "cs2/allocator.h"                      // for allocator
-#include "cs2/sparsrbit.h"                      // for ASparseBitVector
-#include "env/ClassEnv.hpp"                     // for ClassEnv
-#include "env/CompilerEnv.hpp"                  // for CompilerEnv, Compiler
-#include "env/Environment.hpp"                  // for Environment
-#include "env/IO.hpp"                           // for POINTER_PRINTF_FORMAT
-#include "env/TRMemory.hpp"                     // for TR_ArenaAllocator
-#include "env/VMEnv.hpp"                        // for VMEnv
-#include "env/defines.h"                        // for TR_HOST_X86
-#include "il/AliasSetInterface.hpp"            // for TR_NodeUseAliasSetInterface, etc
-#include "il/Block.hpp"                         // for Block, etc
-#include "il/DataTypes.hpp"                     // for DataTypes
-#include "il/IL.hpp"                            // for IL
-#include "il/ILOpCodes.hpp"                     // for ILOpCodes
-#include "il/ILOps.hpp"                         // for ILOpCode
-#include "il/Node.hpp"                          // for Node, etc
-#include "il/NodeExtension.hpp"                 // for TR::NodeExtension
-#include "il/NodePool.hpp"                      // for NodePool
-#include "il/NodeUtils.hpp"                     // for GlobalRegisterInfo
-#include "il/Node_inlines.hpp"                  // for Node::self, etc
-#include "il/Symbol.hpp"                        // for Symbol
-#include "il/SymbolReference.hpp"               // for SymbolReference
-#include "il/TreeTop.hpp"                       // for TreeTop
-#include "il/TreeTop_inlines.hpp"               // for TreeTop::getNode, etc
-#include "il/symbol/AutomaticSymbol.hpp"        // for AutomaticSymbol
-#include "il/symbol/ParameterSymbol.hpp"        // for ParameterSymbol
-#include "il/symbol/MethodSymbol.hpp"           // for MethodSymbol
-#include "il/symbol/ResolvedMethodSymbol.hpp"   // for ResolvedMethodSymbol
-#include "il/symbol/StaticSymbol.hpp"           // for StaticSymbol
-#include "ilgen/IlGen.hpp"                      // for TR_IlGenerator
-#include "infra/Assert.hpp"                     // for TR_ASSERT
-#include "infra/BitVector.hpp"                  // for TR_BitVector, etc
-#include "infra/Flags.hpp"                      // for flags32_t
-#include "infra/List.hpp"                       // for List, ListElement
-#include "infra/TRlist.hpp"                     // for list
-#include "infra/Checklist.hpp"                  // for NodeChecklist, etc
-#include "optimizer/LoadExtensions.hpp"         // for TR_LoadExtensions
-#include "optimizer/Optimizer.hpp"              // for Optimizer
-#include "optimizer/ValueNumberInfo.hpp"        // for TR_ValueNumberInfo
-#include "ras/Debug.hpp"                        // for TR_Debug
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include "codegen/CodeGenerator.hpp"
+#include "codegen/FrontEnd.hpp"
+#include "codegen/Linkage.hpp"
+#include "codegen/LiveRegister.hpp"
+#include "codegen/RecognizedMethods.hpp"
+#include "codegen/Register.hpp"
+#include "codegen/RegisterPair.hpp"
+#include "compile/Compilation.hpp"
+#include "compile/Method.hpp"
+#include "compile/ResolvedMethod.hpp"
+#include "compile/SymbolReferenceTable.hpp"
+#include "control/Options.hpp"
+#include "cs2/allocator.h"
+#include "cs2/sparsrbit.h"
+#include "env/ClassEnv.hpp"
+#include "env/CompilerEnv.hpp"
+#include "env/Environment.hpp"
+#include "env/IO.hpp"
+#include "env/TRMemory.hpp"
+#include "env/VMEnv.hpp"
+#include "env/defines.h"
+#include "il/AliasSetInterface.hpp"
+#include "il/Block.hpp"
+#include "il/DataTypes.hpp"
+#include "il/IL.hpp"
+#include "il/ILOpCodes.hpp"
+#include "il/ILOps.hpp"
+#include "il/Node.hpp"
+#include "il/NodeExtension.hpp"
+#include "il/NodePool.hpp"
+#include "il/NodeUtils.hpp"
+#include "il/Node_inlines.hpp"
+#include "il/Symbol.hpp"
+#include "il/SymbolReference.hpp"
+#include "il/TreeTop.hpp"
+#include "il/TreeTop_inlines.hpp"
+#include "il/symbol/AutomaticSymbol.hpp"
+#include "il/symbol/ParameterSymbol.hpp"
+#include "il/symbol/MethodSymbol.hpp"
+#include "il/symbol/ResolvedMethodSymbol.hpp"
+#include "il/symbol/StaticSymbol.hpp"
+#include "ilgen/IlGen.hpp"
+#include "infra/Assert.hpp"
+#include "infra/BitVector.hpp"
+#include "infra/Flags.hpp"
+#include "infra/List.hpp"
+#include "infra/TRlist.hpp"
+#include "infra/Checklist.hpp"
+#include "optimizer/LoadExtensions.hpp"
+#include "optimizer/Optimizer.hpp"
+#include "optimizer/ValueNumberInfo.hpp"
+#include "ras/Debug.hpp"
 
 #ifdef J9_PROJECT_SPECIFIC
 #ifdef TR_TARGET_S390
-#include "z/codegen/S390Register.hpp"                        // for TR_PseudoRegister, etc
+#include "z/codegen/S390Register.hpp"
 #endif
 #endif
 /**
@@ -200,6 +200,8 @@ OMR::Node::Node(TR::Node *originatingByteCodeNode, TR::ILOpCodes op, uint16_t nu
       // estimate code size to be able to propagate frequencies
       //else
       //   TR_ASSERT(0, "no byte code info");
+
+      _byteCodeInfo.setDoNotProfile(1);
       }
       if(comp->getDebug())
         comp->getDebug()->newNode(self());
@@ -266,6 +268,16 @@ OMR::Node::Node(TR::Node * from, uint16_t numChildren)
 
    if(comp->getDebug())
       comp->getDebug()->newNode(self());
+
+   TR_IlGenerator * ilGen = comp->getCurrentIlGenerator();
+   if (ilGen)
+      {
+      _byteCodeInfo.setDoNotProfile(0);
+      }
+   else
+      {
+      _byteCodeInfo.setDoNotProfile(1);
+      }
 
    if (from->getOpCode().isBranch() || from->getOpCode().isSwitch())
       _byteCodeInfo.setDoNotProfile(1);
@@ -528,6 +540,9 @@ OMR::Node::recreateAndCopyValidPropertiesImpl(TR::Node *originalNode, TR::ILOpCo
    TR_ASSERT(originalNode != NULL, "trying to recreate node from a NULL originalNode.");
    if (originalNode->getOpCodeValue() == op)
       {
+      if (!originalNode->hasSymbolReference() || newSymRef != originalNode->getSymbolReference())
+         originalNode->_byteCodeInfo.setDoNotProfile(1);
+
       // need to at least set the new symbol reference on the node before returning
       if (newSymRef)
          originalNode->setSymbolReference(newSymRef);
@@ -575,6 +590,7 @@ OMR::Node::recreateAndCopyValidPropertiesImpl(TR::Node *originalNode, TR::ILOpCo
 
    // TODO: copyValidProperties is incomplete
    TR::Node::copyValidProperties(originalNodeCopy, node);
+   originalNode->_byteCodeInfo.setDoNotProfile(1);
 
    // add originalNodeCopy back to the node pool
    comp->getNodePool().deallocate(originalNodeCopy);
@@ -1191,6 +1207,38 @@ OMR::Node::createArraycopy(TR::Node *first, TR::Node *second, TR::Node * third, 
    return node;
    }
 
+
+TR::Node *
+OMR::Node::createPotentialOSRPointHelperCallInILGen(TR::Node* originatingByteCodeNode, int32_t osrInductionOffset)
+   {
+   TR::Compilation* comp = TR::comp();
+   // The following are assertions to prevent misuses of this helper
+   //
+   TR_ASSERT(comp->getCurrentIlGenerator(), "This API must be called during ILGen");
+   TR_ASSERT(!comp->isPeekingMethod(), "Can not generate the helper call during peeking");
+   TR_ASSERT(comp->supportsInduceOSR(), "Can not create the helper without OSR support");
+
+   TR::Node* callNode = TR::Node::createWithSymRef(originatingByteCodeNode, TR::call, 0, TR::comp()->getSymRefTab()->findOrCreatePotentialOSRPointHelperSymbolRef());
+   callNode->setOSRInductionOffset(osrInductionOffset);
+
+   // Node created outside of ilgen will have doNotProfile set, this results in OSR infrastructure believing it
+   // can not OSR at this node. Reset this flag since a potentialOSRPointHelper is a safe OSR transition point
+   //
+   callNode->getByteCodeInfo().setDoNotProfile(0);
+   return callNode;
+   }
+
+TR::Node *
+OMR::Node::createOSRFearPointHelperCall(TR::Node* originatingByteCodeNode)
+   {
+   TR::Compilation* comp = TR::comp();
+
+   TR_ASSERT(!comp->isPeekingMethod(), "Can not generate the helper call during peeking");
+   TR_ASSERT(comp->supportsInduceOSR(), "Can not create the helper without OSR support");
+
+   TR::Node* callNode = TR::Node::createWithSymRef(originatingByteCodeNode, TR::call, 0, TR::comp()->getSymRefTab()->findOrCreateOSRFearPointHelperSymbolRef());
+   return callNode;
+   }
 
 
 TR::Node *
@@ -2781,21 +2829,6 @@ OMR::Node::isRematerializable(TR::Node *parent, bool onlyConsiderOpCode)
    return false;
    }
 
-
-
-bool
-OMR::Node::canEvaluate()
-   {
-   TR::Compilation * comp = TR::comp();
-
-   if (self()->getSize() == 8 && comp->cg()->use64BitRegsOn32Bit())
-      return true;
-
-   return true;
-   }
-
-
-
 bool
 OMR::Node::isDoNotPropagateNode()
    {
@@ -3599,7 +3632,7 @@ OMR::Node::exceptionsRaised()
          break;
 #endif
       default:
-       if (node->getOpCode().isCall())
+       if (node->getOpCode().isCall() && !node->isOSRFearPointHelperCall())
             {
             possibleExceptions |= TR::Block::CanCatchOSR;
             if (node->getSymbolReference()->canGCandExcept()
@@ -4042,12 +4075,16 @@ void
 OMR::Node::setByteCodeInfo(const TR_ByteCodeInfo &bcInfo)
    {
    _byteCodeInfo = bcInfo;
+   if (!TR::comp()->getCurrentIlGenerator())
+      _byteCodeInfo.setDoNotProfile(1);
    }
 
 void
 OMR::Node::copyByteCodeInfo(TR::Node * from)
    {
    _byteCodeInfo = from->_byteCodeInfo;
+   if (!TR::comp()->getCurrentIlGenerator())
+      _byteCodeInfo.setDoNotProfile(1);
    }
 
 uint32_t
@@ -8642,3 +8679,42 @@ OMR::Node::resetFlagsForCodeMotion()
 /**
  * Node flags functions end
  */
+
+bool
+OMR::Node::isLoadOfStaticFinalField()
+   {
+   if (self()->hasSymbolReference())
+      {
+      TR::Symbol *sym = self()->getSymbol();
+      if (sym->isFinal() &&
+          sym->isStaticField())
+         return true;
+      }
+   return false;
+   }
+
+bool
+OMR::Node::isOSRFearPointHelperCall()
+   {
+   TR::Compilation *c = TR::comp();
+
+   if (self()->getOpCode().isCall()
+       && self()->getSymbol()->isMethod()
+       && c->getSymRefTab()->isNonHelper(self()->getSymbolReference(), TR::SymbolReferenceTable::osrFearPointHelperSymbol))
+      return true;
+
+   return false;
+   }
+
+bool
+OMR::Node::isPotentialOSRPointHelperCall()
+   {
+   TR::Compilation *c = TR::comp();
+
+   if (self()->getOpCode().isCall()
+       && self()->getSymbol()->isMethod()
+       && c->getSymRefTab()->isNonHelper(self()->getSymbolReference(), TR::SymbolReferenceTable::potentialOSRPointHelperSymbol))
+      return true;
+
+   return false;
+   }

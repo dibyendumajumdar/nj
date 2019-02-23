@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -31,40 +31,40 @@ namespace OMR { class CodeGenerator; }
 namespace OMR { typedef OMR::CodeGenerator CodeGeneratorConnector; }
 #endif
 
-#include <limits.h>                             // for INT_MAX, etc
-#include <stddef.h>                             // for NULL, size_t
-#include <stdint.h>                             // for uint8_t, etc
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <map>
-#include "codegen/CodeGenPhase.hpp"             // for CodeGenPhase
-#include "codegen/FrontEnd.hpp"                 // for feGetEnv
+#include "codegen/CodeGenPhase.hpp"
+#include "codegen/FrontEnd.hpp"
 #include "codegen/LinkageConventionsEnum.hpp"
 #include "codegen/RecognizedMethods.hpp"
 #include "codegen/RegisterConstants.hpp"
 #include "codegen/StorageInfo.hpp"
 #include "codegen/TreeEvaluator.hpp"
-#include "compile/Compilation.hpp"              // for Compilation
+#include "compile/Compilation.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
-#include "cs2/hashtab.h"                        // for HashTable, etc
-#include "env/CompilerEnv.hpp"                  // for TR::Host
-#include "env/ObjectModel.hpp"                  // for ObjectModel
-#include "env/TRMemory.hpp"                     // for Allocator, etc
+#include "cs2/hashtab.h"
+#include "env/CompilerEnv.hpp"
+#include "env/ObjectModel.hpp"
+#include "env/TRMemory.hpp"
 #include "env/jittypes.h"
-#include "il/DataTypes.hpp"                     // for DataTypes, etc
-#include "il/ILOpCodes.hpp"                     // for ILOpCodes
-#include "il/ILOps.hpp"                         // for TR::ILOpCode
-#include "il/Node.hpp"                          // for vcount_t, etc
-#include "infra/Array.hpp"                      // for TR_Array
-#include "infra/Assert.hpp"                     // for TR_ASSERT
-#include "infra/Flags.hpp"                      // for flags32_t, etc
-#include "infra/HashTab.hpp"                    // for TR_HashTab, etc
+#include "il/DataTypes.hpp"
+#include "il/ILOpCodes.hpp"
+#include "il/ILOps.hpp"
+#include "il/Node.hpp"
+#include "infra/Array.hpp"
+#include "infra/Assert.hpp"
+#include "infra/Flags.hpp"
+#include "infra/HashTab.hpp"
 #include "infra/Link.hpp"
-#include "infra/List.hpp"                       // for List, etc
+#include "infra/List.hpp"
 #include "infra/TRlist.hpp"
 #include "infra/Random.hpp"
-#include "infra/Stack.hpp"                      // for TR_Stack
-#include "optimizer/Dominators.hpp"             // for TR_Dominators
+#include "infra/Stack.hpp"
+#include "optimizer/Dominators.hpp"
 #include "ras/DebugCounter.hpp"
 #include "runtime/Runtime.hpp"
 #include "codegen/StaticRelocation.hpp"
@@ -238,11 +238,6 @@ namespace TR
       {
       ExternalRelocationAtFront,
       ExternalRelocationAtBack,
-      };
-   enum AOTRelocationPositionRequest
-      {
-      AOTRelocationAtFront = ExternalRelocationAtFront,
-      AOTRelocationAtBack = ExternalRelocationAtBack,
       };
    }
 
@@ -563,13 +558,6 @@ class OMR_EXTENSIBLE CodeGenerator
 
    bool AddArtificiallyInflatedNodeToStack(TR::Node* n);
 
-   // Used to model register liveness without Future Use Count.
-   bool isInternalControlFlowReg(TR::Register *reg) {return false;}
-   void startInternalControlFlow(TR::Instruction *instr) {}
-   void endInternalControlFlow(TR::Instruction *instr) {}
-
-
-
    // --------------------------------------------------------------------------
    // P only
    //
@@ -795,15 +783,94 @@ class OMR_EXTENSIBLE CodeGenerator
    TR::CodeCache * getCodeCache() { return _codeCache; }
    void  setCodeCache(TR::CodeCache * codeCache) { _codeCache = codeCache; }
    void  reserveCodeCache();
-   uint8_t * allocateCodeMemory(uint32_t size, bool isCold, bool isMethodHeaderNeeded=true);
-   uint8_t * allocateCodeMemory(uint32_t warmSize, uint32_t coldSize, uint8_t **coldCode, bool isMethodHeaderNeeded=true);
-   void  resizeCodeMemory();
+
+   /**
+    * \brief Allocates code memory of the specified size in the specified area of
+    *        the code cache.  The compilation will fail if unsuccessful.
+    *
+    * \param[in]  codeSizeInBytes : the number of bytes to allocate
+    * \param[in]  isCold : whether the allocation should be done in the cold area or not
+    * \param[in]  isMethodHeaderNeeded : boolean indicating whether space for a
+    *                method header must be allocated
+    *
+    * \return address of the allocated code (if allocated)
+    */
+   uint8_t *allocateCodeMemory(uint32_t codeSizeInBytes, bool isCold, bool isMethodHeaderNeeded=true);
+
+   /**
+    * \brief Allocates code memory of the specified size in the specified area of
+    *        the code cache.  The compilation will fail if unsuccessful.
+    *
+    * \param[in]  warmCodeSizeInBytes : the number of bytes to allocate in the warm area
+    * \param[in]  coldCodeSizeInBytes : the number of bytes to allocate in the cold area
+    * \param[out] coldCode : address of the cold code (if allocated)
+    * \param[in]  isMethodHeaderNeeded : boolean indicating whether space for a
+    *                method header must be allocated
+    *
+    * \return address of the allocated warm code (if allocated)
+    */
+   uint8_t *allocateCodeMemory(
+      uint32_t warmCodeSizeInBytes,
+      uint32_t coldCodeSizeInBytes,
+      uint8_t **coldCode,
+      bool isMethodHeaderNeeded=true);
+
+   /**
+    * \brief Allocates code memory of the specified size in the specified area of
+    *        the code cache.  The compilation will fail if unsuccessful.  This function
+    *        provides a means of specialization in the allocation process for downstream
+    *        consumers of this API.
+    *
+    * \param[in]  warmCodeSizeInBytes : the number of bytes to allocate in the warm area
+    * \param[in]  coldCodeSizeInBytes : the number of bytes to allocate in the cold area
+    * \param[out] coldCode : address of the cold code (if allocated)
+    * \param[in]  isMethodHeaderNeeded : boolean indicating whether space for a
+    *                method header must be allocated
+    *
+    * \return address of the allocated warm code (if allocated)
+    */
+   uint8_t *allocateCodeMemoryInner(
+      uint32_t warmCodeSizeInBytes,
+      uint32_t coldCodeSizeInBytes,
+      uint8_t **coldCode,
+      bool isMethodHeaderNeeded);
+
+   /**
+    * \brief Trim the size of code memory required by this method to match the
+    *        actual code length required, allowing the reclaimed memory to be
+    *        reused.  This is needed when the conservative length estimate
+    *        exceeds the actual memory requirement.
+    */
+   void trimCodeMemoryToActualSize();
+
    void  registerAssumptions() {}
 
    static void syncCode(uint8_t *codeStart, uint32_t codeSize);
 
    void commitToCodeCache() { _committedToCodeCache = true; }
    bool committedToCodeCache() { return _committedToCodeCache; }
+
+   /**
+    * \brief Answers whether the CodeCache in the current compilation has been switched
+    *        from the originally assigned CodeCache.
+    *
+    * \return true if the CodeCache has been switched; false otherwise.
+    */
+   bool hasCodeCacheSwitched() const { return _codeCacheSwitched; }
+
+   /**
+    * \brief Updates the state of whether the CodeCache has been switched.
+    *
+    * \param[in] s : bool indicating whether the CodeCache has been switched
+    */
+   void setCodeCacheSwitched(bool s) { _codeCacheSwitched = s; }
+
+   /**
+    * \brief Changes the current CodeCache to the provided CodeCache.
+    *
+    * \param[in] newCodeCache : the CodeCache to switch to
+    */
+   void switchCodeCacheTo(TR::CodeCache *newCodeCache);
 
    // --------------------------------------------------------------------------
    // Load extensions (Z)
@@ -974,14 +1041,6 @@ class OMR_EXTENSIBLE CodeGenerator
 
 #ifdef DEBUG
    static void shutdown(TR_FrontEnd *fe, TR::FILE *logFile);
-   static void dumpSpillStats(TR_FrontEnd *fe);
-   static void incNumSpilledRegisters()        {_totalNumSpilledRegisters++;}
-   static void incNumRematerializedConstants() {_totalNumRematerializedConstants++;}
-   static void incNumRematerializedLocals()    {_totalNumRematerializedLocals++;}
-   static void incNumRematerializedStatics()   {_totalNumRematerializedStatics++;}
-   static void incNumRematerializedIndirects() {_totalNumRematerializedIndirects++;}
-   static void incNumRematerializedAddresses() {_totalNumRematerializedAddresses++;}
-   static void incNumRematerializedXMMRs()     {_totalNumRematerializedXMMRs++;}
 #endif
 
    void dumpDataSnippets(TR::FILE *outFile) {}
@@ -1045,9 +1104,7 @@ class OMR_EXTENSIBLE CodeGenerator
    TR::Register * allocateRegister(TR_RegisterKinds rk = TR_GPR);
    TR::Register * allocateCollectedReferenceRegister();
    TR::Register * allocateSinglePrecisionRegister(TR_RegisterKinds rk = TR_FPR);
-   TR::Register * allocate64bitRegister();
 
-   TR::RegisterPair * allocate64bitRegisterPair(TR::Register * lo = 0, TR::Register * ho = 0);
    TR::RegisterPair * allocateRegisterPair(TR::Register * lo = 0, TR::Register * ho = 0);
    TR::RegisterPair * allocateSinglePrecisionRegisterPair(TR::Register * lo = 0, TR::Register * ho = 0);
    TR::RegisterPair * allocateFloatingPointRegisterPair(TR::Register * lo = 0, TR::Register * ho = 0);
@@ -1060,13 +1117,10 @@ class OMR_EXTENSIBLE CodeGenerator
    // Relocations
    //
    TR::list<TR::Relocation*>& getRelocationList() {return _relocationList;}
-   TR::list<TR::Relocation*>& getAOTRelocationList() {return _externalRelocationList;}
    TR::list<TR::Relocation*>& getExternalRelocationList() {return _externalRelocationList;}
    TR::list<TR::StaticRelocation>& getStaticRelocations() { return _staticRelocationList; }
 
    void addRelocation(TR::Relocation *r);
-   void addAOTRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::AOTRelocationPositionRequest where = TR::AOTRelocationAtBack);
-   void addAOTRelocation(TR::Relocation *r, TR::RelocationDebugInfo *info, TR::AOTRelocationPositionRequest where = TR::AOTRelocationAtBack);
    void addExternalRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::ExternalRelocationPositionRequest where = TR::ExternalRelocationAtBack);
    void addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo *info, TR::ExternalRelocationPositionRequest where = TR::ExternalRelocationAtBack);
    void addStaticRelocation(const TR::StaticRelocation &relocation);
@@ -1129,7 +1183,7 @@ class OMR_EXTENSIBLE CodeGenerator
    void emitDataSnippets() {}
    bool hasDataSnippets() {return false;}
    int32_t setEstimatedLocationsForDataSnippetLabels(int32_t estimatedSnippetStart) {return 0;}
-   
+
    // --------------------------------------------------------------------------
    // Register pressure
    //
@@ -1143,9 +1197,14 @@ class OMR_EXTENSIBLE CodeGenerator
    //
    // Used to track the internal control flow depth level while compiling.
    // Updated the CodeGenerator.hpp in x86, s390, and PPC so they reference this common code.
+
+   private:
+
    int32_t _internalControlFlowNestingDepth;
    int32_t _internalControlFlowSafeNestingDepth;
-   TR::Instruction *_instructionAtEndInternalControlFlow;
+
+   public:
+
    int32_t internalControlFlowNestingDepth() {return _internalControlFlowNestingDepth;}
    int32_t internalControlFlowSafeNestingDepth() { return _internalControlFlowSafeNestingDepth; }
    void incInternalControlFlowNestingDepth() {_internalControlFlowNestingDepth++;}
@@ -1153,7 +1212,6 @@ class OMR_EXTENSIBLE CodeGenerator
    bool insideInternalControlFlow() {return (_internalControlFlowNestingDepth > _internalControlFlowSafeNestingDepth);}
    void setInternalControlFlowNestingDepth(int32_t depth) { _internalControlFlowNestingDepth = depth; }
    void setInternalControlFlowSafeNestingDepth(int32_t safeDepth) { _internalControlFlowSafeNestingDepth = safeDepth; }
-   TR::Instruction* getInstructionAtEndInternalControlFlow() { return _instructionAtEndInternalControlFlow; }
 
    // --------------------------------------------------------------------------
    // Non-linear register assigner
@@ -1205,9 +1263,6 @@ class OMR_EXTENSIBLE CodeGenerator
    // --------------------------------------------------------------------------
    // Unclassified
    //
-
-   // P now
-   bool isRotateAndMask(TR::Node *node) { return false; }
 
    TR::Instruction *generateNop(TR::Node *node, TR::Instruction *instruction=0, TR_NOPKind nopKind=TR_NOPStandard);
    bool isOutOfLineHotPath() { TR_ASSERT(0, "isOutOfLineHotPath is only implemented for 390 and ppc"); return false;}
@@ -1329,9 +1384,6 @@ class OMR_EXTENSIBLE CodeGenerator
 
    TR::RealRegister **_unlatchedRegisterList; // dynamically allocated
 
-   bool alwaysUseTrampolines() { return _enabledFlags.testAny(AlwaysUseTrampolines); }
-   void setAlwaysUseTrampolines() {_enabledFlags.set(AlwaysUseTrampolines);}
-
    bool shouldBuildStructure() { return _enabledFlags.testAny(ShouldBuildStructure); }
    void setShouldBuildStructure() {_enabledFlags.set(ShouldBuildStructure);}
 
@@ -1339,17 +1391,30 @@ class OMR_EXTENSIBLE CodeGenerator
    bool enableRefinedAliasSets();
    void setEnableRefinedAliasSets() {_enabledFlags.set(EnableRefinedAliasSets);}
 
+   /**
+    * @brief Answers whether a trampoline is required for a direct call instruction to
+    *           reach a target address.  This function should be overridden by an
+    *           architecture-specific implementation.
+    *
+    * @param[in] targetAddress : the absolute address of the call target
+    * @param[in] sourceAddress : the absolute address of the call instruction
+    *
+    * @return : true, but will assert fatally before returning.
+    */
+   bool directCallRequiresTrampoline(intptrj_t targetAddress, intptrj_t sourceAddress)
+      {
+      TR_ASSERT_FATAL(0, "An architecture specialization of this function must be provided.");
+      return true;
+      }
+
    // --------------------------------------------------------------------------
 
    TR::Node *createOrFindClonedNode(TR::Node *node, int32_t numChildren);
-   
+
    bool constantAddressesCanChangeSize(TR::Node *node);
    bool profiledPointersRequireRelocation();
    bool needGuardSitesEvenWhenGuardRemoved();
    bool supportVMInternalNatives();
-   bool supportsNativeLongOperations();
-
-   TR::DataType IntJ() { return TR::Compiler->target.is64Bit() ? TR::Int64 : TR::Int32; }
 
    // will a BCD left shift always leave the sign code unchanged and thus allow it to be propagated through and upwards
    bool propagateSignThroughBCDLeftShift(TR::DataType type) { return false; }
@@ -1368,7 +1433,7 @@ class OMR_EXTENSIBLE CodeGenerator
 
    // IA32 only?
    int32_t arrayInitMinimumNumberOfBytes() {return 8;}
-   
+
    void addCountersToEdges(TR::Block *block);
 
    bool getSupportsBitOpCodes() {return false;}
@@ -1405,6 +1470,9 @@ class OMR_EXTENSIBLE CodeGenerator
    bool getSupportsPrimitiveArrayCopy() {return _flags2.testAny(SupportsPrimitiveArrayCopy);}
    void setSupportsPrimitiveArrayCopy() {_flags2.set(SupportsPrimitiveArrayCopy);}
 
+   bool getSupportsDynamicANewArray() {return _flags2.testAny(SupportsDynamicANewArray);}
+   void setSupportsDynamicANewArray() {_flags2.set(SupportsDynamicANewArray);}
+
    bool getSupportsReferenceArrayCopy() {return _flags1.testAny(SupportsReferenceArrayCopy);}
    void setSupportsReferenceArrayCopy() {_flags1.set(SupportsReferenceArrayCopy);}
 
@@ -1440,9 +1508,6 @@ class OMR_EXTENSIBLE CodeGenerator
 
    bool supportsZonedDFPConversions() {return _enabledFlags.testAny(SupportsZonedDFPConversions);}
    void setSupportsZonedDFPConversions() {_enabledFlags.set(SupportsZonedDFPConversions);}
-
-   bool supportsIntDFPConversions() {return _enabledFlags.testAny(SupportsIntDFPConversions);}
-   void setSupportsIntDFPConversions() {_enabledFlags.set(SupportsIntDFPConversions);}
 
    bool supportsFastPackedDFPConversions() {return _enabledFlags.testAny(SupportsFastPackedDFPConversions);}
    void setSupportsFastPackedDFPConversions() {_enabledFlags.set(SupportsFastPackedDFPConversions);}
@@ -1482,12 +1547,6 @@ class OMR_EXTENSIBLE CodeGenerator
 
    bool getSupportsDoubleWordSet() { return _flags3.testAny(SupportsDoubleWordSet);}
    void setSupportsDoubleWordSet() { _flags3.set(SupportsDoubleWordSet);}
-
-   bool getSupportsTMDoubleWordCASORSet() { return _flags3.testAny(SupportsTMDoubleWordCASORSet);}
-   void setSupportsTMDoubleWordCASORSet() { _flags3.set(SupportsTMDoubleWordCASORSet);}
-
-   bool getSupportsTMHashMapAndLinkedQueue() { return _flags4.testAny(SupportsTMHashMapAndLinkedQueue);}
-   void setSupportsTMHashMapAndLinkedQueue() { _flags4.set(SupportsTMHashMapAndLinkedQueue);}
 
    bool getSupportsAtomicLoadAndAdd() { return _flags4.testAny(SupportsAtomicLoadAndAdd);}
    void setSupportsAtomicLoadAndAdd() { _flags4.set(SupportsAtomicLoadAndAdd);}
@@ -1599,9 +1658,6 @@ class OMR_EXTENSIBLE CodeGenerator
    bool getOptimizationPhaseIsComplete() {return _flags4.testAny(OptimizationPhaseIsComplete);}
    void setOptimizationPhaseIsComplete() {_flags4.set(OptimizationPhaseIsComplete);}
 
-   bool getSupportsBCDToDFPReduction() {return _flags4.testAny(SupportsBCDToDFPReduction);}
-   void setSupportsBCDToDFPReduction() {_flags4.set(SupportsBCDToDFPReduction);}
-
    bool getSupportsTestUnderMask() {return _flags4.testAny(SupportsTestUnderMask);}
    void setSupportsTestUnderMask() {_flags4.set(SupportsTestUnderMask);}
 
@@ -1625,9 +1681,6 @@ class OMR_EXTENSIBLE CodeGenerator
    bool getSupportsStackAllocationOfArraylets() {return _flags3.testAny(SupportsStackAllocationOfArraylets);}
    void setSupportsStackAllocationOfArraylets() {_flags3.set(SupportsStackAllocationOfArraylets);}
 
-   bool expandExponentiation() { return _flags3.testAny(ExpandExponentiation); }
-   void setExpandExponentiation() { _flags3.set(ExpandExponentiation); }
-
    bool multiplyIsDestructive() { return _flags3.testAny(MultiplyIsDestructive); }
    void setMultiplyIsDestructive() { _flags3.set(MultiplyIsDestructive); }
 
@@ -1635,10 +1688,6 @@ class OMR_EXTENSIBLE CodeGenerator
    void toggleIsInOOLSection();
 
    bool isInMemoryInstructionCandidate(TR::Node * node);
-
-   bool trackingInMemoryKilledLoads() {return _flags4.testAny(TrackingInMemoryKilledLoads);}
-   void setTrackingInMemoryKilledLoads() {_flags4.set(TrackingInMemoryKilledLoads);}
-   void resetTrackingInMemoryKilledLoads() {_flags4.reset(TrackingInMemoryKilledLoads);}
 
    void setLmmdFailed() { _lmmdFailed = true;}
 
@@ -1670,10 +1719,10 @@ class OMR_EXTENSIBLE CodeGenerator
       PerformsExplicitChecks                             = 0x00080000,
       SpillsFPRegistersAcrossCalls                       = 0x00100000,
       ConsiderAllAutosAsTacticalGlobalRegisterCandidates = 0x00200000,
-      //                                                 = 0x00400000,   // Available
+      // AVAILABLE                                       = 0x00400000,
       SupportsScaledIndexAddressing                      = 0x00800000,
       SupportsCompactedLocals                            = 0x01000000,
-      //                                                 = 0x02000000,   // Available
+      // AVAILABLE                                       = 0x02000000,
       UsesRegisterPairsForLongs                          = 0x04000000,
       SupportsArraySet                                   = 0x08000000,
       AccessStaticsIndirectly                            = 0x10000000,
@@ -1696,11 +1745,11 @@ class OMR_EXTENSIBLE CodeGenerator
       HasDoubleWordAlignedStack                           = 0x00000200,
       SupportsReadOnlyLocks                               = 0x00000400,
       SupportsArrayTranslateAndTest                       = 0x00000800,
-      // AVAILABLE                                        = 0x00001000,
+      SupportsDynamicANewArray                            = 0x00001000,
       // AVAILABLE                                        = 0x00002000,
       // AVAILABLE                                        = 0x00004000,
       SupportsPostProcessArrayCopy                        = 0x00008000,
-      //                                                  = 0x00010000,   AVAILABLE FOR USE!!!
+      // AVAILABLE                                        = 0x00010000,
       SupportsCurrentTimeMaxPrecision                     = 0x00020000,
       HasCCSigned                                         = 0x00040000,
       HasCCZero                                           = 0x00080000,
@@ -1709,30 +1758,30 @@ class OMR_EXTENSIBLE CodeGenerator
       SupportsReverseLoadAndStore                         = 0x00400000,
       SupportsLoweringConstLDivPower2                     = 0x00800000,
       DisableFpGRA                                        = 0x01000000,
-      // Available                                        = 0x02000000,
+      // AVAILABLE                                        = 0x02000000,
       MethodModifiedByRA                                  = 0x04000000,
-      SchedulingInstrCleanupNeeded                        = 0x08000000,
-      // Available                                        = 0x10000000,
+      // AVAILABLE                                        = 0x08000000,
+      // AVAILABLE                                        = 0x10000000,
       EnforceStoreOrder                                   = 0x20000000,
-      SupportsNewReferenceArrayCopy                       = 0x80000000,   // AVAILABLE FOR USE!!!!!!
+      // AVAILABLE                                        = 0x80000000,
       DummyLastEnum2
       };
 
    enum // _flags3
       {
-      //                                                  = 0x00000001,   AVAILABLE FOR USE!!!!!!
+      // AVAILABLE                                        = 0x00000001,
       SupportsConstantOffsetInAddressing                  = 0x00000002,
       SupportsAlignedAccessOnly                           = 0x00000004,
-      //                                                  = 0x00000008,   AVAILABLE FOR USE!!!!!!
+      // AVAILABLE                                        = 0x00000008,
       CompactNullCheckOfArrayLengthDisabled               = 0x00000010,
       SupportsArrayCmpSign                                = 0x00000020,
       SupportsSearchCharString                            = 0x00000040,
       SupportsTranslateAndTestCharString                  = 0x00000080,
       SupportsTestCharComparisonControl                   = 0x00000100,
-      //                                                  = 0x00000200,   AVAILABLE FOR USE!!!!!!
-      //                                                  = 0x00000400,   AVAILABLE FOR USE!!!!!!
+      // AVAILABLE                                        = 0x00000200,
+      // AVAILABLE                                        = 0x00000400,
       HasCCCarry                                          = 0x00000800,
-      //                                                  = 0x00001000,  AVAILABLE FOR USE!!!!!!
+      // AVAILABLE                                        = 0x00001000,
       SupportsBigDecimalLongLookasideVersioning           = 0x00002000,
       RemoveRegisterHogsInLowerTreesWalk                  = 0x00004000,
       SupportsBDLLHardwareOverflowCheck                   = 0x00008000,
@@ -1743,50 +1792,50 @@ class OMR_EXTENSIBLE CodeGenerator
       // AVAILABLE                                        = 0x00100000,
       // AVAILABLE                                        = 0x00200000,
       SupportsStackAllocationOfArraylets                  = 0x00400000,
-      //                                                  = 0x00800000,  AVAILABLE FOR USE!
+      // AVAILABLE                                        = 0x00800000,
       SupportsDoubleWordCAS                               = 0x01000000,
       SupportsDoubleWordSet                               = 0x02000000,
       // AVAILABLE                                        = 0x04000000,
-      ExpandExponentiation                                = 0x08000000,
+      // AVAILABLE                                        = 0x08000000,
       MultiplyIsDestructive                               = 0x10000000,
-      //                                                  = 0x20000000,  AVAILABLE FOR USE!
+      // AVAILABLE                                        = 0x20000000,
       HasCCCompare                                        = 0x40000000,
-      SupportsTMDoubleWordCASORSet                        = 0x80000000,
+      // AVAILABLE                                        = 0x80000000,
       DummyLastEnum
       };
 
    enum // flags4
       {
-      //                                                  = 0x00000001,  AVAILABLE FOR USE!
-      //                                                  = 0x00000002,  AVAILABLE FOR USE!
-      //                                                  = 0x00000004,  AVAILABLE FOR USE!
+      // AVAILABLE                                        = 0x00000001,
+      // AVAILABLE                                        = 0x00000002,
+      // AVAILABLE                                        = 0x00000004,
       OptimizationPhaseIsComplete                         = 0x00000008,
-      // Available                                        = 0x00000010,
+      // AVAILABLE                                        = 0x00000010,
       IsInOOLSection                                      = 0x00000020,
-      SupportsBCDToDFPReduction                           = 0x00000040,
+      // AVAILABLE                                        = 0x00000040,
       GRACompleted                                        = 0x00000080,
       SupportsTestUnderMask                               = 0x00000100,
       SupportsRuntimeInstrumentation                      = 0x00000200,
       SupportsEfficientNarrowUnsignedIntComputation       = 0x00000400,
       SupportsAtomicLoadAndAdd                            = 0x00000800,
-      //                                                  = 0x00001000, AVAILABLE FOR USE!
+      // AVAILABLE                                        = 0x00001000,
       // AVAILABLE                                        = 0x00002000,
-      HasSignCleans                                       = 0x00004000,
+      // AVAILABLE                                        = 0x00004000,
       SupportsArrayTranslateTRTO255                       = 0x00008000, //if (ca[i] < 256) ba[i] = (byte) ca[i]
       SupportsArrayTranslateTROTNoBreak                   = 0x00010000, //ca[i] = (char) ba[i]
       SupportsArrayTranslateTRTO                          = 0x00020000, //if (ca[i] < x) ba[i] = (byte) ca[i]; x is either 256 or 128
       SupportsArrayTranslateTROT                          = 0x00040000, //if (ba[i] >= 0) ca[i] = (char) ba[i];
       SupportsTM                                          = 0x00080000,
       SupportsProfiledInlining                            = 0x00100000,
-      SupportsAutoSIMD                                = 0x00200000,  //vector support for autoVectorizatoon
+      SupportsAutoSIMD                                    = 0x00200000,  //vector support for autoVectorizatoon
       // AVAILABLE                                        = 0x00400000,
       // AVAILABLE                                        = 0x00800000,
-      //                                                  = 0x01000000,  NOW AVAILABLE
-      //                                                  = 0x02000000,  NOW AVAILABLE
-      //                                                  = 0x04000000,  NOW AVAILABLE
-      TrackingInMemoryKilledLoads                         = 0x08000000,
-      SupportsTMHashMapAndLinkedQueue                     = 0x10000000,
-	  SupportsLM                                          = 0x20000000,
+      // AVAILABLE                                        = 0x01000000,
+      // AVAILABLE                                        = 0x02000000,
+      // AVAILABLE                                        = 0x04000000,
+      // AVAILABLE                                        = 0x08000000,
+      // AVAILABLE                                        = 0x10000000,
+      SupportsLM                                          = 0x20000000,
 
       DummyLastEnum4
       };
@@ -1794,20 +1843,19 @@ class OMR_EXTENSIBLE CodeGenerator
    enum // enabledFlags
       {
       SupportsZonedDFPConversions      = 0x0001,
-      // Available                             ,
-      // Available                             ,
+      // AVAILABLE                     = 0x0002,
+      // AVAILABLE                     = 0x0004,
       EnableRefinedAliasSets           = 0x0008,
-      AlwaysUseTrampolines             = 0x0010,
+      // AVAILABLE                     = 0x0010,
       ShouldBuildStructure             = 0x0020,
       LockFreeSpillList                = 0x0040,  // TAROK only (until it matures)
       UseNonLinearRegisterAssigner     = 0x0080,  // TAROK only (until it matures)
       TrackRegisterUsage               = 0x0100,  // TAROK only (until it matures)
-      //                               = 0x0200,  // AVAILABLE FOR USE!
-      //                               = 0x0400,  // AVAILABLE FOR USE!
-      SupportsIntDFPConversions        = 0x0800,
-      // Available                             ,
+      // AVAILABLE                     = 0x0200,
+      // AVAILABLE                     = 0x0400,
+      // AVAILABLE                     = 0x0800,
+      // AVAILABLE                     = 0x1000,
       SupportsFastPackedDFPConversions = 0x2000,
-      // Available
       };
 
    TR::SymbolReferenceTable *_symRefTab;
@@ -1921,16 +1969,6 @@ class OMR_EXTENSIBLE CodeGenerator
 
    protected:
 
-#ifdef DEBUG
-   static int _totalNumSpilledRegisters;         // For collecting statistics on spilling
-   static int _totalNumRematerializedConstants;
-   static int _totalNumRematerializedLocals;
-   static int _totalNumRematerializedStatics;
-   static int _totalNumRematerializedIndirects;
-   static int _totalNumRematerializedAddresses;
-   static int _totalNumRematerializedXMMRs;
-#endif
-
    bool _disableInternalPointers;
 
    void addMonClass(TR::Node* monNode, TR_OpaqueClassBlock* clazz);
@@ -1958,6 +1996,8 @@ class OMR_EXTENSIBLE CodeGenerator
 
    TR::CodeCache * _codeCache;
    bool _committedToCodeCache;
+
+   bool _codeCacheSwitched; ///< Has the CodeCache switched from the initially assigned CodeCache?
 
    TR_Stack<TR::Node *> _stackOfArtificiallyInflatedNodes;
 

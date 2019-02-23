@@ -44,7 +44,8 @@ add_executable(comptest
 	LogicalTest.cpp
 	BitPermuteTest.cpp
 	MaxMinTest.cpp
-
+	CompareTest.cpp
+	TypeConversionTest.cpp
 	LocalPassByRefTest.cpp
 	LinkageTest.cpp
 )

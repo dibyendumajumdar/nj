@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -32,22 +32,22 @@ namespace OMR { typedef OMR::Options OptionsConnector; }
 #endif
 
 
-#include <limits.h>                      // for INT_MAX
-#include <stddef.h>                      // for size_t
-#include <stdint.h>                      // for int32_t, uint32_t, uintptr_t, etc
-#include <string.h>                      // for NULL, strcpy, memset, strlen, etc
-#include "codegen/FrontEnd.hpp"          // for TR_FrontEnd
-#include "compile/CompilationTypes.hpp"  // for TR_Hotness
-#include "control/OMROptions.hpp"        // for OMR::Options
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include "codegen/FrontEnd.hpp"
+#include "compile/CompilationTypes.hpp"
+#include "control/OMROptions.hpp"
 #include "control/OptionsUtil.hpp"
-#include "env/Processors.hpp"            // for TR_Processor
+#include "env/Processors.hpp"
 #include "env/RawAllocator.hpp"
-#include "env/TRMemory.hpp"              // for TR_Memory, etc
-#include "env/jittypes.h"                // for intptrj_t
-#include "il/DataTypes.hpp"              // for TR_YesNoMaybe, etc
-#include "infra/Assert.hpp"              // for TR_ASSERT
-#include "optimizer/Optimizations.hpp"   // for Optimizations, etc
-#include "ras/DebugCounter.hpp"          // for TR::DebugCounter, etc
+#include "env/TRMemory.hpp"
+#include "env/jittypes.h"
+#include "il/DataTypes.hpp"
+#include "infra/Assert.hpp"
+#include "optimizer/Optimizations.hpp"
+#include "ras/DebugCounter.hpp"
 
 namespace TR { class CFGNode; }
 
@@ -200,12 +200,12 @@ enum TR_CompilationOptions
    TR_Timing                              = 0x00000200 + 3,
    TR_SupportSwitchToInterpreter          = 0x00000400 + 3,
    TR_DisableFPCodeGen                    = 0x00000800 + 3,
-   TR_DisableLongDispStackSlot            = 0x00001000 + 3,
+   TR_DisableAotAtCheapWarm               = 0x00001000 + 3,
    TR_Profile                             = 0x00002000 + 3,
    TR_DisableAsyncCompilation             = 0x00004000 + 3,
    TR_DisableCompilationThread            = 0x00008000 + 3,
    TR_EnableCompilationThread             = 0x00010000 + 3,
-   // Available                           = 0x00020000 + 3,
+   TR_EnableJITaaSHeuristics              = 0x00020000 + 3,
    TR_SoftFailOnAssume                    = 0x00040000 + 3,
    TR_DisableNewBlockOrdering             = 0x00080000 + 3,
    TR_DisableZNext                        = 0x00100000 + 3,
@@ -348,7 +348,7 @@ enum TR_CompilationOptions
    TR_DisableDirectToJNI                  = 0x00000040 + 8,
    TR_OldJVMPI                            = 0x00000080 + 8,
    TR_EmitExecutableELFFile               = 0x00000100 + 8,
-   // Available                           = 0x00000200 + 8,
+   TR_EnableJITaaSDoLocalCompilesForRemoteCompiles = 0x00000200 + 8,
    // Available                           = 0x00000800 + 8,
    TR_DisableLinkageRegisterAllocation    = 0x00001000 + 8,
    // Available                           = 0x00002000 + 8,
@@ -427,8 +427,8 @@ enum TR_CompilationOptions
    TR_EnableLargePages                    = 0x02000000 + 10,
    TR_DisableNewX86VolatileSupport        = 0x04000000 + 10,
    // Available                           = 0x08000000 + 10,
-   TR_Disable64BitRegsOn32Bit             = 0x10000000 + 10,
-   TR_Disable64BitRegsOn32BitHeuristic    = 0x20000000 + 10,
+   // Available                           = 0x10000000 + 10,
+   // Available                           = 0x20000000 + 10,
    TR_TraceRegisterState                  = 0x40000000 + 10,
    TR_DisableDirectToJNIInline            = 0x80000000 + 10,
 
@@ -486,7 +486,7 @@ enum TR_CompilationOptions
    // Available                               = 0x04000000 + 12,
    // Available                               = 0x08000000 + 12,
    // Available                               = 0x10000000 + 12,
-   TR_DisableLongDispNodes                    = 0x20000000 + 12, // 390
+   // Available                               = 0x20000000 + 12,
    // Available                               = 0x40000000 + 12,
    TR_DisableAOTInstanceFieldResolution       = 0x80000000 + 12,
 
@@ -684,8 +684,8 @@ enum TR_CompilationOptions
    // Available                                       = 0x04000000 + 19,
    // Available                                       = 0x08000000 + 19,
    TR_UpgradeBootstrapAtWarm                          = 0x10000000 + 19,
-   TR_ForceLargeRAMoves                               = 0x20000000 + 19,  // force 64 register moves in RA
-   TR_EnableLateCleanFolding                          = 0x40000000 + 19,  // fold pdclean flags into pdstore nodes right before codegen
+   // Available                                       = 0x20000000 + 19,
+   // Available                                       = 0x40000000 + 19,
    // Available                                       = 0x80000000 + 19,
 
    // Option word 20
@@ -731,7 +731,7 @@ enum TR_CompilationOptions
    // Available                                       = 0x00010000 + 21,
    TR_OldDataCacheImplementation                      = 0x00020000 + 21,
    TR_EnableDataCacheStatistics                       = 0x00040000 + 21,
-   TR_DisableRedundantBCDSignElimination              = 0x00080000 + 21,
+   // Available                                       = 0x00080000 + 21,
    // Available                                       = 0x00100000 + 21,
    TR_AllowVPRangeNarrowingBasedOnDeclaredType        = 0x00200000 + 21,
    TR_EnableScratchMemoryDebugging                    = 0x00400000 + 21,
@@ -837,7 +837,7 @@ enum TR_CompilationOptions
    // Available                                       = 0x00000800 + 25,
    // Available                                       = 0x00001000 + 25,
    TR_TracePREForOptimalSubNodeReplacement            = 0x00002000 + 25,
-   TR_EnableTrueRegisterModel                         = 0x00008000 + 25,
+   // Available                                       = 0x00008000 + 25,
    TR_PerfTool                                        = 0x00010000 + 25,
    // Available                                       = 0x00020000 + 25,
    TR_DisableBranchOnCount                            = 0x00040000 + 25,
@@ -887,7 +887,7 @@ enum TR_CompilationOptions
    TR_ForceIEEEDivideByZeroException                  = 0x00000020 + 27,
    // Available                                       = 0x00000040 + 27,
    TR_DisableDirectStaticAccessOnZ                    = 0x00000080 + 27,
-   TR_EnableRubyTieredCompilation                     = 0x00000100 + 27,
+   // Available                                       = 0x00000100 + 27,
    TR_EnableRIEMIT                                    = 0x00000200 + 27,
    TR_DisableConservativeColdInlining                 = 0x00000400 + 27,
    TR_DisableConservativeInlining                     = 0x00000800 + 27,
@@ -896,7 +896,7 @@ enum TR_CompilationOptions
    TR_DisableArch11PackedToDFP                        = 0x00004000 + 27,
    TR_DisableVectorRegGRA                             = 0x00008000 + 27,
    TR_DisableSIMD                                     = 0x00010000 + 27,
-   TR_EnableRubyCodeCacheReclamation                  = 0x00020000 + 27,
+   // Available                                       = 0x00020000 + 27,
    TR_DisableSIMDStringCaseConv                       = 0x00040000 + 27,
    TR_DisableSIMDUTF16BEEncoder                       = 0x00080000 + 27,
    TR_DisableSIMDArrayCopy                            = 0x00100000 + 27,
@@ -955,7 +955,7 @@ enum TR_CompilationOptions
    TR_IncreaseCountsForNonBootstrapMethods            = 0x00080000 + 29,
    TR_ReduceCountsForMethodsCompiledDuringStartup     = 0x00100000 + 29,
    TR_IncreaseCountsForMethodsCompiledOutsideStartup  = 0x00200000 + 29,
-   TR_EnableMethodTrampolineReservation               = 0x00400000 + 29,
+   // Available                                       = 0x00400000 + 29,
    TR_UseGlueIfMethodTrampolinesAreNotNeeded          = 0x00800000 + 29,
    TR_EnableFpreductionAnnotation                     = 0x01000000 + 29,
    TR_ExtractExitsByInvalidatingStructure             = 0x02000000 + 29,
@@ -1691,6 +1691,7 @@ public:
    void setAggressiveQuickStart();
    void setGlobalAggressiveAOT();
    void setLocalAggressiveAOT();
+   void setInlinerOptionsForAggressiveAOT();
    void setConservativeDefaultBehavior();
 
    static bool getCountsAreProvidedByUser() { return _countsAreProvidedByUser; } // set very late in setCounts()
