@@ -1,17 +1,18 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2014, 2017 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
- * distribution and is available at http://eclipse.org/legal/epl-2.0
- * or the Apache License, Version 2.0 which accompanies this distribution
- * and is available at https://www.apache.org/licenses/LICENSE-2.0.
+ * distribution and is available at https://www.eclipse.org/legal/epl-2.0/
+ * or the Apache License, Version 2.0 which accompanies this distribution and
+ * is available at https://www.apache.org/licenses/LICENSE-2.0.
  *
- * This Source Code may also be made available under the following Secondary
- * Licenses when the conditions for such availability set forth in the
- * Eclipse Public License, v. 2.0 are satisfied: GNU General Public License,
- * version 2 with the GNU Classpath Exception [1] and GNU General Public
- * License, version 2 with the OpenJDK Assembly Exception [2].
+ * This Source Code may also be made available under the following
+ * Secondary Licenses when the conditions for such availability set
+ * forth in the Eclipse Public License, v. 2.0 are satisfied: GNU
+ * General Public License, version 2 with the GNU Classpath
+ * Exception [1] and GNU General Public License, version 2 with the
+ * OpenJDK Assembly Exception [2].
  *
  * [1] https://www.gnu.org/software/classpath/license.html
  * [2] http://openjdk.java.net/legal/assembly-exception.html
@@ -22,11 +23,11 @@
 #include <stdio.h>
 #include "codegen/CodeGenerator.hpp"
 #include "compile/CompilationTypes.hpp"
+#include "compile/Method.hpp"
 #include "control/CompileMethod.hpp"
 #include "env/CompilerEnv.hpp"
 #include "env/FrontEnd.hpp"
 #include "env/IO.hpp"
-#include "compile/Method.hpp"
 #include "env/RawAllocator.hpp"
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 #include "ilgen/MethodBuilder.hpp"
@@ -203,11 +204,6 @@ shutdownJit()
 
    TR::CodeCacheManager &codeCacheManager = fe->codeCacheManager();
    codeCacheManager.destroy();
-#if defined(TR_TARGET_POWER)
-   delete fe->getPersistentInfo()->getPersistentTOC();
-   fe->getPersistentInfo()->setPersistentTOC(NULL);
-#endif
-
    }
 
 extern "C"
