@@ -124,7 +124,9 @@ void TR_UseDefInfo::prepareUseDefInfo(bool requiresGlobals, bool prefersGlobals,
       }
 
    bool canBuild = false;
-   _hasCallsAsUses = false;
+   _hasCallsAsUses = true; // OMR sets this to false, but we need this to be enabled to ensure call nodes
+						   // participate in use/def analysis, and thereby allow any aliased locals
+						   // to be handled correctly 
    _uniqueIndexForDefsOnEntry = false;
 
    if (comp()->cg()->getGRACompleted() && conversionRegsOnly)
