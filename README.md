@@ -39,9 +39,7 @@ Following OMR components have been removed:
 
 ## Merge Strategy
 
-I will probably submit a pull request to Eclipse OMR for the C api once I am happy with it. But that would not do away with the
-need to maintain this project as I disagree with one aspect of the Eclipse OMR strategy which is to make the compiler depend on
-the port and thread libraries. 
+I have [submitted a pull request](https://github.com/eclipse/omr/pull/3606) to Eclipse OMR for the C api as it stands. However that  does not do away with the need to maintain this project as I disagree with one aspect of the Eclipse OMR strategy which is to make the compiler depend on the port and thread libraries. 
 
 Initially I wanted to merge the commits from Eclipse OMR using git's `am` facility. But I got hopelessly lost and some of the
 merges did not succeed. So sadly I am taking the easy way and am doing periodic manual merges from the OMR tree using BeyondCompare tool. The downside is that the upstream commit history is not maintained.
