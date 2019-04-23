@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -33,18 +33,18 @@ namespace OMR { typedef OMR::Z::Linkage LinkageConnector; }
 
 #include "compiler/codegen/OMRLinkage.hpp"
 
-#include <stddef.h>                            // for NULL
-#include <stdint.h>                            // for int32_t, uint32_t, etc
-#include "codegen/CodeGenerator.hpp"           // for CodeGenerator
-#include "codegen/InstOpCode.hpp"              // for InstOpCode, etc
+#include <stddef.h>
+#include <stdint.h>
+#include "codegen/CodeGenerator.hpp"
+#include "codegen/InstOpCode.hpp"
 #include "codegen/LinkageConventionsEnum.hpp"
-#include "codegen/Machine.hpp"                 // for Machine
-#include "codegen/RealRegister.hpp"            // for RealRegister, etc
+#include "codegen/Machine.hpp"
+#include "codegen/RealRegister.hpp"
 #include "codegen/RegisterConstants.hpp"
-#include "codegen/Snippet.hpp"                 // for Snippet
-#include "env/TRMemory.hpp"                    // for TR_HeapMemory, etc
-#include "il/DataTypes.hpp"                    // for TR::DataType, DataTypes
-#include "infra/Assert.hpp"                    // for TR_ASSERT
+#include "codegen/Snippet.hpp"
+#include "env/TRMemory.hpp"
+#include "il/DataTypes.hpp"
+#include "infra/Assert.hpp"
 
 #include "codegen/RegisterDependency.hpp"
 
@@ -244,7 +244,6 @@ private:
    TR::RealRegister::RegNum _litPoolRegister;
    TR::RealRegister::RegNum _staticBaseRegister;
    TR::RealRegister::RegNum _privateStaticBaseRegister;   ///< locked register for private WSA, if its allocated
-   TR::RealRegister::RegNum _extCodeBaseRegister;
    TR::RealRegister::RegNum _returnAddrRegister;
    TR::RealRegister::RegNum _vtableIndexArgumentRegister; ///< for icallVMprJavaSendPatchupVirtual
    TR::RealRegister::RegNum _j9methodArgumentRegister;    ///< for icallVMprJavaSendStatic
@@ -335,8 +334,6 @@ enum TR_DispatchType
 
    public:
 
-   virtual bool findPossibleCallInstruction(TR::Instruction* &cursor, int32_t& numToCheck, TR::Instruction ** callInstruction, bool *regs = 0, int32_t regsSize = 0);
-   virtual void setUsedRegisters(TR::Instruction *instruction, bool *regs, int32_t regsSize);
    virtual bool checkPreservedRegisterUsage(bool *regs, int32_t regsSize);
    virtual void replaceCallWithJumpInstruction(TR::Instruction *callInstruction);
 
@@ -567,10 +564,6 @@ enum TR_DispatchType
    virtual TR::RealRegister::RegNum getPrivateStaticBaseRegister()        { return _privateStaticBaseRegister; }
    virtual TR::RealRegister *getPrivateStaticBaseRealRegister();
 
-   virtual TR::RealRegister::RegNum setExtCodeBaseRegister (TR::RealRegister::RegNum r)   { return _extCodeBaseRegister = r; }
-   virtual TR::RealRegister::RegNum getExtCodeBaseRegister()    { return _extCodeBaseRegister; }
-   virtual TR::RealRegister *getExtCodeBaseRealRegister();
-
    virtual TR::RealRegister::RegNum setReturnAddressRegister (TR::RealRegister::RegNum r) { return _returnAddrRegister = r; }
    virtual TR::RealRegister::RegNum getReturnAddressRegister()  { return _returnAddrRegister; }
    virtual TR::RealRegister *getReturnAddressRealRegister();
@@ -614,7 +607,7 @@ enum TR_DispatchType
    TR_HeapMemory        trHeapMemory();
    TR_StackMemory       trStackMemory();
 
-   TR::RealRegister *  getS390RealRegister(TR::RealRegister::RegNum rNum);
+   TR::RealRegister *  getRealRegister(TR::RealRegister::RegNum rNum);
 
    TR::RealRegister::RegNum getFirstSavedRegister(int32_t fromreg, int32_t toreg);
    TR::RealRegister::RegNum getLastSavedRegister(int32_t fromreg, int32_t toreg);

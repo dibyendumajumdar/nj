@@ -126,6 +126,13 @@ target_link_libraries(jitbuilder
 )
 
 add_subdirectory(release)
+if(OMR_JITBUILDER_TEST)
+	add_test(
+		NAME TestJitBuilderAPIGenerator
+		COMMAND ${PYTHON_EXECUTABLE} run_tests.py
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/apigen
+	)
+endif()
 
 # install(TARGETS jitbuilder
 #         ARCHIVE       DESTINATION ${CMAKE_BINARY_DIR}/jitbuilder_release

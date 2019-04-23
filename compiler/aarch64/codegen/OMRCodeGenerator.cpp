@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, 2018 IBM Corp. and others
+ * Copyright (c) 2018, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -30,6 +30,8 @@
 #include "codegen/RegisterConstants.hpp"
 #include "codegen/RegisterIterator.hpp"
 #include "codegen/TreeEvaluator.hpp"
+#include "il/Node.hpp"
+#include "il/Node_inlines.hpp"
 
 OMR::ARM64::CodeGenerator::CodeGenerator() :
       OMR::CodeGenerator(),
@@ -46,7 +48,8 @@ OMR::ARM64::CodeGenerator::CodeGenerator() :
 
    _linkageProperties = &self()->getLinkage()->getProperties();
 
-   self()->setMethodMetaDataRegister(self()->machine()->getARM64RealRegister(_linkageProperties->getMethodMetaDataRegister()));
+   self()->setStackPointerRegister(self()->machine()->getRealRegister(_linkageProperties->getStackPointerRegister()));
+   self()->setMethodMetaDataRegister(self()->machine()->getRealRegister(_linkageProperties->getMethodMetaDataRegister()));
 
    // Tactical GRA settings
    //
@@ -110,8 +113,8 @@ OMR::ARM64::CodeGenerator::CodeGenerator() :
 
    if (self()->comp()->getOptions()->getRegisterAssignmentTraceOption(TR_TraceRARegisterStates))
       {
-      self()->setGPRegisterIterator(new (self()->trHeapMemory()) TR::RegisterIterator(self()->machine(), TR_GPR));
-      self()->setFPRegisterIterator(new (self()->trHeapMemory()) TR::RegisterIterator(self()->machine(), TR_FPR));
+      self()->setGPRegisterIterator(new (self()->trHeapMemory()) TR::RegisterIterator(self()->machine(), TR::RealRegister::FirstGPR, TR::RealRegister::LastGPR));
+      self()->setFPRegisterIterator(new (self()->trHeapMemory()) TR::RegisterIterator(self()->machine(), TR::RealRegister::FirstFPR, TR::RealRegister::LastFPR));
       }
    }
 
@@ -381,7 +384,7 @@ int32_t OMR::ARM64::CodeGenerator::getMaximumNumbersOfAssignableFPRs()
 
 bool OMR::ARM64::CodeGenerator::isGlobalRegisterAvailable(TR_GlobalRegisterNumber i, TR::DataType dt)
    {
-   return self()->machine()->getARM64RealRegister((TR::RealRegister::RegNum)self()->getGlobalRegister(i))->getState() == TR::RealRegister::Free;
+   return self()->machine()->getRealRegister((TR::RealRegister::RegNum)self()->getGlobalRegister(i))->getState() == TR::RealRegister::Free;
    }
 
 TR_GlobalRegisterNumber OMR::ARM64::CodeGenerator::getLinkageGlobalRegisterNumber(int8_t linkageRegisterIndex, TR::DataType type)
@@ -391,14 +394,40 @@ TR_GlobalRegisterNumber OMR::ARM64::CodeGenerator::getLinkageGlobalRegisterNumbe
    return 0;
    }
 
+void OMR::ARM64::CodeGenerator::apply24BitLabelRelativeRelocation(int32_t *cursor, TR::LabelSymbol *label)
+   {
+   // for "b.cond" instruction
+   TR_ASSERT(label->getCodeLocation(), "Attempt to relocate to a NULL label address!");
+
+   intptrj_t distance = (uintptrj_t)label->getCodeLocation() - (uintptrj_t)cursor;
+   *cursor |= ((distance >> 2) & 0x7ffff) << 5; // imm19
+   }
+
+void OMR::ARM64::CodeGenerator::apply32BitLabelRelativeRelocation(int32_t *cursor, TR::LabelSymbol *label)
+   {
+   // for unconditional "b" instruction
+   TR_ASSERT(label->getCodeLocation(), "Attempt to relocate to a NULL label address!");
+
+   intptrj_t distance = (uintptrj_t)label->getCodeLocation() - (uintptrj_t)cursor;
+   *cursor |= ((distance >> 2) & 0x3ffffff); // imm26
+   }
+
 int64_t OMR::ARM64::CodeGenerator::getLargestNegConstThatMustBeMaterialized()
-   { 
-   TR_ASSERT(0, "Not Implemented on AArch64"); 
-   return 0; 
+   {
+   TR_ASSERT(0, "Not Implemented on AArch64");
+   return 0;
    }
 
 int64_t OMR::ARM64::CodeGenerator::getSmallestPosConstThatMustBeMaterialized()
-   { 
-   TR_ASSERT(0, "Not Implemented on AArch64"); 
-   return 0; 
+   {
+   TR_ASSERT(0, "Not Implemented on AArch64");
+   return 0;
+   }
+
+bool
+OMR::ARM64::CodeGenerator::directCallRequiresTrampoline(intptrj_t targetAddress, intptrj_t sourceAddress)
+   {
+   return
+      !TR::Compiler->target.cpu.isTargetWithinUnconditionalBranchImmediateRange(targetAddress, sourceAddress) ||
+      self()->comp()->getOption(TR_StressTrampolines);
    }

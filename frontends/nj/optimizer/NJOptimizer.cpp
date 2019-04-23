@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -22,10 +22,10 @@
 
 #include "optimizer/Optimizer.hpp"
 
-#include <stddef.h>                                       // for NULL
-#include <stdint.h>                                       // for uint16_t
+#include <stddef.h>
+#include <stdint.h>
 #include "compile/Compilation.hpp"
-#include "compile/Method.hpp"                             // for TR_Method
+#include "compile/Method.hpp"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
 #include "il/symbol/ResolvedMethodSymbol.hpp"
@@ -65,6 +65,7 @@
 #include "optimizer/GlobalValuePropagation.hpp"
 #include "optimizer/LocalValuePropagation.hpp"
 #include "optimizer/Inliner.hpp"
+#include "optimizer/SwitchAnalyzer.hpp"
 
 
 static const OptimizationStrategy tacticalGlobalRegisterAllocatorOpts[] =
@@ -133,6 +134,7 @@ static const OptimizationStrategy hotStrategyOpts[] =
 
    { OMR::globalValuePropagation,                    OMR::IfMoreThanOneBlock       },
    { OMR::localValuePropagation,                     OMR::IfOneBlock               },
+   { OMR::switchAnalyzer,                                                          },
    { OMR::localCSE                                                                 },
    { OMR::treeSimplification                                                       },
    { OMR::trivialDeadTreeRemoval,                    OMR::IfEnabled                },
@@ -207,6 +209,8 @@ Optimizer::Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymb
       new (comp->allocator()) TR::OptimizationManager(self(), TR_GlobalRegisterAllocator::create, OMR::tacticalGlobalRegisterAllocator);
    _opts[OMR::regDepCopyRemoval] =
       new (comp->allocator()) TR::OptimizationManager(self(), TR::RegDepCopyRemoval::create, OMR::regDepCopyRemoval);
+   _opts[OMR::switchAnalyzer] =
+      new (comp->allocator()) TR::OptimizationManager(self(), TR::SwitchAnalyzer::create, OMR::switchAnalyzer);
 
    // Initialize optimization groups
    _opts[OMR::cheapTacticalGlobalRegisterAllocatorGroup] =

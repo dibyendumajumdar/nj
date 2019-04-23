@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2017 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -22,19 +22,19 @@
 #ifndef OMR_VALUEPROPAGATION_INCL
 #define OMR_VALUEPROPAGATION_INCL
 
-#include <stddef.h>                           // for NULL
-#include <stdint.h>                           // for int32_t, int64_t, etc
-#include "compile/Compilation.hpp"            // for Compilation
-#include "cs2/hashtab.h"                      // for HashTable
-#include "env/TRMemory.hpp"                   // for TR_Memory, etc
-#include "env/jittypes.h"                     // for uintptrj_t
-#include "il/DataTypes.hpp"                   // for DataTypes, TR_YesNoMaybe
-#include "il/ILOpCodes.hpp"                   // for ILOpCodes::DIVCHK
-#include "il/Node.hpp"                        // for Node, vcount_t
-#include "infra/Link.hpp"                     // for TR_LinkHead, TR_Link, etc
-#include "infra/List.hpp"                     // for List, TR_ScratchList
-#include "optimizer/Optimization.hpp"         // for Optimization
-#include "optimizer/OptimizationManager.hpp"  // for OptimizationManager
+#include <stddef.h>
+#include <stdint.h>
+#include "compile/Compilation.hpp"
+#include "cs2/hashtab.h"
+#include "env/TRMemory.hpp"
+#include "env/jittypes.h"
+#include "il/DataTypes.hpp"
+#include "il/ILOpCodes.hpp"
+#include "il/Node.hpp"
+#include "infra/Link.hpp"
+#include "infra/List.hpp"
+#include "optimizer/Optimization.hpp"
+#include "optimizer/OptimizationManager.hpp"
 
 #define USE_TREES   1
 #define HEDGE_TREES 1
@@ -589,6 +589,7 @@ class ValuePropagation : public TR::Optimization
    void transformReferenceArrayCopy(TR_TreeTopWrtBarFlag *);
    void transformReferenceArrayCopyWithoutCreatingStoreTrees(TR_TreeTopWrtBarFlag *arrayTree, TR::SymbolReference *srcObjRef, TR::SymbolReference *dstObjRef, TR::SymbolReference *srcRef, TR::SymbolReference *dstRef, TR::SymbolReference *lenRef);
    virtual void constrainRecognizedMethod(TR::Node *node);
+   virtual bool transformDirectLoad(TR::Node *node);
 
    struct ObjCloneInfo {
       TR_ALLOC(TR_Memory::ValuePropagation)
@@ -599,10 +600,19 @@ class ValuePropagation : public TR::Optimization
          : _clazz(clazz), _isFixed(isFixed)  { }
    };
 
+   struct ArrayCloneInfo {
+      TR_ALLOC(TR_Memory::ValuePropagation)
+
+      TR_OpaqueClassBlock *_clazz;
+      bool _isFixed;
+      ArrayCloneInfo(TR_OpaqueClassBlock *clazz, bool isFixed)
+         : _clazz(clazz), _isFixed(isFixed)  { }
+   };
+
 #ifdef J9_PROJECT_SPECIFIC
    void transformConverterCall(TR::TreeTop *);
    void transformObjectCloneCall(TR::TreeTop *, ObjCloneInfo *cloneInfo);
-   void transformArrayCloneCall(TR::TreeTop *, TR_OpaqueClassBlock *j9class);
+   void transformArrayCloneCall(TR::TreeTop *, ArrayCloneInfo *cloneInfo);
 #endif
 
 
@@ -904,7 +914,7 @@ class ValuePropagation : public TR::Optimization
    List<TR::TreeTop> _objectCloneCalls;
    List<TR::TreeTop> _arrayCloneCalls;
    List<ObjCloneInfo> _objectCloneTypes;
-   List<TR_OpaqueClassBlock> _arrayCloneTypes;
+   List<ArrayCloneInfo> _arrayCloneTypes;
 
    int32_t    *_parmInfo;
    bool       *_parmTypeValid;

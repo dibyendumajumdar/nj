@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -34,7 +34,7 @@
 #include "codegen/RegisterPair.hpp"
 #include "codegen/TreeEvaluator.hpp"
 #include "compile/SymbolReferenceTable.hpp"
-#include "compile/VirtualGuard.hpp"                  // for TR_VirtualGuard
+#include "compile/VirtualGuard.hpp"
 #include "env/CompilerEnv.hpp"
 #include "infra/Bit.hpp"
 #include "il/Block.hpp"
@@ -44,7 +44,7 @@
 #include "il/TreeTop_inlines.hpp"
 
 #ifdef J9_PROJECT_SPECIFIC
-#include "env/CHTable.hpp"                      // for TR_AOTGuardSite, etc
+#include "env/CHTable.hpp"
 #endif
 
 static void lookupScheme1(TR::CodeGenerator *cg, TR::Node *node, bool unbalanced);
@@ -1414,7 +1414,7 @@ TR::Register *OMR::ARM::TreeEvaluator::tableEvaluator(TR::Node *node, TR::CodeGe
       }
    else
       {
-      TR::RealRegister *machineIP        = cg->machine()->getARMRealRegister(TR::RealRegister::gr15);
+      TR::RealRegister *machineIP        = cg->machine()->getRealRegister(TR::RealRegister::gr15);
       uint32_t      base, rotate;
 
       if (!constantIsImmed8r(numBranchTableEntries, &base, &rotate))
@@ -1902,7 +1902,7 @@ TR::Register *OMR::ARM::TreeEvaluator::igotoEvaluator(TR::Node *node, TR::CodeGe
 
    TR::Node *labelAddr = node->getFirstChild();
    TR::Register *addrReg = cg->evaluate(labelAddr);
-   TR::RealRegister *gr15 = machine->getARMRealRegister(TR::RealRegister::gr15);
+   TR::RealRegister *gr15 = machine->getRealRegister(TR::RealRegister::gr15);
    TR::RegisterDependencyConditions *deps = NULL;
    if (node->getNumChildren() > 1)
       {

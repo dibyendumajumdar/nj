@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -35,8 +35,8 @@ namespace OMR { typedef OMR::Z::Register RegisterConnector; }
 
 #include "compiler/codegen/OMRRegister.hpp"
 
-#include "il/Node.hpp"      // for ncount_t
-#include "infra/Flags.hpp"  // for flags32_t
+#include "il/Node.hpp"
+#include "infra/Flags.hpp"
 
 class TR_LiveRegisterInfo;
 class TR_OpaquePseudoRegister;
@@ -86,7 +86,7 @@ class OMR_EXTENSIBLE Register: public OMR::Register
    void setIsUsedInMemRef(bool b = true)    {_flags.set(IsUsedInMemRef, b);}
 
    bool is64BitReg();
-   void setIs64BitReg(bool b = true)               {_flags.set(Is64Bit, b);}
+   void setIs64BitReg(bool b = true);
 
    bool assignToHPR();
    void setAssignToHPR(bool b = true)              {_flags.set(AssignToHPR, b);}
@@ -108,26 +108,10 @@ class OMR_EXTENSIBLE Register: public OMR::Register
    bool isUpperBitsAreDirty()                 {return _flags.testAny(UpperBitsAreDirty);}
    void setIsUpperBitsAreDirty(bool b = true) {_flags.set(UpperBitsAreDirty, b);}
 
-   bool isNotUsedInThisBB()    { return _flags.testAny(NotUsedInThisBB); }
-   void setNotUsedInThisBB()   {_flags.set(NotUsedInThisBB);}
-   void resetNotUsedInThisBB()   {_flags.reset(NotUsedInThisBB);}
-
-   bool isValueLiveOnExit()    { return _flags.testAny(ValueLiveOnExit); }
-   void setValueLiveOnExit()   {_flags.set(ValueLiveOnExit);}
-   void resetValueLiveOnExit()   {_flags.reset(ValueLiveOnExit);}
-
-   bool isPendingSpillOnDef()    { return _flags.testAny(PendingSpillOnDef); }
-   void setPendingSpillOnDef()   {_flags.set(PendingSpillOnDef);}
-   void resetPendingSpillOnDef()   {_flags.reset(PendingSpillOnDef);}
-
-   bool isRedefined()    { return _flags.testAny(IsRedefined); }
-   void setRedefined(bool b = true)   {_flags.set(IsRedefined, b);}
-
    /*
     * Overriding Base Class Implementation of these methods
     */
    void setPlaceholderReg();
-   void resetIsLive() {_flags.reset(NotUsedInThisBB); OMR::Register::resetIsLive();}
 
    ncount_t decFutureUseCount(ncount_t fuc=1);
 
@@ -162,10 +146,6 @@ class OMR_EXTENSIBLE Register: public OMR::Register
 
          AlreadySignExtended           = 0x1000, // determine whether i2l should be nops
          UpperBitsAreDirty             = 0x8000, // Bits 63-32 were clobbered
-         NotUsedInThisBB               = 0x80000,  // Global Virtual was not used in this BB so far
-         ValueLiveOnExit               = 0x40000, // Global Virtual has value that reaches BBEnd
-         PendingSpillOnDef             = 0x100000, // In true register model we will reverse spill only when we see a def
-         IsRedefined                   = 0x200000,
       };
 
    //Both x and z have this field, but power has own specialization, may move to base

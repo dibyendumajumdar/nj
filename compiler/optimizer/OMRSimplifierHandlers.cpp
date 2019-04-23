@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -29,22 +29,22 @@
 #include <math.h>
 #include "compile/Compilation.hpp"
 #include "codegen/CodeGenerator.hpp"
-#include "codegen/Linkage.hpp"                 // for Linkage
+#include "codegen/Linkage.hpp"
 #include "codegen/TreeEvaluator.hpp"
 #include "env/CompilerEnv.hpp"
-#include "env/IO.hpp"                          // for POINTER_PRINTF_FORMAT
+#include "env/IO.hpp"
 #include "env/jittypes.h"
 #include "il/AliasSetInterface.hpp"
 #include "il/Block.hpp"
-#include "il/DataTypes.hpp"                    // for getMinSigned, etc
+#include "il/DataTypes.hpp"
 #include "il/ILOpCodes.hpp"
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
 #include "il/SymbolReference.hpp"
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
-#include "il/symbol/LabelSymbol.hpp"           // for LabelSymbol
-#include "il/symbol/StaticSymbol.hpp"          // for StaticSymbol
+#include "il/symbol/LabelSymbol.hpp"
+#include "il/symbol/StaticSymbol.hpp"
 #include "infra/Bit.hpp"
 #include "infra/BitVector.hpp"
 #include "infra/Cfg.hpp"
@@ -3418,7 +3418,7 @@ static bool isLegalToMerge(TR::Node * node, TR::Block * block, TR::Block * nextB
       return false;
 
    blockIsEmpty = (block->getEntry() != NULL && block->getEntry()->getNextTreeTop() == block->getExit());
-   if (inEdge.empty() || !blockIsEmpty && (inEdge.front() != outEdge || (inEdge.size() > 1)))
+   if (inEdge.empty() || (!blockIsEmpty && (inEdge.front() != outEdge || (inEdge.size() > 1))))
       return false;
 
    //Can't merge block with nextBlock if block is entry point and inEdge has more than one edge
@@ -6833,24 +6833,12 @@ TR::Node *daddSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
 
 TR::Node *baddSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
    {
-   simplifyChildren(node, block, s);
-
-   TR::Node * firstChild = node->getFirstChild(), * secondChild = node->getSecondChild();
-
-   if (firstChild->getOpCode().isLoadConst() && secondChild->getOpCode().isLoadConst())
-      {
-      foldByteConstant(node, firstChild->getByte() + secondChild->getByte(), s, false /* !anchorChildren*/);
-      return node;
-      }
-
-   orderChildren(node, firstChild, secondChild, s);
-   BINARY_IDENTITY_OP(Byte, 0)
-   return node;
+   return addSimplifier <int8_t> (node, block, s);
    }
 
 TR::Node *saddSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
    {
-   return  addSimplifier <int16_t> (node, block, s);
+   return addSimplifier <int16_t> (node, block, s);
    }
 
 //---------------------------------------------------------------------
@@ -7925,23 +7913,12 @@ TR::Node *dsubSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
 
 TR::Node *bsubSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
    {
-   simplifyChildren(node, block, s);
-
-   TR::Node * firstChild = node->getFirstChild(), * secondChild = node->getSecondChild();
-
-   if (firstChild->getOpCode().isLoadConst() && secondChild->getOpCode().isLoadConst())
-      {
-      foldByteConstant(node, firstChild->getByte() - secondChild->getByte(), s, false /* !anchorChildren*/);
-      return node;
-      }
-
-   BINARY_IDENTITY_OP(Byte, 0)
-   return node;
+   return subSimplifier <int8_t> (node, block, s);
    }
 
 TR::Node *ssubSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
    {
-   return  subSimplifier <int16_t> (node, block, s);
+   return subSimplifier <int16_t> (node, block, s);
    }
 
 //---------------------------------------------------------------------
@@ -11320,10 +11297,8 @@ TR::Node *lorSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
 
       }
 
-
-   // For 32 bit platforms (p and z), evaluator due to historical reasons, evaluator for rotate does not support 64 bit regs on a 32 bit platform by default
-   // Need to disable this transform until that support is added.
-   if((TR::Compiler->target.is64Bit() || s->comp()->cg()->use64BitRegsOn32Bit()) && checkAndReplaceRotation<int64_t>(node,block,s))
+   // Disable transformation if rotate evaluator does not support 64-bit registers on 32-bit platform
+   if ((TR::Compiler->target.is64Bit() || s->comp()->cg()->use64BitRegsOn32Bit()) && checkAndReplaceRotation<int64_t>(node,block,s))
       {
       return node;
       }
@@ -11641,10 +11616,8 @@ TR::Node *lxorSimplifier(TR::Node * node, TR::Block * block, TR::Simplifier * s)
 
       }
 
-
-   // For 32 bit platforms (p and z), evaluator due to historical reasons, evaluator for rotate does not support 64 bit regs on a 32 bit platform by default
-   // Need to disable this transform until that support is added.
-   if( (TR::Compiler->target.is64Bit() || s->comp()->cg()->use64BitRegsOn32Bit()) && checkAndReplaceRotation<int64_t>(node,block,s))
+   // Disable transformation if rotate evaluator does not support 64-bit registers on 32-bit platform
+   if ((TR::Compiler->target.is64Bit() || s->comp()->cg()->use64BitRegsOn32Bit()) && checkAndReplaceRotation<int64_t>(node,block,s))
       {
       return node;
       }

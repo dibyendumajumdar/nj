@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -34,10 +34,10 @@ namespace OMR { typedef OMR::Z::Machine MachineConnector; }
 
 #include "compiler/codegen/OMRMachine.hpp"
 
-#include <string.h>                  // for memset
-#include "codegen/RealRegister.hpp"  // for RealRegister, etc
-#include "il/DataTypes.hpp"          // for CONSTANT64, etc
-#include "infra/Flags.hpp"           // for flags32_t
+#include <string.h>
+#include "codegen/RealRegister.hpp"
+#include "il/DataTypes.hpp"
+#include "infra/Flags.hpp"
 #include "infra/TRlist.hpp"
 
 class TR_Debug;
@@ -59,10 +59,9 @@ template <typename ListKind> class List;
 #define NUM_S390_VRF 16 ///< 32 after full RA complete
 #define NUM_S390_FPR_PAIRS 8
 
-/** Max. displacement */
+#define MINDISP      0
 #define MAXDISP      4096
 
-// Min/Max. long displacement
 #define MAXLONGDISP      +524287 // 0x7FFFF
 #define MINLONGDISP      -524288 // 0x80000
 
@@ -101,8 +100,6 @@ template <typename ListKind> class List;
 #define DISALLOWBLOCKED  false
 #define ALLOWLOCKED      true
 #define DISALLOWBLOCKED  false
-
-#define  REAL_REGISTER(ri)  machine->getS390RealRegister(ri)
 
 #define GLOBAL_REG_FOR_LITPOOL     3    // GPR6
 
@@ -230,12 +227,12 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
 
    Machine(TR::CodeGenerator *cg);
 
-   TR::RealRegister *getS390RealRegister(TR::RealRegister::RegNum regNum)
-      {
-      return _registerFile[regNum];
-      }
-
-   TR::RealRegister *getS390RealRegister(int32_t regNum)
+   /**
+    * @brief Converts RegNum to RealRegister
+    * @param[in] regNum : register number
+    * @return RealRegister for specified register number
+    */
+   TR::RealRegister *getRealRegister(int32_t regNum)
       {
       return _registerFile[regNum];
       }
@@ -272,17 +269,17 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
    uint8_t genBitVectOfLiveGPRPairs();
 
    TR::RealRegister* findBestSwapRegister(TR::Register* reg1, TR::Register* reg2);
-   TR::Instruction* registerCopy(TR::Instruction *precedingInstruction,
-                                    TR_RegisterKinds rk,
-                                    TR::Register *targetReg, TR::Register *sourceReg,
-                                    TR::CodeGenerator *cg, flags32_t instFlags);
-   TR::Instruction* registerExchange(TR::Instruction      *precedingInstruction,
-                                        TR_RegisterKinds     rk,
-                                        TR::RealRegister *targetReg,
-                                        TR::RealRegister *sourceReg,
-                                        TR::RealRegister *middleReg,
-                                        TR::CodeGenerator    *cg,
-                                        flags32_t            instFlags);
+   TR::Instruction* registerCopy(TR::CodeGenerator* cg,
+      TR_RegisterKinds rk,
+      TR::RealRegister* targetReg,
+      TR::RealRegister* sourceReg,
+      TR::Instruction* precedingInstruction);
+   TR::Instruction* registerExchange(TR::CodeGenerator* cg,
+      TR_RegisterKinds rk,
+      TR::RealRegister* targetReg,
+      TR::RealRegister* sourceReg,
+      TR::RealRegister* middleReg,
+      TR::Instruction* precedingInstruction);
 
    bool  isLegalEvenOddPair(TR::RealRegister* evenReg, TR::RealRegister* oddReg, uint64_t availRegMask=0x0000ffff);
    bool  isLegalEvenRegister(TR::RealRegister* reg, bool allowBlocked, uint64_t availRegMask=0x0000ffff, bool allowLocked=false);
@@ -348,7 +345,7 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
                          TR::RealRegister *targetReal,
                          bool is64BitReg);
 
-   TR::Instruction * freeHighWordRegister(TR::Instruction *currentInstruction, TR::RealRegister *targetRegisterHW, flags32_t instFlags);
+   TR::Instruction * freeHighWordRegister(TR::Instruction *currentInstruction, TR::RealRegister *targetRegisterHW);
    void spillRegister(TR::Instruction *currentInstruction, TR::Register *virtReg, uint32_t availHighWordRegMap = -1);
 
    TR::RealRegister *reverseSpillState(TR::Instruction      *currentInstruction,
@@ -359,8 +356,7 @@ class OMR_EXTENSIBLE Machine : public OMR::Machine
 
    TR::Instruction *coerceRegisterAssignment(TR::Instruction *currentInstruction,
                                             TR::Register    *virtualRegister,
-                                            TR::RealRegister::RegNum registerNumber,
-                                            flags32_t       instFlags);
+                                            TR::RealRegister::RegNum registerNumber);
 
    TR_Debug         *getDebug();
 

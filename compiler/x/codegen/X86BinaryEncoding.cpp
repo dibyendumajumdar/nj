@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corp. and others
+ * Copyright (c) 2000, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -19,47 +19,48 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#include <algorithm>                               // for std::find, etc
-#include <stddef.h>                                // for NULL
-#include <stdint.h>                                // for uint8_t, int32_t, etc
-#include "codegen/BackingStore.hpp"                // for TR_BackingStore
-#include "codegen/CodeGenerator.hpp"               // for CodeGenerator, etc
-#include "codegen/FrontEnd.hpp"                    // for TR_FrontEnd, etc
-#include "codegen/Instruction.hpp"                 // for EnlargementResult, etc
+#include <algorithm>
+#include <stddef.h>
+#include <stdint.h>
+#include "codegen/BackingStore.hpp"
+#include "codegen/CodeGenerator.hpp"
+#include "codegen/FrontEnd.hpp"
+#include "codegen/Instruction.hpp"
 #include "codegen/Linkage.hpp"
-#include "codegen/Machine.hpp"                     // for Machine
-#include "codegen/MemoryReference.hpp"             // for MemoryReference, etc
-#include "codegen/RealRegister.hpp"                // for RealRegister, etc
-#include "codegen/Register.hpp"                    // for Register
+#include "codegen/Machine.hpp"
+#include "codegen/MemoryReference.hpp"
+#include "codegen/RealRegister.hpp"
+#include "codegen/Register.hpp"
 #include "codegen/Relocation.hpp"
-#include "codegen/Snippet.hpp"                     // for Snippet
+#include "codegen/Snippet.hpp"
 #include "codegen/UnresolvedDataSnippet.hpp"
-#include "compile/Compilation.hpp"                 // for Compilation, etc
-#include "compile/ResolvedMethod.hpp"              // for TR_ResolvedMethod
+#include "compile/Compilation.hpp"
+#include "compile/ResolvedMethod.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
 #include "env/CompilerEnv.hpp"
-#include "env/PersistentInfo.hpp"                  // for PersistentInfo
+#include "env/PersistentInfo.hpp"
 #include "env/TRMemory.hpp"
-#include "env/jittypes.h"                          // for intptrj_t, uintptrj_t
-#include "il/ILOpCodes.hpp"                        // for ILOpCodes::aconst, etc
-#include "il/ILOps.hpp"                            // for ILOpCode
-#include "il/Node.hpp"                             // for Node
+#include "env/jittypes.h"
+#include "il/ILOpCodes.hpp"
+#include "il/ILOps.hpp"
+#include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
-#include "il/Symbol.hpp"                           // for Symbol
-#include "il/SymbolReference.hpp"                  // for SymbolReference
-#include "il/symbol/LabelSymbol.hpp"               // for LabelSymbol
-#include "il/symbol/MethodSymbol.hpp"              // for MethodSymbol
+#include "il/Symbol.hpp"
+#include "il/SymbolReference.hpp"
+#include "il/symbol/LabelSymbol.hpp"
+#include "il/symbol/MethodSymbol.hpp"
 #include "il/symbol/ResolvedMethodSymbol.hpp"
-#include "il/symbol/StaticSymbol.hpp"              // for StaticSymbol
-#include "infra/Assert.hpp"                        // for TR_ASSERT
-#include "infra/List.hpp"                          // for List
-#include "ras/Debug.hpp"                           // for TR_DebugBase
-#include "ras/DebugCounter.hpp"                    // for TR::DebugCounter, etc
+#include "il/symbol/StaticSymbol.hpp"
+#include "infra/Assert.hpp"
+#include "infra/List.hpp"
+#include "ras/Debug.hpp"
+#include "ras/DebugCounter.hpp"
+#include "runtime/CodeCacheManager.hpp"
 #include "runtime/Runtime.hpp"
 #include "x/codegen/X86Instruction.hpp"
-#include "x/codegen/X86Ops.hpp"                    // for TR_X86OpCode, etc
+#include "x/codegen/X86Ops.hpp"
 #include "x/codegen/X86Ops_inlines.hpp"
 #include "codegen/StaticRelocation.hpp"
 
@@ -1094,6 +1095,11 @@ TR::X86ImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
                         (TR_ExternalRelocationTargetKind) reloTypes [rType], cg()),
                         __FILE__, __LINE__, getNode());
                   }
+               else if (resolvedMethod)
+                  {
+                  cg()->addProjectSpecializedRelocation(cursor, (uint8_t *)getSymbolReference()->getMethodAddress(), NULL, TR_MethodCallAddress,
+                                         __FILE__, __LINE__, getNode());
+                  }
                else
                   {
                   cg()->addProjectSpecializedRelocation(cursor, (uint8_t *)getSymbolReference(), NULL, TR_RelativeMethodAddress,
@@ -1215,7 +1221,7 @@ uint8_t* TR::X86ImmSymInstruction::generateOperand(uint8_t* cursor)
 
          intptrj_t targetAddress = (int32_t)getSourceImmediate();
 
-         if (TR::Compiler->target.is64Bit() && comp->getCodeCacheSwitched() && getOpCodeValue() == CALLImm4)
+         if (TR::Compiler->target.is64Bit() && cg()->hasCodeCacheSwitched() && getOpCodeValue() == CALLImm4)
             {
             TR::SymbolReference *calleeSymRef = NULL;
 
@@ -1235,6 +1241,9 @@ uint8_t* TR::X86ImmSymInstruction::generateOperand(uint8_t* cursor)
                }
             }
 
+         intptrj_t currentInstructionAddress = (intptrj_t)(cursor-1);
+         intptrj_t nextInstructionAddress = (intptrj_t)(cursor+4);
+
          if (resolvedMethod && resolvedMethod->isSameMethod(comp->getCurrentMethod()) && !comp->isDLT())
             {
             // Compute method's jit entry point
@@ -1243,7 +1252,8 @@ uint8_t* TR::X86ImmSymInstruction::generateOperand(uint8_t* cursor)
             if (TR::Compiler->target.is64Bit())
                {
                start += TR_LinkageInfo::get(start)->getReservedWord();
-               TR_ASSERT(IS_32BIT_RIP(start, cursor+4), "Method start must be within RIP range");
+               TR_ASSERT_FATAL(TR::Compiler->target.cpu.isTargetWithinRIPRange((intptrj_t)start, nextInstructionAddress),
+                               "Method start must be within RIP range");
                cg()->fe()->reserveTrampolineIfNecessary(comp, getSymbolReference(), true);
                }
 
@@ -1288,24 +1298,22 @@ uint8_t* TR::X86ImmSymInstruction::generateOperand(uint8_t* cursor)
                      targetAddress = (intptrj_t)getSymbolReference()->getMethodAddress();
                   }
 
-               bool forceTrampolineUse = false;
+               bool isTrampolineRequired = cg()->directCallRequiresTrampoline(targetAddress, currentInstructionAddress);
 
                if (methodSym && methodSym->isHelper())
                   {
-                  if (!IS_32BIT_RIP(targetAddress, cursor+4) || forceTrampolineUse)
+                  if (isTrampolineRequired)
                      {
                      // TODO:AMD64: Consider AOT ramifications
-                     targetAddress = cg()->fe()->indexedTrampolineLookup(getSymbolReference()->getReferenceNumber(), (void *)cursor);
-                     TR_ASSERT(IS_32BIT_RIP(targetAddress, cursor+4), "Local helper trampoline must be reachable directly.\n");
+                     targetAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(getSymbolReference()->getReferenceNumber(), (void *)cursor);
                      }
                   }
                else if (methodSym && methodSym->isJNI() && getNode() && getNode()->isPreparedForDirectJNI())
                   {
-                  if (!IS_32BIT_RIP(targetAddress, cursor+4) || forceTrampolineUse)
+                  if (isTrampolineRequired)
                      {
                      TR_ASSERT(0, "We seem to never generate CALLIMM instructions for JNI on 64Bit!!!");
                      }
-
                   }
                else
                   {
@@ -1314,19 +1322,20 @@ uint8_t* TR::X86ImmSymInstruction::generateOperand(uint8_t* cursor)
                   if (TR::Compiler->target.is64Bit())
                      cg()->fe()->reserveTrampolineIfNecessary(comp, getSymbolReference(), true);
 
-                  if (!IS_32BIT_RIP(targetAddress, cursor+4) || forceTrampolineUse)
+                  if (isTrampolineRequired)
                      {
                      targetAddress = cg()->fe()->methodTrampolineLookup(comp, getSymbolReference(), (void *)cursor);
-
-                     TR_ASSERT(IS_32BIT_RIP(targetAddress, cursor+4), "Local method trampoline must be reachable directly.\n");
                      }
                   }
+
+               TR_ASSERT_FATAL(TR::Compiler->target.cpu.isTargetWithinRIPRange(targetAddress, nextInstructionAddress),
+                               "Direct call target must be reachable directly");
                }
             }
 
          // Compute relative target displacement.
          //
-         *(int32_t *)cursor = (int32_t)(targetAddress - (intptrj_t)(cursor + 4));
+         *(int32_t *)cursor = (int32_t)(targetAddress - nextInstructionAddress);
          }
       else if (getOpCodeValue() == PUSHImm4)
          {
@@ -1661,7 +1670,7 @@ TR::X86RegImmSymInstruction::addMetaDataForCodeAddress(uint8_t *cursor)
    switch (getReloKind())
       {
       case TR_ConstantPool:
-         TR_ASSERT(symbol->isConst(), "assertion failure");
+         TR_ASSERT(symbol->isConst() || symbol->isConstantPoolAddress(), "unknown symbol type for TR_ConstantPool relocation %p\n", this);
          cg()->addExternalRelocation(new (cg()->trHeapMemory()) TR::ExternalRelocation(cursor,
                                                                                    (uint8_t *)getSymbolReference()->getOwningMethod(comp)->constantPool(),
                                                                                    getNode() ? (uint8_t *)(uintptr_t)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,

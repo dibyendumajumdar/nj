@@ -61,6 +61,11 @@ public:
                                                         size_t &codeCacheSizeToAllocate,
                                                         void *preferredStartAddress);
 
+   /**
+    * @brief Override of OMR::freeCodeCacheSegment that actually frees memory.
+    */
+   void freeCodeCacheSegment(TR::CodeCacheMemorySegment * memSegment);
+
 private :
    static TR::CodeCacheManager *_codeCacheManager;
    };
