@@ -77,8 +77,7 @@ function(make_compiler_target TARGET_NAME SCOPE)
 		${COMPILER_DEFINES}
 	)
 
-	message("Made ${TARGET_NAME} into a compiler target,for ${TARGET_COMPILER}.")
-	message("Defines are ${COMPILER_DEFINES} and ${TR_COMPILE_DEFINITIONS}, arch is ${TR_TARGET_ARCH} and ${TR_TARGET_SUBARCH}, compile options are ${TR_COMPILE_OPTIONS} ")
+	message(STATUS "Adding ${SCOPE} compiler options to ${TARGET_NAME} for ${TARGET_COMPILER}.")
 endfunction(make_compiler_target)
 
 # Filter through the provided list, and rewrite any
@@ -180,7 +179,6 @@ function(spp2s_files out_var compiler)
 	set(SPP_INCLUDES ${${compiler}_INCLUDES})
 	set(SPP_DEFINES  ${${compiler}_DEFINES} ${compile_defs})
 
-	message(STATUS "Set SPP defines to ${SPP_DEFINES}")
 	omr_add_prefix(SPP_INCLUDES "-I" ${SPP_INCLUDES})
 	omr_add_prefix(SPP_DEFINES  "-D" ${SPP_DEFINES})
 	set(result "")
@@ -319,15 +317,14 @@ function(create_omr_compiler_library)
 		)
 
 	if(COMPILER_SHARED)
-		message("Creating shared library for ${COMPILER_NAME}")
+		message(STATUS "Creating shared library for ${COMPILER_NAME}")
 		set(LIB_TYPE SHARED)
 	else()
-		message("Creating static library for ${COMPILER_NAME}")
+		message(STATUS "Creating static library for ${COMPILER_NAME}")
 		set(LIB_TYPE STATIC)
 	endif()
 
 	set_tr_compile_options()
-
 
 	get_filename_component(abs_root ${CMAKE_CURRENT_LIST_DIR} ABSOLUTE)
 	# We use the cache to allow passing information about compiler targets
@@ -346,8 +343,6 @@ function(create_omr_compiler_library)
 		CACHE INTERNAL "Include header list for ${COMPILER}"
 	)
 
-	message("${COMPILER_NAME}_ROOT = ${${COMPILER_NAME}_ROOT}")
-
 	# Generate a build name file.
 	set(BUILD_NAME_FILE "${CMAKE_BINARY_DIR}/${COMPILER_NAME}Name.cpp")
 	add_custom_command(OUTPUT ${BUILD_NAME_FILE}
@@ -361,6 +356,11 @@ function(create_omr_compiler_library)
 	add_library(${COMPILER_NAME} ${LIB_TYPE}
 		${BUILD_NAME_FILE}
 		${COMPILER_OBJECTS}
+	)
+
+	target_link_libraries(${COMPILER_NAME}
+		PUBLIC
+			omr_base
 	)
 
 	# Grab the list of core compiler objects from the global property.

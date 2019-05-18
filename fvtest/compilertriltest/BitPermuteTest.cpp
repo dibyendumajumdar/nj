@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 #include "JitTest.hpp"
 #include "default_compiler.hpp"
+#include "omrformatconsts.h"
 
 uint8_t byteValues[] = {
    0x00,
@@ -84,7 +85,7 @@ const uint32_t intLengths[]   = {0, 1, 19, 32};
 const uint32_t longLengths[]  = {0, 1, 35, 64};
 
 template <typename VarType>
-class BitPermuteTest : public TRTest::JitTest, public ::testing::WithParamInterface<std::tuple<VarType, const uint8_t*, uint32_t, VarType (*) (VarType, const uint8_t*, uint32_t)>>
+class BitPermuteTest : public TRTest::TestWithPortLib, public ::testing::WithParamInterface<std::tuple<VarType, const uint8_t*, uint32_t, VarType (*) (VarType, const uint8_t*, uint32_t)>>
    {
    public:
 
@@ -146,10 +147,10 @@ TEST_P(lBitPermuteTest, ConstAddressLengthTest)
       "  (lreturn                         "
       "  (lbitpermute                     "
       "   (lload parm=0)                  "
-      "   (aconst %llu)                   "
-      "   (iconst %llu)                   "
+      "   (aconst %" OMR_PRIuPTR ")       "
+      "   (iconst %" OMR_PRIu32 ")        "
       "  ))))                             ",
-      param.arrayAddress,
+      reinterpret_cast<uintptr_t>(param.arrayAddress),
       param.arrayLength
       );
 
@@ -178,10 +179,10 @@ TEST_P(lBitPermuteTest, ConstAddressTest)
       "  (lreturn                                "
       "  (lbitpermute                            "
       "   (lload parm=0)                         "
-      "   (aconst %llu)                          "
+      "   (aconst %" OMR_PRIuPTR ")              "
       "   (iload parm=1)                         "
       "  ))))                                    ",
-      param.arrayAddress
+      reinterpret_cast<uintptr_t>(param.arrayAddress)
       );
 
    auto trees = parseString(inputTrees);
@@ -245,10 +246,10 @@ TEST_P(iBitPermuteTest, ConstAddressLengthTest)
       "  (ireturn                         "
       "  (ibitpermute                     "
       "   (iload parm=0)                  "
-      "   (aconst %llu)                   "
-      "   (iconst %llu)                   "
+      "   (aconst %" OMR_PRIuPTR ")       "
+      "   (iconst %" OMR_PRIu32 ")        "
       "  ))))                             ",
-      maskedIndices,
+      reinterpret_cast<uintptr_t>(maskedIndices),
       param.arrayLength
       );
 
@@ -281,10 +282,10 @@ TEST_P(iBitPermuteTest, ConstAddressTest)
       "  (ireturn                                "
       "  (ibitpermute                            "
       "   (iload parm=0)                         "
-      "   (aconst %llu)                          "
+      "   (aconst %" OMR_PRIuPTR ")              "
       "   (iload parm=1)                         "
       "  ))))                                    ",
-      maskedIndices
+      reinterpret_cast<uintptr_t>(maskedIndices)
       );
 
    auto trees = parseString(inputTrees);
@@ -339,9 +340,6 @@ class sBitPermuteTest : public BitPermuteTest<uint16_t> {};
 
 TEST_P(sBitPermuteTest, ConstAddressLengthTest)
    {
-   //std::string arch = omrsysinfo_get_CPU_architecture();
-   //SKIP_IF(OMRPORT_ARCH_S390 == arch || OMRPORT_ARCH_S390X == arch, KnownBug)
-   //   << "The Z code generator incorrectly spills sub-integer types arguments (see issue #3525)";
    auto param = to_struct(GetParam());
 
    uint8_t maskedIndices[16];
@@ -356,10 +354,10 @@ TEST_P(sBitPermuteTest, ConstAddressLengthTest)
       "  (su2i                            "
       "  (sbitpermute                     "
       "   (sload parm=0)                  "
-      "   (aconst %llu)                   "
-      "   (iconst %llu)                   "
+      "   (aconst %" OMR_PRIuPTR ")       "
+      "   (iconst %" OMR_PRIu32 ")        "
       "  )))))                            ",
-      maskedIndices,
+      reinterpret_cast<uintptr_t>(maskedIndices),
       param.arrayLength
       );
 
@@ -379,9 +377,6 @@ TEST_P(sBitPermuteTest, ConstAddressLengthTest)
 
 TEST_P(sBitPermuteTest, ConstAddressTest)
    {
-   //std::string arch = omrsysinfo_get_CPU_architecture();
-   //SKIP_IF(OMRPORT_ARCH_S390 == arch || OMRPORT_ARCH_S390X == arch, KnownBug)
-   //   << "The Z code generator incorrectly spills sub-integer types arguments (see issue #3525)";
    auto param = to_struct(GetParam());
 
    uint8_t maskedIndices[16];
@@ -396,10 +391,10 @@ TEST_P(sBitPermuteTest, ConstAddressTest)
       "  (su2i                                   "
       "  (sbitpermute                            "
       "   (sload parm=0)                         "
-      "   (aconst %llu)                          "
+      "   (aconst %" OMR_PRIuPTR ")              "
       "   (iload parm=1)                         "
       "  )))))                                   ",
-      maskedIndices
+      reinterpret_cast<uintptr_t>(maskedIndices)
       );
 
    auto trees = parseString(inputTrees);
@@ -418,9 +413,6 @@ TEST_P(sBitPermuteTest, ConstAddressTest)
 
 TEST_P(sBitPermuteTest, NoConstTest)
    {
-   //std::string arch = omrsysinfo_get_CPU_architecture();
-   //SKIP_IF(OMRPORT_ARCH_S390 == arch || OMRPORT_ARCH_S390X == arch, KnownBug)
-   //   << "The Z code generator incorrectly spills sub-integer types arguments (see issue #3525)";
    auto param = to_struct(GetParam());
 
    uint8_t maskedIndices[16];
@@ -458,9 +450,6 @@ class bBitPermuteTest : public BitPermuteTest<uint8_t> {};
 
 TEST_P(bBitPermuteTest, ConstAddressLengthTest)
    {
-   //std::string arch = omrsysinfo_get_CPU_architecture();
-   //SKIP_IF(OMRPORT_ARCH_S390 == arch || OMRPORT_ARCH_S390X == arch, KnownBug)
-   //   << "The Z code generator incorrectly spills sub-integer types arguments (see issue #3525)";
    auto param = to_struct(GetParam());
 
    uint8_t maskedIndices[8];
@@ -475,10 +464,10 @@ TEST_P(bBitPermuteTest, ConstAddressLengthTest)
       "  (bu2i                          "
       "  (bbitpermute                   "
       "   (bload parm=0)                "
-      "   (aconst %llu)                 "
-      "   (iconst %llu)                 "
+      "   (aconst %" OMR_PRIuPTR ")     "
+      "   (iconst %" OMR_PRIu32 ")      "
       "  )))))                          ",
-      maskedIndices,
+      reinterpret_cast<uintptr_t>(maskedIndices),
       param.arrayLength
       );
 
@@ -498,9 +487,6 @@ TEST_P(bBitPermuteTest, ConstAddressLengthTest)
 
 TEST_P(bBitPermuteTest, ConstAddressTest)
    {
-   //std::string arch = omrsysinfo_get_CPU_architecture();
-   //SKIP_IF(OMRPORT_ARCH_S390 == arch || OMRPORT_ARCH_S390X == arch, KnownBug)
-   //   << "The Z code generator incorrectly spills sub-integer types arguments (see issue #3525)";
    auto param = to_struct(GetParam());
 
    uint8_t maskedIndices[8];
@@ -515,10 +501,10 @@ TEST_P(bBitPermuteTest, ConstAddressTest)
       "  (bu2i                                 "
       "  (bbitpermute                          "
       "   (bload parm=0)                       "
-      "   (aconst %llu)                        "
+      "   (aconst %" OMR_PRIuPTR ")            "
       "   (iload parm=1)                       "
       "  )))))                                 ",
-      maskedIndices
+      (uintptr_t)maskedIndices
       );
 
    auto trees = parseString(inputTrees);
@@ -537,9 +523,6 @@ TEST_P(bBitPermuteTest, ConstAddressTest)
 
 TEST_P(bBitPermuteTest, NoConstTest)
    {
-   //std::string arch = omrsysinfo_get_CPU_architecture();
-   //SKIP_IF(OMRPORT_ARCH_S390 == arch || OMRPORT_ARCH_S390X == arch, KnownBug)
-   //   << "The Z code generator incorrectly spills sub-integer types arguments (see issue #3525)";
    auto param = to_struct(GetParam());
 
    uint8_t maskedIndices[8];

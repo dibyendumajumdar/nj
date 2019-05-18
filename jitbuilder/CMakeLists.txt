@@ -125,7 +125,11 @@ target_include_directories(jitbuilder
 target_link_libraries(jitbuilder
 )
 
-add_subdirectory(release)
+## JitBuilder examples only work on 64 bit currently.
+if(OMR_JITBUILDER AND OMR_ENV_DATA64)
+	add_subdirectory(release)
+endif()
+
 if(OMR_JITBUILDER_TEST)
 	add_test(
 		NAME TestJitBuilderAPIGenerator

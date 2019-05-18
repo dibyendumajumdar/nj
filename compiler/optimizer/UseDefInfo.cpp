@@ -26,7 +26,6 @@
 #include <stdint.h>
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/FrontEnd.hpp"
-#include "codegen/Linkage.hpp"
 #include "compile/Compilation.hpp"
 #include "compile/Method.hpp"
 #include "compile/SymbolReferenceTable.hpp"
@@ -124,9 +123,13 @@ void TR_UseDefInfo::prepareUseDefInfo(bool requiresGlobals, bool prefersGlobals,
       }
 
    bool canBuild = false;
-   _hasCallsAsUses = true; // OMR sets this to false, but we need this to be enabled to ensure call nodes
-						   // participate in use/def analysis, and thereby allow any aliased locals
-						   // to be handled correctly 
+   // OMR sets this to false, but we need this to be enabled to ensure call nodes
+   // participate in use/def analysis, and thereby allow any aliased locals
+   // to be handled correctly; this is WIP as for Java like languages this is
+   // not needed, as locals cannot be aliased by function calls. However for C
+   // like languages this is needed; therefore this needs to be controlled via
+   // a parameter
+   _hasCallsAsUses = true;  
    _uniqueIndexForDefsOnEntry = false;
 
    if (comp()->cg()->getGRACompleted() && conversionRegsOnly)

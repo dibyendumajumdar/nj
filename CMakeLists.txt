@@ -39,6 +39,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS TRUE)
 include(OmrAssert)
 include(OmrFindFiles)
 include(OmrHookgen)
+include(OmrOption)
 include(OmrPlatform)
 include(OmrTracegen)
 include(OmrSanitizerSupport)
@@ -77,16 +78,33 @@ include(cmake/config.cmake)
 
 enable_testing()
 
-include_directories(
-	${PROJECT_BINARY_DIR}
-	./include/
-	./include_core/
-	./third_party/
+###
+### omr_base: basic includes and definitions needed everywhere
+###
+
+add_library(omr_base INTERFACE)
+
+target_include_directories(omr_base
+	INTERFACE
+		$<BUILD_INTERFACE:${omr_SOURCE_DIR}/include_core>
+		$<BUILD_INTERFACE:${omr_BINARY_DIR}>
+		$<INSTALL_INTERFACE:${OMR_INSTALL_INC_DIR}>
 )
 
-add_definitions(
-	-DUT_DIRECT_TRACE_REGISTRATION # TODO:  Deal with that stupid jni issue in tracegen
+install(
+	TARGETS omr_base
+	EXPORT OmrTargets
 )
+include_directories(
+       ${PROJECT_BINARY_DIR}
+       ./include/
+       ./include_core/
+       ./third_party/
+)
+
+###
+### Source tree checks
+###
 
 # Check for existing omrcfg in the source tree since this can cause alot of headaches
 # Also check if we are building in tree while we are at it
@@ -102,6 +120,18 @@ endif()
 
 configure_file(./omrcfg.CMakeTemplate.h omrcfg.h)
 configure_file(./omrversionstrings.CMakeTemplate.h omrversionstrings.h)
+
+
+###
+### Set up DDR configuration
+###
+include(OmrDDRSupport)
+
+if(NOT DEFINED OMR_DDR_SET)
+	set(OMR_DDR_SET "omr")
+	make_ddr_set(${OMR_DDR_SET})
+endif()
+
 
 ###
 ### Native Tooling
@@ -133,3 +163,25 @@ add_subdirectory(frontends)
 #add_subdirectory(util)
 #add_subdirectory(fvtest)
 
+
+# Export CMake Module
+
+# This file must be copied into the build directory so that
+# the cmake user package registry functions properly
+configure_file(OmrConfig.cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/OmrConfig.cmake"
+  COPYONLY
+)
+
+export(EXPORT OmrTargets FILE OmrTargets.cmake)
+
+install(EXPORT OmrTargets
+  FILE OmrTargets.cmake
+  DESTINATION ${OMR_INSTALL_LIB_DIR}/cmake/Omr
+)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/OmrConfig.cmake"
+	DESTINATION ${OMR_INSTALL_LIB_DIR}/cmake/Omr
+)
+
+export(PACKAGE Omr)
