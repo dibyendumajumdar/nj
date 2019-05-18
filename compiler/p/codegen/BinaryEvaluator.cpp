@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "codegen/CodeGenerator.hpp"
+#include "codegen/CodeGeneratorUtils.hpp"
 #include "codegen/FrontEnd.hpp"
 #include "codegen/InstOpCode.hpp"
 #include "codegen/Linkage.hpp"
@@ -65,8 +66,6 @@ extern TR::Register *inlineLongRotateLeft(TR::Node *node, TR::CodeGenerator *cg)
 static TR::Register *ldiv64Evaluator(TR::Node *node, TR::CodeGenerator *cg);
 static TR::Register *lrem64Evaluator(TR::Node *node, TR::CodeGenerator *cg);
 
-TR::Register *computeCC_bitwise(TR::CodeGenerator *cg, TR::Node *node, TR::Register *targetReg, bool needsZeroExtension = true);
-
 void generateZeroExtendInstruction(TR::Node *node,
                                    TR::Register *trgReg,
                                    TR::Register *srcReg,
@@ -105,37 +104,6 @@ void generateSignExtendInstruction(TR::Node *node,
    generateTrg1Src1Instruction(cg, signExtendOp, node, trgReg, srcReg);
    }
 
-TR::Register *computeCC_setNotZero(TR::CodeGenerator *cg, TR::Node *node, TR::Register *ccReg, TR::Register *testReg, bool needsZeroExtension)
-   {
-   if (ccReg == NULL)
-      ccReg = cg->allocateRegister();
-   int32_t size = node->getOpCode().getSize();
-
-   if (size < 8 && needsZeroExtension)
-      {
-      // this sequence doesn't work if there is any garbage in the top part of the testReg
-      generateZeroExtendInstruction(node, ccReg, testReg, size*8, cg);
-      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addic, node, ccReg, ccReg, -1);
-      }
-   else
-      {
-      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addic, node, ccReg, testReg, -1);
-      }
-   generateTrg1ImmInstruction(cg, TR::InstOpCode::li, node, ccReg, 0);
-   generateTrg1Src1Instruction(cg, TR::InstOpCode::addze, node, ccReg, ccReg);
-
-   return ccReg;
-   }
-
-TR::Register *computeCC_bitwise(TR::CodeGenerator *cg, TR::Node *node, TR::Register *testReg, bool needsZeroExtension)
-   {
-   // Condition code settings:
-   // 0 - Result is zero
-   // 1 - Result is not zero
-   TR::Register *ccReg = computeCC_setNotZero(cg, node, NULL, testReg, needsZeroExtension);
-   testReg->setCCRegister(ccReg);
-   return ccReg;
-   }
 
 // Do the work for evaluating integer or and exclusive or
 // Also called for long or and exclusive or when the upper
@@ -2161,23 +2129,23 @@ strengthReducingLongDivideOrRemainder32BitMode(TR::Node *node,      TR::CodeGene
       }
    *dr_highReg = dr_h; *dr_lowReg = dr_l;
 
-   addDependency(dependencies, dd_h, TR::RealRegister::gr3, TR_GPR, cg);
-   addDependency(dependencies, dd_l, TR::RealRegister::gr4, TR_GPR, cg);
-   addDependency(dependencies, dr_h, TR::RealRegister::gr5, TR_GPR, cg);
-   addDependency(dependencies, dr_l, TR::RealRegister::gr6, TR_GPR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::gr0, TR_GPR, cg);
+   TR::addDependency(dependencies, dd_h, TR::RealRegister::gr3, TR_GPR, cg);
+   TR::addDependency(dependencies, dd_l, TR::RealRegister::gr4, TR_GPR, cg);
+   TR::addDependency(dependencies, dr_h, TR::RealRegister::gr5, TR_GPR, cg);
+   TR::addDependency(dependencies, dr_l, TR::RealRegister::gr6, TR_GPR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::gr0, TR_GPR, cg);
    tmp1Reg = cg->allocateRegister();
-   addDependency(dependencies, tmp1Reg, TR::RealRegister::gr7, TR_GPR, cg);
+   TR::addDependency(dependencies, tmp1Reg, TR::RealRegister::gr7, TR_GPR, cg);
    tmp2Reg = cg->allocateRegister();
-   addDependency(dependencies, tmp2Reg, TR::RealRegister::gr8, TR_GPR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::gr9, TR_GPR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::gr11, TR_GPR, cg);
+   TR::addDependency(dependencies, tmp2Reg, TR::RealRegister::gr8, TR_GPR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::gr9, TR_GPR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::gr11, TR_GPR, cg);
    cr0Reg = cg->allocateRegister(TR_CCR);
-   addDependency(dependencies, cr0Reg, TR::RealRegister::cr0, TR_CCR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::cr1, TR_CCR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::cr5, TR_CCR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::cr6, TR_CCR, cg);
-   addDependency(dependencies, NULL, TR::RealRegister::cr7, TR_CCR, cg);
+   TR::addDependency(dependencies, cr0Reg, TR::RealRegister::cr0, TR_CCR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::cr1, TR_CCR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::cr5, TR_CCR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::cr6, TR_CCR, cg);
+   TR::addDependency(dependencies, NULL, TR::RealRegister::cr7, TR_CCR, cg);
 
    // Trivial cases are caught by Simplifier or ValuePropagation. Runtime test is needed at this stage.
    int64_t ddConst = firstChild->getLongInt(), drConst = secondChild->getLongInt();

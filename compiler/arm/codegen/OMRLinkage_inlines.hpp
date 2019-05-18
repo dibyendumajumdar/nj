@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corp. and others
+ * Copyright (c) 2019, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -19,47 +19,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
-#ifndef OMR_Z_REGISTER_PAIR_INCL
-#define OMR_Z_REGISTER_PAIR_INCL
+#ifndef OMR_ARM_LINKAGE_INLINES_INCL
+#define OMR_ARM_LINKAGE_INLINES_INCL
 
-/*
- * The following #define and typedef must appear before any #includes in this file
- */
-#ifndef OMR_REGISTER_PAIR_CONNECTOR
-#define OMR_REGISTER_PAIR_CONNECTOR
-   namespace OMR { namespace Z { class RegisterPair; } }
-   namespace OMR { typedef OMR::Z::RegisterPair RegisterPairConnector; }
-#else
-   #error OMR::Z::RegisterPair expected to be a primary connector, but a OMR connector is already defined
-#endif
-
-
-#include "compiler/codegen/OMRRegisterPair.hpp"
-
-namespace OMR
-{
-
-namespace Z
-{
-
-class OMR_EXTENSIBLE RegisterPair: public OMR::RegisterPair
-   {
-   protected:
-
-   RegisterPair() {}
-   RegisterPair(TR_RegisterKinds rk):  OMR::RegisterPair(rk) {}
-   RegisterPair(TR::Register *lo, TR::Register *ho);
-
-   public:
-
-   TR::Register * setLowOrder(TR::Register *lo, TR::CodeGenerator *codeGen);
-   TR::Register * setHighOrder(TR::Register *ho, TR::CodeGenerator *codeGen);
-
-
-   };
-
-}
-
-}
+#include "compiler/codegen/OMRLinkage_inlines.hpp"
 
 #endif
