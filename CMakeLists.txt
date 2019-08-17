@@ -168,20 +168,20 @@ add_subdirectory(frontends)
 
 # This file must be copied into the build directory so that
 # the cmake user package registry functions properly
-configure_file(OmrConfig.cmake
-  "${CMAKE_CURRENT_BINARY_DIR}/OmrConfig.cmake"
-  COPYONLY
-)
+#configure_file(OmrConfig.cmake
+#  "${CMAKE_CURRENT_BINARY_DIR}/OmrConfig.cmake"
+#  COPYONLY
+#)
 
-export(EXPORT OmrTargets FILE OmrTargets.cmake)
+#export(EXPORT OmrTargets FILE OmrTargets.cmake)
+#
+#install(EXPORT OmrTargets
+#  FILE OmrTargets.cmake
+#  DESTINATION ${OMR_INSTALL_LIB_DIR}/cmake/Omr
+#)
 
-install(EXPORT OmrTargets
-  FILE OmrTargets.cmake
-  DESTINATION ${OMR_INSTALL_LIB_DIR}/cmake/Omr
-)
+#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/OmrConfig.cmake"
+#	DESTINATION ${OMR_INSTALL_LIB_DIR}/cmake/Omr
+#)
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/OmrConfig.cmake"
-	DESTINATION ${OMR_INSTALL_LIB_DIR}/cmake/Omr
-)
-
-export(PACKAGE Omr)
+#export(PACKAGE Omr)
