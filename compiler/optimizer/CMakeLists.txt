@@ -65,7 +65,7 @@ compiler_library(optimizer
 	##${CMAKE_CURRENT_LIST_DIR}/LoopVersioner.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMRLocalCSE.cpp
 	${CMAKE_CURRENT_LIST_DIR}/LocalDeadStoreElimination.cpp
-	##${CMAKE_CURRENT_LIST_DIR}/LocalOpts.cpp
+	${CMAKE_CURRENT_LIST_DIR}/LocalOpts.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMROptimization.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMROptimizationManager.cpp
 	${CMAKE_CURRENT_LIST_DIR}/OMRTransformUtil.cpp
