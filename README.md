@@ -51,6 +51,8 @@ a shared library will be built.
 
 Note - the only builds I have done so far as X86-64 versions. I have no means of testing other architectures.
 
+**Note that due to the way the OMR code is structured the code is compiled several times, once for each target. You can reduce the time taken to build by commenting out some of the targets you do not require in the top-level CMakeLists.txt file.**
+
 ### Linux or Mac OSX
 
 * You will need CMake, Perl, bison and flex installed
