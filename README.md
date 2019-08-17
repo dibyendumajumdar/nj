@@ -59,7 +59,7 @@ Note - the only builds I have done so far as X86-64 versions. I have no means of
 ```
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=$HOME/Software/omr ..
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/Software/omr -DCMAKE_BUILD_TYPE=MinSizeRel ..
 make install
 ```
 
@@ -71,7 +71,7 @@ make install
 mkdir build
 cd build
 cmake -DCMAKE_INSTALL_PREFIX=/Software/omr -G "Visual Studio 15 2017 Win64" ..
-cmake --build . --target INSTALL --config Debug
+cmake --build . --target INSTALL --config MinSizeRel
 ```
 
 
