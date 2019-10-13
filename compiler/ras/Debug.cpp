@@ -56,9 +56,7 @@
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
 #include "control/Recompilation.hpp"
-#include "cs2/bitvectr.h"
 #include "cs2/hashtab.h"
-#include "cs2/sparsrbit.h"
 #include "env/CompilerEnv.hpp"
 #include "env/IO.hpp"
 #include "env/RawAllocator.hpp"
@@ -962,7 +960,7 @@ TR_Debug::signature(TR::ResolvedMethodSymbol *s)
 TR_OpaqueClassBlock *
 TR_Debug::containingClass(TR::SymbolReference *symRef)
    {
-   TR_Method *method = symRef->getSymbol()->castToMethodSymbol()->getMethod();
+   TR::Method *method = symRef->getSymbol()->castToMethodSymbol()->getMethod();
 
    if (method)
       {
@@ -1653,6 +1651,10 @@ TR_Debug::getName(TR::SymbolReference * symRef)
              return "<potentialOSRPointHelper>";
          case TR::SymbolReferenceTable::osrFearPointHelperSymbol:
              return "<osrFearPointHelper>";
+         case TR::SymbolReferenceTable::jProfileValueSymbol:
+             return "<jProfileValuePlaceHolder>";
+         case TR::SymbolReferenceTable::jProfileValueWithNullCHKSymbol:
+             return "<jProfileValueWithNullCHKPlaceHolder>";
          }
       }
 
@@ -1858,7 +1860,7 @@ TR_Debug::getParmName(TR::SymbolReference * symRef)
 const char *
 TR_Debug::getMethodName(TR::SymbolReference * symRef)
    {
-   TR_Method * method = symRef->getSymbol()->castToMethodSymbol()->getMethod();
+   TR::Method *method = symRef->getSymbol()->castToMethodSymbol()->getMethod();
 
    if (method==NULL)
       {
@@ -2107,6 +2109,8 @@ static const char *commonNonhelperSymbolNames[] =
    "<atomicSwap64Bit>",
    "<atomicCompareAndSwapReturnStatus>",
    "<atomicCompareAndSwapReturnValue>",
+   "<jProfileValueSymbol>",
+   "<jProfileValueWithNullCHKSymbol>",
    };
 
 const char *
@@ -2903,6 +2907,10 @@ TR_Debug::getName(TR::Snippet *snippet)
    if (TR::Compiler->target.cpu.isARM())
       return getNamea(snippet);
 #endif
+#if defined(TR_TARGET_ARM64)
+   if (TR::Compiler->target.cpu.isARM64())
+      return getNamea64(snippet);
+#endif
    return "<unknown snippet>"; // TODO: Return a more informative name
    }
 
@@ -2934,6 +2942,13 @@ TR_Debug::print(TR::FILE *pOutFile, TR::Snippet * snippet)
    if (TR::Compiler->target.cpu.isZ())
       {
       printz(pOutFile, (TR::Snippet *)snippet);
+      return;
+      }
+#endif
+#if defined(TR_TARGET_ARM64)
+   if (TR::Compiler->target.cpu.isARM64())
+      {
+      printa64(pOutFile, snippet);
       return;
       }
 #endif
@@ -4994,22 +5009,11 @@ void TR_Debug::setupDebugger(void *startaddr, void *endaddr, bool before)
                printf("\n methodStartAddress = %p",startaddr);
                printf("\n methodEndAddress = %p\n",endaddr);
                fprintf(cf, "break *%p\n",startaddr);
-
-               // Insert breakpoints requested by codegen
-               //
-               for (auto bpIterator = _comp->cg()->getBreakPointList().begin();
-                    bpIterator != _comp->cg()->getBreakPointList().end();
-                    ++bpIterator)
-                  {
-                  fprintf(cf, "break *%p\n",*bpIterator);
-                  }
-
                fprintf(cf, "disassemble %p %p\n",startaddr,endaddr);
                }
 
             fprintf(cf, "finish\n");
             fprintf(cf, "shell rm %s\n",cfname);
-            fprintf(cf, "");
             fclose(cf);
 
             Argv[1] = "-x";
@@ -5075,15 +5079,6 @@ void TR_Debug::setupDebugger(void *startaddr, void *endaddr, bool before)
                {
                printf("\n methodStartAddress = %p",startaddr);
                printf("\n methodEndAddress = %p\n",endaddr);
-
-               // Insert breakpoints requested by codegen
-               //
-               for (auto bpIterator = _comp->cg()->getBreakPointList().begin();
-                    bpIterator != _comp->cg()->getBreakPointList().end(); ++bpIterator)
-                  {
-                  fprintf(cf, "stopi at 0x%p\n",*bpIterator);
-                  }
-
                fprintf(cf, "stopi at 0x%p\n" ,startaddr);
                }
 

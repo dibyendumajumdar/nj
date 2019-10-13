@@ -73,9 +73,7 @@
 #ifdef J9_PROJECT_SPECIFIC
 #include "control/RecompilationInfo.hpp"
 #endif
-#include "cs2/arrayof.h"
 #include "cs2/hashtab.h"
-#include "cs2/sparsrbit.h"
 #include "env/CompilerEnv.hpp"
 #include "env/IO.hpp"
 #include "env/Processors.hpp"
@@ -424,7 +422,8 @@ OMR::Z::CodeGenerator::CodeGenerator()
      _previouslyAssignedTo(self()->comp()->allocator("LocalRA")),
      _firstTimeLiveOOLRegisterList(NULL),
      _methodBegin(NULL),
-     _methodEnd(NULL)
+     _methodEnd(NULL),
+     _afterRA(false)
    {
    TR::Compilation *comp = self()->comp();
    _cgFlags = 0;
@@ -469,8 +468,8 @@ OMR::Z::CodeGenerator::CodeGenerator()
    self()->setSupportsLoweringConstIDiv();
    self()->setSupportsTestUnderMask();
 
-   // Initialize preprologue offset to be 8 bytes for bodyInfo / methodInfo
-   self()->setPreprologueOffset(8);
+   // Initialize to be 8 bytes for bodyInfo / methodInfo
+   self()->setPreJitMethodEntrySize(8);
 
    // Support divided by power of 2 logic in ldivSimplifier
    self()->setSupportsLoweringConstLDivPower2();
@@ -2038,14 +2037,14 @@ OMR::Z::CodeGenerator::deleteInst(TR::Instruction* old)
 void
 OMR::Z::CodeGenerator::doPreRAPeephole()
    {
-   TR_S390PreRAPeephole ph(self()->comp(), self());
+   TR_S390PreRAPeephole ph(self()->comp());
    ph.perform();
    }
 
 void
 OMR::Z::CodeGenerator::doPostRAPeephole()
    {
-   TR_S390PostRAPeephole ph(self()->comp(), self());
+   TR_S390PostRAPeephole ph(self()->comp());
    ph.perform();
    }
 
@@ -2257,7 +2256,7 @@ OMR::Z::CodeGenerator::doBinaryEncoding()
    // overload of the constructor which can accept a NULL preceding instruction. If cursor is NULL the generated
    // label instruction will be prepended to the start of the instruction stream.
    _methodBegin = new (self()->trHeapMemory()) TR::S390LabelInstruction(TR::InstOpCode::LABEL, self()->comp()->getStartTree()->getNode(), generateLabelSymbol(self()), static_cast<TR::Instruction*>(NULL), self());
-   
+
    _methodEnd = generateS390LabelInstruction(self(), TR::InstOpCode::LABEL, self()->comp()->findLastTree()->getNode(), generateLabelSymbol(self()));
 
    TR_S390BinaryEncodingData data;
@@ -2271,7 +2270,7 @@ OMR::Z::CodeGenerator::doBinaryEncoding()
    if (self()->comp()->getJittedMethodSymbol()->isJNI() && !self()->comp()->getOption(TR_FullSpeedDebug))
       {
       data.preProcInstruction = TR::Compiler->target.is64Bit() ?
-         data.cursorInstruction->getNext()->getNext()->getNext() : 
+         data.cursorInstruction->getNext()->getNext()->getNext() :
          data.cursorInstruction->getNext()->getNext();
       }
    else
@@ -2334,6 +2333,12 @@ OMR::Z::CodeGenerator::doBinaryEncoding()
    while (cursor && cursor->getOpCodeValue() != TR::InstOpCode::PROC)
       {
       cursor = cursor->getNext();
+      }
+
+   if (self()->comp()->getOption(TR_EntryBreakPoints))
+      {
+      TR::Node *node = self()->comp()->getStartTree()->getNode();
+      cursor = generateS390EInstruction(self(), TR::InstOpCode::BREAK, node, cursor);
       }
 
    if (recomp != NULL)
@@ -2450,38 +2455,13 @@ OMR::Z::CodeGenerator::doBinaryEncoding()
    uint8_t *coldCode = NULL;
    uint8_t *temp = self()->allocateCodeMemory(self()->getEstimatedCodeLength(), 0, &coldCode);
 
-
    self()->setBinaryBufferStart(temp);
    self()->setBinaryBufferCursor(temp);
-
-
-   static char *disableAlignJITEP = feGetEnv("TR_DisableAlignJITEP");
-
-   // Adjust the binary buffer cursor with appropriate padding.
-   if (!disableAlignJITEP && !self()->comp()->compileRelocatableCode() && self()->allowSplitWarmAndColdBlocks())
-      {
-      int32_t alignedBase = 256 - self()->getPreprologueOffset();
-      int32_t padBase = ( 256 + alignedBase - ((intptrj_t)temp) % 256) % 256;
-
-      // Threshold determines the maximum number of bytes to align.  If the JIT EP is already close
-      // to the beginning of the cache line (i.e. pad bytes is big), then we might not benefit from
-      // aligning JIT EP to the true cache boundary.  By default, we align only if padByte exceed 192.
-      static char *alignJITEPThreshold = feGetEnv("TR_AlignJITEPThreshold");
-      int32_t threshold = (alignJITEPThreshold)?atoi(alignJITEPThreshold):192;
-
-      if (padBase < threshold)
-         {
-         self()->setBinaryBufferCursor(temp + padBase);
-         }
-      }
+   self()->alignBinaryBufferCursor();
 
    while (data.cursorInstruction)
       {
-      uint8_t * const instructionStart = self()->getBinaryBufferCursor();
-      if (data.cursorInstruction->isBreakPoint())
-         {
-         self()->addBreakPointAddress(instructionStart);
-         }
+      uint8_t* const instructionStart = self()->getBinaryBufferCursor();
 
       self()->setBinaryBufferCursor(data.cursorInstruction->generateBinaryEncoding());
 
@@ -4419,19 +4399,6 @@ OMR::Z::CodeGenerator::dumpPostGPRegisterAssignment(TR::Instruction * instructio
    }
 #endif
 
-bool
-OMR::Z::CodeGenerator::constLoadNeedsLiteralFromPool(TR::Node *node)
-   {
-   if (node->isClassUnloadingConst() || node->getType().isIntegral() || node->getType().isAddress())
-      {
-      return false;
-      }
-   else
-      {
-      return true;  // Floats/Doubles require literal pool
-      }
-   }
-
 void
 OMR::Z::CodeGenerator::setGlobalStaticBaseRegisterOnFlag()
    {
@@ -4498,23 +4465,6 @@ OMR::Z::CodeGenerator::supportsOnDemandLiteralPool()
       }
    }
 
-/**
- * Check if BNDS check should use a CLFI
- */
-bool
-OMR::Z::CodeGenerator::bndsChkNeedsLiteralFromPool(TR::Node *node)
-   {
-   int64_t value=getIntegralValue(node);
-
-   if (value <= GE_MAX_IMMEDIATE_VAL && value >= GE_MIN_IMMEDIATE_VAL)
-      {
-      return false;
-      }
-   else
-      {
-      return true;
-      }
-   }
 TR::Register *
 OMR::Z::CodeGenerator::evaluateLengthMinusOneForMemoryOps(TR::Node *node, bool clobberEvaluate, bool &lenMinusOne)
    {
@@ -4741,6 +4691,18 @@ bool
 OMR::Z::CodeGenerator::excludeInvariantsFromGRAEnabled()
    {
    return true;
+   }
+
+uint32_t
+OMR::Z::CodeGenerator::getJitMethodEntryAlignmentBoundary()
+   {
+   return 256;
+   }
+
+uint32_t
+OMR::Z::CodeGenerator::getJitMethodEntryAlignmentThreshold()
+   {
+   return 192;
    }
 
 /**
@@ -5309,15 +5271,6 @@ bool OMR::Z::CodeGenerator::IsInMemoryType(TR::DataType type)
    return false;
 #endif
    }
-
-/**
- * Determine if the Left-to-right copy semantics is allowed on NDmemcpyWithPad
- * Communicates with the evaluator to do MVC semantics under certain condition no matter how the overlap is
- */
-bool OMR::Z::CodeGenerator::inlineNDmemcpyWithPad(TR::Node * node, int64_t * maxLengthPtr)
-      {
-      return false;
-      }
 
 
 uint32_t getRegMaskFromRange(TR::Instruction * inst);

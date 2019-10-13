@@ -55,7 +55,6 @@
 #include "compile/SymbolReferenceTable.hpp"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
-#include "cs2/sparsrbit.h"
 #include "env/CompilerEnv.hpp"
 #include "env/ObjectModel.hpp"
 #include "env/StackMemoryRegion.hpp"
@@ -1274,7 +1273,7 @@ void ArtificiallyInflateReferenceCountWhenNecessary(TR::MemoryReference * mr, co
             cg->incReferenceCount(nodeArray[i]);
 
             // Reference count is now 2.
-            cg->incRefCountForOpaquePseudoRegister(nodeArray[i], cg, comp);
+            cg->incRefCountForOpaquePseudoRegister(nodeArray[i]);
             }
          else
             {
@@ -1408,11 +1407,37 @@ OMR::Z::MemoryReference::populateAddTree(TR::Node * subTree, TR::CodeGenerator *
 
    if ((integerChild->getOpCodeValue() == TR::isub || integerChild->getOpCodeValue() == TR::lsub))
       {
-      if (integerChild->getRegister() == NULL && _indexRegister->isLive())
+      /*
+       * arraycopy
+       *   aladd
+       *     ==>aRegLoad
+       *     lsub
+       *       ==>lRegLoad
+       *       lconst
+       *   aladd
+       *     ==>aconst NULL
+       *     lsub
+       *       ==>lRegLoad
+       *       ==>lconst
+       *
+       * With this tree, the first and second aladd get handled slightly differently.
+       * The first has a non NULL addressChild so that get's set as the _baseRegister.
+       * We will fold the lsub into the aladd's memref so the lRegLoad becomes the _indexRegister
+       * and the lconst becomes the offset.
+       * For the second aladd, the NULL addressChild means we use the integerChild as the _baseRegister.
+       * This is needed to prevent Zero Address Detection events on z/OS which happen when the base register of an instruction is zero.
+       * When we fold the lsub the lRegLoad becomes the _baseRegister and the lconst becomes offset.
+       * The important point is that in this case the _indexRegister is NULL.
+       * Thus we need to take care to select the appropriate register in the code below.
+       */
+
+      TR::Register *integerChildRegister = (_indexRegister != NULL) ? _indexRegister : _baseRegister;
+
+      if (integerChild->getRegister() == NULL && integerChildRegister->isLive())
          {
-         TR_LiveRegisterInfo * liveRegister = _indexRegister->getLiveRegisterInfo();
+         TR_LiveRegisterInfo * liveRegister = integerChildRegister->getLiveRegisterInfo();
          int32_t owningNodeCount = 0;
-         integerChild->setRegister(_indexRegister);
+         integerChild->setRegister(integerChildRegister);
          owningNodeCount = liveRegister->getNodeCount();
          cg->decReferenceCount(integerChild);
          if (liveRegister->getNodeCount() == owningNodeCount)
@@ -3297,7 +3322,6 @@ TR::MemoryReference *
 generateS390MemoryReference(int32_t iValue, TR::DataType type, TR::CodeGenerator * cg, TR::Register * treg, TR::Node *node)
    {
    TR::S390ConstantDataSnippet * targetsnippet = cg->findOrCreate4ByteConstant(node, iValue);
-
    return generateS390MemoryReference(targetsnippet, cg, treg, node);
    }
 
@@ -3359,7 +3383,7 @@ generateS390MemoryReference(TR::Node * node, TR::CodeGenerator * cg, bool canUse
    // A symbol reference is needed to adjust memory reference displacement (TR::MemoryReference::calcDisplacement).
    // If the node has no sym ref, this memory reference's gets a NULL symbol reference, which can lead to crashes in displacement
    // calculations.
-   TR_ASSERT(node->getOpCode().hasSymbolReference(), "Memory reference generation API needs a node with symbol reference\n");
+   TR_ASSERT_FATAL(node->getOpCode().hasSymbolReference(), "Memory reference generation API needs a node with symbol reference\n");
    return new (cg->trHeapMemory()) TR::MemoryReference(node, cg, canUseRX);
    }
 

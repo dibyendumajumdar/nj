@@ -52,7 +52,6 @@ namespace OMR { typedef OMR::Z::CodeGenerator CodeGeneratorConnector; }
 #include "compile/ResolvedMethod.hpp"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
-#include "cs2/arrayof.h"
 #include "cs2/hashtab.h"
 #include "env/CompilerEnv.hpp"
 #include "env/CPU.hpp"
@@ -299,12 +298,6 @@ public:
 
    bool supportsLengthMinusOneForMemoryOpts() {return true;}
 
-   bool supportsTrapsInTMRegion()
-      {
-      return TR::Compiler->target.isZOS();
-      }
-
-   bool inlineNDmemcpyWithPad(TR::Node * node, int64_t * maxLengthPtr = NULL);
    bool codegenSupportsLoadlessBNDCheck() {return TR::Compiler->target.cpu.getSupportsArch(TR::CPU::zEC12);}
    TR::Register *evaluateLengthMinusOneForMemoryOps(TR::Node *,  bool , bool &lenMinusOne);
 
@@ -448,9 +441,6 @@ public:
    virtual bool getSupportsBitPermute();
    int32_t getEstimatedExtentOfLitLoop()  {return _extentOfLitPool;}
 
-   int32_t getPreprologueOffset()               { return _preprologueOffset; }
-   int32_t setPreprologueOffset(int32_t offset) { return _preprologueOffset = offset; }
-
    bool supportsBranchPreload()          {return _cgFlags.testAny(S390CG_enableBranchPreload);}
    void setEnableBranchPreload()          {_cgFlags.set(S390CG_enableBranchPreload);}
    void setDisableBranchPreload()          {_cgFlags.reset(S390CG_enableBranchPreload);}
@@ -544,6 +534,8 @@ public:
    bool canUseImmedInstruction(int64_t v);
 
    virtual bool isAddMemoryUpdate(TR::Node * node, TR::Node * valueChild);
+
+   bool afterRA() { return _afterRA; }
 
 #ifdef DEBUG
    void dumpPreGPRegisterAssignment(TR::Instruction *);
@@ -789,15 +781,16 @@ public:
       return 7;
       }
 
+   uint32_t getJitMethodEntryAlignmentBoundary();
+
+   uint32_t getJitMethodEntryAlignmentThreshold();
+
    // LL: move to .cpp
    bool arithmeticNeedsLiteralFromPool(TR::Node *node);
 
    // LL: move to .cpp
    bool bitwiseOpNeedsLiteralFromPool(TR::Node *parent, TR::Node *child);
 
-   bool bndsChkNeedsLiteralFromPool(TR::Node *child);
-
-   bool constLoadNeedsLiteralFromPool(TR::Node *node);
    virtual bool isDispInRange(int64_t disp);
 
    bool getSupportsOpCodeForAutoSIMD(TR::ILOpCode, TR::DataType);
@@ -861,10 +854,6 @@ private:
 
    bool  TR_LiteralPoolOnDemandOnRun;
 
-
-   /** Saves the preprologue offset to allow JIT entry point alignment padding. */
-   int32_t _preprologueOffset;
-
    TR_BackingStore* _localF2ISpill;
 
    TR_BackingStore* _localD2LSpill;
@@ -876,6 +865,8 @@ private:
    CS2::HashTable<ncount_t, bool, TR::Allocator> _nodesToBeEvaluatedInRegPairs;
 
 protected:
+
+   bool _afterRA;
    flags32_t  _cgFlags;
 
    /** Miscellaneous S390CG boolean flags. */

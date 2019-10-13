@@ -882,6 +882,8 @@ enum JIT_NodeOpCode {
     OP_checkcastAndNULLCHK, // checkcast and NULL check the underlying object
                             // reference
     OP_New, // new - child is class
+    OP_newvalue, //allocate and initialize - children provide field values
+
     OP_newarray, // new array of primitives
     OP_anewarray, // new array of objects
     OP_variableNew, // new - child is class, type not known at compile time
@@ -1113,8 +1115,6 @@ enum JIT_NodeOpCode {
 
     OP_dlog, // log of double, returning double
 
-    OP_imulover, // (int) overflow predicate of int multiplication
-
     OP_dfloor, // floor of double, returning double
     OP_ffloor, // floor of float, returning float
     OP_dceil, // ceil of double, returning double
@@ -1165,6 +1165,7 @@ enum JIT_NodeOpCode {
 
     OP_Prefetch, // Prefetch
 
+	OP_LastOMROp = OP_Prefetch
 };
 typedef enum JIT_NodeOpCode JIT_NodeOpCode;
 

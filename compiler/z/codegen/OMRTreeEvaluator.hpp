@@ -99,12 +99,17 @@ class OMR_EXTENSIBLE TreeEvaluator: public OMR::TreeEvaluator
    static TR::Register *mbranchEvaluator(TR::Node * node, TR::CodeGenerator * cg);
    static TR::Register *iloadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *aloadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ardbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *lloadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *floadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *dloadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *bloadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *sloadEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *fwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *fwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *dwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *dwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *awrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *awrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *istoreEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *lstoreEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *astoreEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -230,13 +235,23 @@ class OMR_EXTENSIBLE TreeEvaluator: public OMR::TreeEvaluator
     *
     *   \param cg
     *      The code generator used to generate the instructions
+    * 
+    *    \param shiftAmount
+    *      The number of bits we should shift the result of the logical AND. A positive value represents a left shift,
+    *      a negative value represents a right shift, and a value of zero represents no shift.
+    *      Note that if the absolute value of number is greater than 6 bits, then this optimization will not work
+    *      since the RISBG instruction will only hold 6 bits for the shift operand.
+    * 
+    *   \param isSignedShift
+    *      If replacing a signed shift+and combination, this variable evaluates to true. Else it will evaluate to false.
+    *      Note: If we are using this function to replace a standalone 'and', then this variable should be false.
     *
     *   \return
     *      The target register for the instruction, or NULL if generating a 
     *      RISBG instruction is not suitable
     *
     */
-   static TR::Register *tryToReplaceLongAndWithRotateInstruction(TR::Node * node, TR::CodeGenerator * cg);
+   static TR::Register *tryToReplaceShiftLandWithRotateInstruction(TR::Node * node, TR::CodeGenerator * cg, int32_t shiftAmount, bool isSignedShift);
 
    static TR::Register *bandEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *sandEvaluator(TR::Node *node, TR::CodeGenerator *cg);

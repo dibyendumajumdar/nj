@@ -27,10 +27,10 @@
 #include "codegen/LinkageConventionsEnum.hpp"
 #include "codegen/RealRegister.hpp"
 #include "codegen/Register.hpp"
+#include "codegen/Relocation.hpp"
 #include "codegen/SystemLinkage.hpp"
 #include "codegen/snippet/PPA1Snippet.hpp"
 #include "codegen/snippet/PPA2Snippet.hpp"
-#include "cs2/arrayof.h"
 #include "env/TRMemory.hpp"
 #include "env/jittypes.h"
 #include "il/DataTypes.hpp"
@@ -73,6 +73,38 @@ namespace TR {
 
 class S390zOSSystemLinkage : public TR::SystemLinkage
    {
+   private:
+
+   /** \brief
+    *
+    *  Represents the XPLINK 31-bit call descriptor relocation which is a (positive) signed offset in doublewords from 
+    *  the doubleword at or preceding the return point (NOP) to the XPLINK call descriptor for this signature.
+    *
+    *  [1] https://www-01.ibm.com/servers/resourcelink/svc00100.nsf/pages/zOSV2R3SA380688/$file/ceev100_v2r3.pdf (page 137)
+    */
+   class XPLINKCallDescriptorRelocation : public TR::LabelRelocation
+      {
+      public:
+
+      /** \brief
+       *     Initializes the XPLINKCallDescriptorRelocation relocation using a \c NULL base target pointer
+       *
+       *  \param nop
+       *     The 4-byte NOP descriptor instruction whose binary encoding location (+2) will be used for the relocation
+       *
+       *  \param callDescriptor
+       *     The label marking the call descriptor for this signature
+       */
+      XPLINKCallDescriptorRelocation(TR::Instruction* nop, TR::LabelSymbol* callDescriptor);
+      
+      virtual uint8_t* getUpdateLocation();
+      virtual void apply(TR::CodeGenerator* cg);
+
+      private:
+
+      TR::Instruction* _nop;
+      };
+
    public:
 
    /** \brief
@@ -93,7 +125,7 @@ class S390zOSSystemLinkage : public TR::SystemLinkage
 
    virtual TR::RealRegister::RegNum getENVPointerRegister();
    virtual TR::RealRegister::RegNum getCAAPointerRegister();
-   
+
    virtual int32_t getRegisterSaveOffset(TR::RealRegister::RegNum);
    virtual int32_t getOutgoingParameterBlockSize();
 
@@ -114,12 +146,12 @@ class S390zOSSystemLinkage : public TR::SystemLinkage
     *     The stack pointer update label symbol if it exists; \c NULL otherwise.
     */
    TR::LabelSymbol* getStackPointerUpdateLabel() const;
-   
+
    /** \brief
     *     Gets the PPA1 (Program Prologue Area 1) snippet for this method body.
     */
    TR::PPA1Snippet* getPPA1Snippet() const;
-   
+
    /** \brief
     *     Gets the PPA2 (Program Prologue Area 2) snippet for this method body.
     */
@@ -128,7 +160,7 @@ class S390zOSSystemLinkage : public TR::SystemLinkage
    private:
 
    virtual TR::Instruction* addImmediateToRealRegister(TR::RealRegister * targetReg, int32_t immediate, TR::RealRegister *tempReg, TR::Node *node, TR::Instruction *cursor, bool *checkTempNeeded=NULL);
-   
+
    TR::Instruction* fillGPRsInEpilogue(TR::Node* node, TR::Instruction* cursor);
    TR::Instruction* fillFPRsInEpilogue(TR::Node* node, TR::Instruction* cursor);
 
@@ -136,7 +168,7 @@ class S390zOSSystemLinkage : public TR::SystemLinkage
    TR::Instruction* spillFPRsInPrologue(TR::Node* node, TR::Instruction* cursor);
 
    private:
-   
+
    TR::LabelSymbol* _entryPointMarkerLabel;
    TR::LabelSymbol* _stackPointerUpdateLabel;
 

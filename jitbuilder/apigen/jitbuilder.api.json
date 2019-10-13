@@ -1374,6 +1374,16 @@
                     {"name":"condition","type":"IlValue"}
                     ]
                 },
+                { "name": "Select"
+                , "overloadsuffix": ""
+                , "flags": []
+                , "return": "IlValue"
+                , "parms": [
+                    {"name":"condition","type":"IlValue"},
+                    {"name":"trueValue","type":"IlValue"},
+                    {"name":"falseValue","type":"IlValue"}
+                    ]
+                },
                 { "name": "ForLoop"
                 , "overloadsuffix": ""
                 , "flags": []
@@ -2220,7 +2230,7 @@
                 , "return": "none"
                 , "parms": [
                     {"name":"b","type":"IlBuilder"},
-                    {"name":"amount","type":"int64"}
+                    {"name":"amount","type":"unsignedInteger"}
                     ]
                 },
                 { "name": "Load"

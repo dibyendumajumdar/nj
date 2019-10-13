@@ -26,9 +26,74 @@
 #include "codegen/ARM64Instruction.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/GenerateInstructions.hpp"
+#include "codegen/Relocation.hpp"
+#include "codegen/UnresolvedDataSnippet.hpp"
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
+#include "il/symbol/StaticSymbol.hpp"
 
+
+static void loadRelocatableConstant(TR::Node *node,
+                                    TR::SymbolReference *ref,
+                                    TR::Register *reg,
+                                    TR::MemoryReference *mr,
+                                    TR::CodeGenerator *cg)
+   {
+   TR::Compilation *comp = cg->comp();
+
+   TR::Symbol *symbol = ref->getSymbol();
+   bool isStatic = symbol->isStatic();
+   bool isStaticField = isStatic && (ref->getCPIndex() > 0) && !symbol->isClassObject();
+   bool isClass = isStatic && symbol->isClassObject();
+   bool isPicSite = isClass;
+
+   if (isPicSite && !cg->comp()->compileRelocatableCode()
+       && cg->wantToPatchClassPointer((TR_OpaqueClassBlock*)symbol->getStaticSymbol()->getStaticAddress(), node))
+      {
+      TR_UNIMPLEMENTED();
+      return;
+      }
+
+   uintptr_t addr = symbol->isStatic() ? (uintptr_t)symbol->getStaticSymbol()->getStaticAddress() : (uintptr_t)symbol->getMethodSymbol()->getMethodAddress();
+
+   if (symbol->isStartPC())
+      {
+      TR_UNIMPLEMENTED();
+      return;
+      }
+
+   if (ref->isUnresolved() || comp->compileRelocatableCode())
+      {
+      TR::Node *GCRnode = node;
+      if (!GCRnode)
+         GCRnode = cg->getCurrentEvaluationTreeTop()->getNode();
+
+      if (symbol->isCountForRecompile())
+         {
+         loadAddressConstant(cg, GCRnode, TR_CountForRecompile, reg, NULL, false, TR_GlobalValue);
+         }
+      else if (symbol->isRecompilationCounter())
+         {
+         loadAddressConstant(cg, GCRnode, 1, reg, NULL, false, TR_BodyInfoAddressLoad);
+         }
+      else if (symbol->isCompiledMethod())
+         {
+         loadAddressConstant(cg, GCRnode, 1, reg, NULL, false, TR_RamMethodSequence);
+         }
+      else if (isStaticField && !ref->isUnresolved())
+         {
+         loadAddressConstant(cg, GCRnode, 1, reg, NULL, false, TR_DataAddress);
+         }
+      else
+         {
+         cg->addSnippet(mr->setUnresolvedSnippet(new (cg->trHeapMemory()) TR::UnresolvedDataSnippet(cg, node, ref, node->getOpCode().isStore(), false)));
+         }
+      }
+   else
+      {
+      loadConstant64(cg, node, addr, reg);
+      }
+   }
 
 OMR::ARM64::MemoryReference::MemoryReference(
       TR::CodeGenerator *cg) :
@@ -100,6 +165,7 @@ OMR::ARM64::MemoryReference::MemoryReference(
    TR::Compilation *comp = cg->comp();
    TR::SymbolReference *ref = rootLoadOrStore->getSymbolReference();
    TR::Symbol *symbol = ref->getSymbol();
+   bool isStore = rootLoadOrStore->getOpCode().isStore();
 
    self()->setSymbol(symbol, cg);
 
@@ -107,7 +173,8 @@ OMR::ARM64::MemoryReference::MemoryReference(
       {
       if (ref->isUnresolved())
          {
-         TR_UNIMPLEMENTED();
+         self()->setUnresolvedSnippet(new (cg->trHeapMemory()) TR::UnresolvedDataSnippet(cg, rootLoadOrStore, rootLoadOrStore->getSymbolReference(), isStore, false));
+         cg->addSnippet(self()->getUnresolvedSnippet());
          }
       self()->populateMemoryReference(rootLoadOrStore->getFirstChild(), cg);
       }
@@ -115,7 +182,17 @@ OMR::ARM64::MemoryReference::MemoryReference(
       {
       if (symbol->isStatic())
          {
-         TR_UNIMPLEMENTED();
+         if (ref->isUnresolved())
+            {
+            self()->setUnresolvedSnippet(new (cg->trHeapMemory()) TR::UnresolvedDataSnippet(cg, rootLoadOrStore, rootLoadOrStore->getSymbolReference(), isStore, false));
+            cg->addSnippet(self()->getUnresolvedSnippet());
+            }
+         else
+            {
+            _baseRegister = cg->allocateRegister();
+            self()->setBaseModifiable();
+            loadRelocatableConstant(rootLoadOrStore, ref, _baseRegister, self(), cg);
+            }
          }
       else
          {
@@ -130,10 +207,6 @@ OMR::ARM64::MemoryReference::MemoryReference(
          }
       }
    self()->addToOffset(rootLoadOrStore, ref->getOffset(), cg);
-   if (self()->getUnresolvedSnippet() != NULL)
-      {
-      TR_UNIMPLEMENTED();
-      }
    }
 
 
@@ -153,15 +226,37 @@ OMR::ARM64::MemoryReference::MemoryReference(
    _offset(0),
    _symbolReference(symRef)
    {
-   TR_UNIMPLEMENTED();
-   }
+   TR::Symbol *symbol = symRef->getSymbol();
 
+   if (symbol->isStatic())
+      {
+      if (symRef->isUnresolved())
+         {
+         self()->setUnresolvedSnippet(new (cg->trHeapMemory()) TR::UnresolvedDataSnippet(cg, node, symRef, false, false));
+         cg->addSnippet(self()->getUnresolvedSnippet());
+         }
+      else
+         {
+         _baseRegister = cg->allocateRegister();
+         self()->setBaseModifiable();
+         loadRelocatableConstant(node, symRef, _baseRegister, self(), cg);
+         }
+      }
 
-bool OMR::ARM64::MemoryReference::useIndexedForm()
-   {
-   TR_UNIMPLEMENTED();
+   if (symbol->isRegisterMappedSymbol())
+      {
+      if (!symbol->isMethodMetaData())
+         { // must be either auto or parm or error.
+         _baseRegister = cg->getStackPointerRegister();
+         }
+      else
+         {
+         _baseRegister = cg->getMethodMetaDataRegister();
+         }
+      }
 
-   return false;
+   self()->setSymbol(symbol, cg);
+   self()->addToOffset(0, symRef->getOffset(), cg);
    }
 
 
@@ -337,7 +432,18 @@ void OMR::ARM64::MemoryReference::populateMemoryReference(TR::Node *subTree, TR:
 
          if (symbol->isStatic())
             {
-            TR_UNIMPLEMENTED();
+            if (ref->isUnresolved())
+               {
+               self()->setUnresolvedSnippet(new (cg->trHeapMemory()) TR::UnresolvedDataSnippet(cg, subTree, ref, subTree->getOpCode().isStore(), false));
+               cg->addSnippet(self()->getUnresolvedSnippet());
+               }
+            else
+               {
+               _baseRegister = cg->allocateRegister();
+               _baseNode = NULL;
+               self()->setBaseModifiable();
+               loadRelocatableConstant(subTree, ref, _baseRegister, self(), cg);
+               }
             }
          if (symbol->isRegisterMappedSymbol())
             {
@@ -625,70 +731,98 @@ uint8_t *OMR::ARM64::MemoryReference::generateBinaryEncoding(TR::Instruction *cu
       int32_t displacement = self()->getOffset(true);
 
       TR::InstOpCode op = currentInstruction->getOpCode();
-      uint32_t enc = (uint32_t)op.getOpCodeBinaryEncoding();
 
-      if (index)
+      if (op.getMnemonic() != TR::InstOpCode::addimmx)
          {
-         TR_ASSERT(displacement == 0, "Non-zero offset with index register.");
+         // load/store instruction
+         uint32_t enc = (uint32_t)op.getOpCodeBinaryEncoding();
 
-         if (isRegisterOffsetInstruction(enc))
+         if (index)
             {
-            base->setRegisterFieldRN(wcursor);
-            index->setRegisterFieldRM(wcursor);
+            TR_ASSERT(displacement == 0, "Non-zero offset with index register.");
 
-            if (self()->getScale() != 0)
+            if (isRegisterOffsetInstruction(enc))
                {
-               TR_UNIMPLEMENTED();
-               }
+               base->setRegisterFieldRN(wcursor);
+               index->setRegisterFieldRM(wcursor);
 
-            cursor += ARM64_INSTRUCTION_LENGTH;
+               if (self()->getScale() == 0)
+                  {
+                  // default: LSL #0
+                  *wcursor |= 0x6 << 12;
+                  }
+               else
+                  {
+                  // Eclipse OMR Issue #4227 tracks this
+                  TR_UNIMPLEMENTED();
+                  }
+
+               cursor += ARM64_INSTRUCTION_LENGTH;
+               }
+            else
+               {
+               TR_ASSERT(false, "Unsupported instruction type.");
+               }
             }
          else
             {
-            TR_ASSERT(false, "Unsupported instruction type.");
+            /* no index register */
+            base->setRegisterFieldRN(wcursor);
+
+            if (isImm9OffsetInstruction(enc))
+               {
+               if (constantIsImm9(displacement))
+                  {
+                  *wcursor |= (displacement & 0x1ff) << 12; /* imm9 */
+                  cursor += ARM64_INSTRUCTION_LENGTH;
+                  }
+               else
+                  {
+                  TR_ASSERT(false, "Offset is too large for specified instruction.");
+                  }
+               }
+            else if (isImm12OffsetInstruction(enc))
+               {
+               uint32_t size = (enc >> 30) & 3; /* b=0, h=1, w=2, x=3 */
+               uint32_t shifted = displacement >> size;
+
+               if (size > 0)
+                  {
+                  TR_ASSERT((displacement & ((1 << size) - 1)) == 0, "Non-aligned offset in 2/4/8-byte memory access.");
+                  }
+
+               if (constantIsUnsignedImm12(shifted))
+                  {
+                  *wcursor |= (shifted & 0xfff) << 10; /* imm12 */
+                  cursor += ARM64_INSTRUCTION_LENGTH;
+                  }
+               else
+                  {
+                  TR_ASSERT(false, "Offset is too large for specified instruction.");
+                  }
+               }
+            else
+               {
+               /* Register pair, literal, exclusive instructions to be supported */
+               TR_UNIMPLEMENTED();
+               }
             }
          }
       else
          {
-         /* no index register */
+         // loadaddrEvaluator() uses addimmx in generateTrgMemInstruction
+         TR_ASSERT(index == NULL, "MemoryReference with unexpected indexed form");
+
          base->setRegisterFieldRN(wcursor);
 
-         if (isImm9OffsetInstruction(enc))
+         if (constantIsUnsignedImm12(displacement))
             {
-            if (constantIsImm9(displacement))
-               {
-               *wcursor |= (displacement & 0x1ff) << 12; /* imm9 */
-               cursor += ARM64_INSTRUCTION_LENGTH;
-               }
-            else
-               {
-               TR_ASSERT(false, "Offset is too large for specified instruction.");
-               }
-            }
-         else if (isImm12OffsetInstruction(enc))
-            {
-            uint32_t size = (enc >> 30) & 3; /* b=0, h=1, w=2, x=3 */
-            uint32_t shifted = displacement >> size;
-
-            if (size > 0)
-               {
-               TR_ASSERT((displacement & ((1 << size) - 1)) == 0, "Non-aligned offset in 2/4/8-byte memory access.");
-               }
-
-            if (constantIsUnsignedImm12(shifted))
-               {
-               *wcursor |= (shifted & 0xfff) << 10; /* imm12 */
-               cursor += ARM64_INSTRUCTION_LENGTH;
-               }
-            else
-               {
-               TR_ASSERT(false, "Offset is too large for specified instruction.");
-               }
+            *wcursor |= (displacement & 0xfff) << 10; /* imm12 */
+            cursor += ARM64_INSTRUCTION_LENGTH;
             }
          else
             {
-            /* Register pair, literal, exclusive instructions to be supported */
-            TR_UNIMPLEMENTED();
+            TR_ASSERT(false, "Offset is too large for specified instruction.");
             }
          }
       }
@@ -705,50 +839,69 @@ uint32_t OMR::ARM64::MemoryReference::estimateBinaryLength(TR::InstOpCode op)
       }
    else
       {
-      if (self()->getIndexRegister())
+      if (op.getMnemonic() != TR::InstOpCode::addimmx)
          {
-         return ARM64_INSTRUCTION_LENGTH;
-         }
-      else
-         {
-         /* no index register */
-         int32_t displacement = self()->getOffset(true);
-         uint32_t enc = (uint32_t)op.getOpCodeBinaryEncoding();
-
-         if (isImm9OffsetInstruction(enc))
+         // load/store instruction
+         if (self()->getIndexRegister())
             {
-            if (constantIsImm9(displacement))
-               {
-               return ARM64_INSTRUCTION_LENGTH;
-               }
-            else
-               {
-               TR_ASSERT(false, "Offset is too large for specified instruction.");
-               }
-            }
-         else if (isImm12OffsetInstruction(enc))
-            {
-            uint32_t size = (enc >> 30) & 3; /* b=0, h=1, w=2, x=3 */
-            uint32_t shifted = displacement >> size;
-
-            if (size > 0)
-               {
-               TR_ASSERT((displacement & ((1 << size) - 1)) == 0, "Non-aligned offset in 2/4/8-byte memory access.");
-               }
-
-            if (constantIsUnsignedImm12(shifted))
-               {
-               return ARM64_INSTRUCTION_LENGTH;
-               }
-            else
-               {
-               TR_ASSERT(false, "Offset is too large for specified instruction.");
-               }
+            return ARM64_INSTRUCTION_LENGTH;
             }
          else
             {
-            /* Register pair, literal, exclusive instructions to be supported */
-            TR_UNIMPLEMENTED();
+            /* no index register */
+            int32_t displacement = self()->getOffset(true);
+            uint32_t enc = (uint32_t)op.getOpCodeBinaryEncoding();
+
+            if (isImm9OffsetInstruction(enc))
+               {
+               if (constantIsImm9(displacement))
+                  {
+                  return ARM64_INSTRUCTION_LENGTH;
+                  }
+               else
+                  {
+                  TR_ASSERT(false, "Offset is too large for specified instruction.");
+                  }
+               }
+            else if (isImm12OffsetInstruction(enc))
+               {
+               uint32_t size = (enc >> 30) & 3; /* b=0, h=1, w=2, x=3 */
+               uint32_t shifted = displacement >> size;
+
+               if (size > 0)
+                  {
+                  TR_ASSERT((displacement & ((1 << size) - 1)) == 0, "Non-aligned offset in 2/4/8-byte memory access.");
+                  }
+
+               if (constantIsUnsignedImm12(shifted))
+                  {
+                  return ARM64_INSTRUCTION_LENGTH;
+                  }
+               else
+                  {
+                  TR_ASSERT(false, "Offset is too large for specified instruction.");
+                  }
+               }
+            else
+               {
+               /* Register pair, literal, exclusive instructions to be supported */
+               TR_UNIMPLEMENTED();
+               }
+            }
+         }
+      else
+         {
+         // addimmx instruction
+         TR_ASSERT(self()->getIndexRegister() == NULL, "MemoryReference with unexpected indexed form");
+
+         int32_t displacement = self()->getOffset(true);
+         if (constantIsUnsignedImm12(displacement))
+            {
+            return ARM64_INSTRUCTION_LENGTH;
+            }
+         else
+            {
+            TR_ASSERT(false, "Offset is too large for specified instruction.");
             }
          }
       }

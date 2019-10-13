@@ -345,6 +345,7 @@ namespace TR { class ARM64Trg1ImmInstruction; }
 namespace TR { class ARM64Trg1Src1Instruction; }
 namespace TR { class ARM64Trg1Src1ImmInstruction; }
 namespace TR { class ARM64Trg1Src2Instruction; }
+namespace TR { class ARM64CondTrg1Src2Instruction; }
 namespace TR { class ARM64Trg1Src2ShiftedInstruction; }
 namespace TR { class ARM64Trg1Src2ExtendedInstruction; }
 namespace TR { class ARM64Trg1Src3Instruction; }
@@ -353,7 +354,17 @@ namespace TR { class ARM64MemInstruction; }
 namespace TR { class ARM64MemSrc1Instruction; }
 namespace TR { class ARM64Src1Instruction; }
 namespace TR { class ARM64Src2Instruction; }
+namespace TR { class ARM64HelperCallSnippet; }
 
+#ifdef J9_PROJECT_SPECIFIC
+namespace TR { class ARM64InterfaceCallSnippet; }
+namespace TR { class ARM64StackCheckFailureSnippet; }
+namespace TR { class ARM64ForceRecompilationSnippet; }
+namespace TR { class ARM64RecompilationSnippet; }
+namespace TR { class ARM64CallSnippet; }
+namespace TR { class ARM64UnresolvedCallSnippet; }
+namespace TR { class ARM64VirtualUnresolvedSnippet; }
+#endif
 
 TR_Debug *createDebugObject(TR::Compilation *);
 
@@ -416,11 +427,11 @@ public:
    virtual int32_t *       loadCustomStrategy(char *optFileName);
    virtual bool            methodCanBeCompiled(TR_Memory *mem, TR_ResolvedMethod *, TR_FilterBST * &);
    virtual bool            methodCanBeRelocated(TR_Memory *mem, TR_ResolvedMethod *, TR_FilterBST * &);
-   virtual bool            methodSigCanBeCompiled(const char *, TR_FilterBST * & , TR_Method::Type methodType);
+   virtual bool            methodSigCanBeCompiled(const char *, TR_FilterBST * & , TR::Method::Type methodType);
    virtual bool            methodSigCanBeRelocated(const char *, TR_FilterBST * & );
-   virtual bool            methodSigCanBeCompiledOrRelocated(const char *, TR_FilterBST * &, bool isRelocation, TR_Method::Type methodType);
+   virtual bool            methodSigCanBeCompiledOrRelocated(const char *, TR_FilterBST * &, bool isRelocation, TR::Method::Type methodType);
    virtual bool            methodCanBeFound(TR_Memory *, TR_ResolvedMethod *, TR::CompilationFilters *, TR_FilterBST * &);
-   virtual bool            methodSigCanBeFound(const char *, TR::CompilationFilters *, TR_FilterBST * &, TR_Method::Type methodType);
+   virtual bool            methodSigCanBeFound(const char *, TR::CompilationFilters *, TR_FilterBST * &, TR::Method::Type methodType);
    virtual TR::CompilationFilters * getCompilationFilters() { return _compilationFilters; }
    virtual TR::CompilationFilters * getRelocationFilters() { return _relocationFilters; }
    virtual void            clearFilters(TR::CompilationFilters *);
@@ -1085,6 +1096,7 @@ public:
    void print(TR::FILE *, TR::ARM64Trg1Src1Instruction *);
    void print(TR::FILE *, TR::ARM64Trg1Src1ImmInstruction *);
    void print(TR::FILE *, TR::ARM64Trg1Src2Instruction *);
+   void print(TR::FILE *, TR::ARM64CondTrg1Src2Instruction *);
    void print(TR::FILE *, TR::ARM64Trg1Src2ShiftedInstruction *);
    void print(TR::FILE *, TR::ARM64Trg1Src2ExtendedInstruction *);
    void print(TR::FILE *, TR::ARM64Trg1Src3Instruction *);
@@ -1106,6 +1118,21 @@ public:
    void printMemoryReferenceComment(TR::FILE *, TR::MemoryReference *);
 
    const char *getARM64RegisterName(uint32_t, bool = true);
+
+   void printa64(TR::FILE *, TR::Snippet *);
+   const char * getNamea64(TR::Snippet *);
+
+#ifdef J9_PROJECT_SPECIFIC
+   void print(TR::FILE *, TR::ARM64CallSnippet *);
+   void print(TR::FILE *, TR::ARM64UnresolvedCallSnippet *);
+   void print(TR::FILE *, TR::ARM64VirtualUnresolvedSnippet *);
+   void print(TR::FILE *, TR::ARM64InterfaceCallSnippet *);
+   void print(TR::FILE *, TR::ARM64StackCheckFailureSnippet *);
+   void print(TR::FILE *, TR::ARM64ForceRecompilationSnippet *);
+   void print(TR::FILE *, TR::ARM64RecompilationSnippet *);
+#endif
+   void print(TR::FILE *, TR::ARM64HelperCallSnippet *);
+
 #endif
 
    friend class TR_CFGChecker;

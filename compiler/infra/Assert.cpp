@@ -37,18 +37,11 @@
 #include "ras/Debug.hpp"
 #include "stdarg.h"
 
-#ifdef J9_PROJECT_SPECIFIC
-#include "env/VMJ9.h"
-#endif
 
 void OMR_NORETURN TR::trap()
    {
    static char * noDebug = feGetEnv("TR_NoDebuggerBreakPoint");
-   if (noDebug)
-      {
-      exit(1337);
-      }
-   else
+   if (!noDebug)
       {
       static char *crashLogOnAssume = feGetEnv("TR_crashLogOnAssume");
       if (crashLogOnAssume)
@@ -58,23 +51,25 @@ void OMR_NORETURN TR::trap()
          }
 
 #ifdef _MSC_VER
-      static char *revertToDebugbreakWin = feGetEnv("TR_revertToDebugbreakWin");
 #ifdef DEBUG
       DebugBreak();
 #else
+      static char *revertToDebugbreakWin = feGetEnv("TR_revertToDebugbreakWin");
       if(revertToDebugbreakWin)
+         {
          DebugBreak();
+         }
       else
-         *(int*)(NULL) = 1;
-#endif
+         {
+         *(volatile int*)(0) = 1;
+         }
+#endif //ifdef DEBUG
 #else // of _MSC_VER
-
-      assert(0);
-
+      abort();
 #endif // ifdef _MSC_VER
       }
+   exit(1337);
    }
-
 
 static void traceAssertionFailure(const char * file, int32_t line, const char *condition, const char *s, va_list ap)
    {

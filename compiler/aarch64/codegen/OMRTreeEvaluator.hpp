@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, 2018 IBM Corp. and others
+ * Copyright (c) 2018, 2019 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -448,7 +448,6 @@ public:
 	static TR::Register *MethodEnterHookEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *MethodExitHookEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *passThroughEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-	static TR::Register *compressedRefsEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *BBStartEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *BBEndEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *viremEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -613,7 +612,6 @@ public:
 	static TR::Register *cstoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *monentEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-	static TR::Register *monexitfenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *tfinishEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *tabortEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -637,6 +635,7 @@ public:
 	static TR::Register *dcalliEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *acalliEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *calliEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+	static TR::Register *indirectCallEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *fenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *luaddhEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *caddEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -662,7 +661,7 @@ public:
 	static TR::Register *dbgFenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *ResolveCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-	static TR::Register *ResolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+	static TR::Register *resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *DIVCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *OverflowCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *UnsignedOverflowCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -762,7 +761,6 @@ public:
 	static TR::Register *datanEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *datan2Evaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *dlogEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-	static TR::Register *imuloverEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *dfloorEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *ffloorEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *dceilEvaluator(TR::Node *node, TR::CodeGenerator *cg);
@@ -802,6 +800,9 @@ public:
 	static TR::Register *ibitpermuteEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *lbitpermuteEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 	static TR::Register *PrefetchEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+
+	static TR::Instruction *generateVFTMaskInstruction(TR::CodeGenerator *cg, TR::Node *node, TR::Register *dstReg, TR::Register *srcReg, TR::Instruction *preced=NULL);
+	static TR::Instruction *generateVFTMaskInstruction(TR::CodeGenerator *cg, TR::Node *node, TR::Register *reg, TR::Instruction *preced=NULL);
    };
 
 }

@@ -58,13 +58,15 @@ int main(int argc, char const * const * const argv) {
     printTrees(stdout, trees, 0);
 
     // assume that the file contians a single method and compile it
-    Tril::DefaultCompiler mandelbrotCompiler{trees};
+    Tril::DefaultCompiler mandelbrotCompiler(trees);
     assert(mandelbrotCompiler.compile() == 0);
     auto mandelbrot = mandelbrotCompiler.getEntryPoint<MandelbrotFunction*>();
 
     const auto size = 80;                   // number of rows/columns in the output table
     const auto iterations = 1000;           // number of iterations to be performed
-    int32_t table[size][size] = {{0}};          // the output table
+    int32_t table[size][size];              // the output table
+
+    std::memset(table, 0, sizeof(table));
 
     mandelbrot(iterations, size, &table[0][0]);
 

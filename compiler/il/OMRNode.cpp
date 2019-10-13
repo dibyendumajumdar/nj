@@ -36,8 +36,7 @@
 #include "compile/ResolvedMethod.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 #include "control/Options.hpp"
-#include "cs2/allocator.h"
-#include "cs2/sparsrbit.h"
+#include "cs2/hashtab.h"
 #include "env/ClassEnv.hpp"
 #include "env/CompilerEnv.hpp"
 #include "env/Environment.hpp"
@@ -1328,7 +1327,7 @@ TR::Node *
 OMR::Node::createAllocationFence(TR::Node *originatingByteCodeNode, TR::Node *fenceNode)
    {
    TR::Node *node = TR::Node::create(originatingByteCodeNode, TR::allocationFence, 0, 0);
-   node->setChild(0, fenceNode);
+   node->setAllocation(fenceNode);
    return node;
    }
 
@@ -2077,7 +2076,9 @@ OMR::Node::isDualHigh()
       TR::ILOpCodes pairOpValue = self()->getChild(2)->getOpCodeValue();
       if (((self()->getOpCodeValue() == TR::lumulh) && (pairOpValue == TR::lmul))
           || ((self()->getOpCodeValue() == TR::luaddh) && (pairOpValue == TR::luadd))
-          || ((self()->getOpCodeValue() == TR::lusubh) && (pairOpValue == TR::lusub)))
+          || ((self()->getOpCodeValue() == TR::lusubh) && (pairOpValue == TR::lusub))
+          || ((self()->getOpCodeValue() == TR::luaddh) && (pairOpValue == TR::ladd))
+          || ((self()->getOpCodeValue() == TR::lusubh) && (pairOpValue == TR::lsub)))
          return true;
       }
    return false;
@@ -2109,7 +2110,9 @@ OMR::Node::isTernaryHigh()
       TR::ILOpCodes pairOpValue = self()->getChild(2)->getFirstChild()->getOpCodeValue();
       if ((ccOpValue == TR::computeCC) &&
           (((self()->getOpCodeValue() == TR::luaddc) && (pairOpValue == TR::luadd))
-           || ((self()->getOpCodeValue() == TR::lusubb) && (pairOpValue == TR::lusub))))
+           || ((self()->getOpCodeValue() == TR::lusubb) && (pairOpValue == TR::lusub))
+           || ((self()->getOpCodeValue() == TR::luaddc) && (pairOpValue == TR::ladd))
+           || ((self()->getOpCodeValue() == TR::lusubb) && (pairOpValue == TR::lsub))))
          return true;
       }
    return false;
@@ -3512,7 +3515,7 @@ OMR::Node::nodeMightKillCondCode()
    if ((opcode.isLoadReg() || opcode.isStoreReg() || opcode.isLoadDirect() || opcode.isStoreDirect())
         && (self()->getSize() == 4 || self()->getSize() == 8) )
       return false;
-   
+
    // this conversion will be a no-op -> CC is not killed unless the child kills it
    if (self()->isUnneededConversion() || (opcode.isConversion() && (self()->getSize() == self()->getFirstChild()->getSize())))
       return false;
@@ -6962,7 +6965,7 @@ OMR::Node::setSkipWrtBar(bool v)
 bool
 OMR::Node::chkSkipWrtBar()
    {
-   return self()->getOpCode().isWrtBar() && debug("useHeapObjectFlags") && _flags.testAny(SkipWrtBar);
+   return self()->getOpCode().isWrtBar() && _flags.testAny(SkipWrtBar);
    }
 
 const char *
@@ -8156,13 +8159,15 @@ OMR::Node::printCanSkipZeroInitialization()
 bool
 OMR::Node::isAdjunct()
    {
-   return (self()->getOpCodeValue() == TR::lmul || self()->getOpCodeValue() == TR::luadd || self()->getOpCodeValue() == TR::lusub) && _flags.testAny(adjunct);
+   return (self()->getOpCodeValue() == TR::lmul || self()->getOpCodeValue() == TR::luadd || self()->getOpCodeValue() == TR::lusub 
+   || self()->getOpCodeValue() == TR::ladd || self()->getOpCodeValue() == TR::lsub) && _flags.testAny(adjunct);
    }
 
 void
 OMR::Node::setIsAdjunct(bool v)
    {
-   TR_ASSERT(self()->getOpCodeValue() == TR::lmul || self()->getOpCodeValue() == TR::luadd || self()->getOpCodeValue() == TR::lusub, "Opcode must be lmul, lusub, or luadd");
+   TR_ASSERT(self()->getOpCodeValue() == TR::lmul || self()->getOpCodeValue() == TR::luadd || self()->getOpCodeValue() == TR::lusub
+   || self()->getOpCodeValue() == TR::ladd || self()->getOpCodeValue() == TR::lsub, "Opcode must be lmul, luadd, lusub, ladd or lsub");
    _flags.set(adjunct, v);
    }
 

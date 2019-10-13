@@ -43,7 +43,7 @@ void OMR::RegisterPair::unblock()
 
 bool OMR::RegisterPair::usesRegister(TR::Register* reg)
    {
-   if (REGPAIR_THIS == reg || _lowOrder == reg || _highOrder == reg )
+   if (self() == reg || _lowOrder == reg || _highOrder == reg )
       {
       return true;
       }
@@ -92,28 +92,11 @@ OMR::RegisterPair::getRegister()
 TR::RegisterPair *
 OMR::RegisterPair::getRegisterPair()
    {
-   return REGPAIR_THIS;
+   return self();
    }
 
-int32_t
-OMR::RegisterPair::FlattenRegisterPairs(TR_Queue<TR::Register> * Pairs)
+TR::RegisterPair *
+OMR::RegisterPair::self()
    {
-    //Empty Queue
-     while(Pairs->dequeue());
-
-    int32_t regCount = 0;
-    TR::Register * firstPair = REGPAIR_THIS;
-    Pairs->enqueue(firstPair);
-    regCount++;
-
-      while(Pairs->peek()->getRegisterPair() != NULL){
-         TR::Register * pair  = Pairs->dequeue();
-         regCount--;
-         Pairs->enqueue(pair->getHighOrder());
-         regCount++;
-         Pairs->enqueue(pair->getLowOrder());
-         regCount++;
-      }
-
-    return regCount;
+   return static_cast<TR::RegisterPair*>(this);
    }

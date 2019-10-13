@@ -66,7 +66,7 @@ TEST_P(Int32Compare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -92,7 +92,7 @@ TEST_P(Int32Compare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -110,15 +110,8 @@ INSTANTIATE_TEST_CASE_P(CompareTest, Int32Compare, ::testing::Combine(
         std::make_tuple("icmpgt", icmpgt),
         std::make_tuple("icmpge", icmpge),
         std::make_tuple("icmplt", icmplt),
-        std::make_tuple("icmple", icmple) )));
-
-int32_t iucmpeq(uint32_t l, uint32_t r) {
-    return (l == r) ? 1 : 0;
-}
-
-int32_t iucmpne(uint32_t l, uint32_t r) {
-    return (l != r) ? 1 : 0;
-}
+        std::make_tuple("icmple", icmple)
+    )));
 
 int32_t iucmpgt(uint32_t l, uint32_t r) {
     return (l > r) ? 1 : 0;
@@ -154,7 +147,7 @@ TEST_P(UInt32Compare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -180,7 +173,7 @@ TEST_P(UInt32Compare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -193,12 +186,11 @@ TEST_P(UInt32Compare, UsingLoadParam) {
 INSTANTIATE_TEST_CASE_P(CompareTest, UInt32Compare, ::testing::Combine(
     ::testing::ValuesIn(TRTest::const_value_pairs<uint32_t, uint32_t>()),
     ::testing::Values(
-        std::make_tuple("iucmpeq", iucmpeq),
-        std::make_tuple("iucmpne", iucmpne),
         std::make_tuple("iucmpgt", iucmpgt),
         std::make_tuple("iucmpge", iucmpge),
         std::make_tuple("iucmplt", iucmplt),
-        std::make_tuple("iucmple", iucmple) )));
+        std::make_tuple("iucmple", iucmple)
+    )));
 
 int32_t lcmpeq(int64_t l, int64_t r) {
     return (l == r) ? 1 : 0;
@@ -246,7 +238,7 @@ TEST_P(Int64Compare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -272,7 +264,7 @@ TEST_P(Int64Compare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -292,15 +284,8 @@ INSTANTIATE_TEST_CASE_P(CompareTest, Int64Compare, ::testing::Combine(
         std::make_tuple("lcmplt", lcmplt),
         std::make_tuple("lcmple", lcmple),
         std::make_tuple("lcmp", lcmp)
- )));
+    )));
 
-int32_t lucmpeq(uint64_t l, uint64_t r) {
-    return (l == r) ? 1 : 0;
-}
-
-int32_t lucmpne(uint64_t l, uint64_t r) {
-    return (l != r) ? 1 : 0;
-}
 
 int32_t lucmpgt(uint64_t l, uint64_t r) {
     return (l > r) ? 1 : 0;
@@ -336,7 +321,7 @@ TEST_P(UInt64Compare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -362,7 +347,7 @@ TEST_P(UInt64Compare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -375,12 +360,11 @@ TEST_P(UInt64Compare, UsingLoadParam) {
 INSTANTIATE_TEST_CASE_P(CompareTest, UInt64Compare, ::testing::Combine(
     ::testing::ValuesIn(TRTest::const_value_pairs<uint64_t, uint64_t>()),
     ::testing::Values(
-        std::make_tuple("lucmpeq", lucmpeq),
-        std::make_tuple("lucmpne", lucmpne),
         std::make_tuple("lucmpgt", lucmpgt),
         std::make_tuple("lucmpge", lucmpge),
         std::make_tuple("lucmplt", lucmplt),
-        std::make_tuple("lucmple", lucmple) )));
+        std::make_tuple("lucmple", lucmple)
+    )));
 
 static const int32_t IFCMP_TRUE_NUM = 123;
 static const int32_t IFCMP_FALSE_NUM = -456;
@@ -429,7 +413,7 @@ TEST_P(Int32IfCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -457,7 +441,7 @@ TEST_P(Int32IfCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -477,14 +461,6 @@ INSTANTIATE_TEST_CASE_P(CompareTest, Int32IfCompare, ::testing::Combine(
         std::make_tuple("ificmpge", ificmpge),
         std::make_tuple("ificmpgt", ificmpgt)
     )));
-
-int32_t ifiucmpeq(uint32_t l, uint32_t r) {
-    return (l == r) ? IFCMP_TRUE_NUM : IFCMP_FALSE_NUM;
-}
-
-int32_t ifiucmpne(uint32_t l, uint32_t r) {
-    return (l != r) ? IFCMP_TRUE_NUM : IFCMP_FALSE_NUM;
-}
 
 int32_t ifiucmplt(uint32_t l, uint32_t r) {
     return (l < r) ? IFCMP_TRUE_NUM : IFCMP_FALSE_NUM;
@@ -522,7 +498,7 @@ TEST_P(UInt32IfCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -550,7 +526,7 @@ TEST_P(UInt32IfCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -563,8 +539,6 @@ TEST_P(UInt32IfCompare, UsingLoadParam) {
 INSTANTIATE_TEST_CASE_P(CompareTest, UInt32IfCompare, ::testing::Combine(
     ::testing::ValuesIn(TRTest::const_value_pairs<uint32_t, uint32_t>()),
     ::testing::Values(
-        std::make_tuple("ifiucmpeq", ifiucmpeq),
-        std::make_tuple("ifiucmpne", ifiucmpne),
         std::make_tuple("ifiucmplt", ifiucmplt),
         std::make_tuple("ifiucmple", ifiucmple),
         std::make_tuple("ifiucmpge", ifiucmpge),
@@ -615,7 +589,7 @@ TEST_P(Int64IfCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -643,7 +617,7 @@ TEST_P(Int64IfCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -663,14 +637,6 @@ INSTANTIATE_TEST_CASE_P(CompareTest, Int64IfCompare, ::testing::Combine(
         std::make_tuple("iflcmpge", iflcmpge),
         std::make_tuple("iflcmpgt", iflcmpgt)
     )));
-
-int32_t iflucmpeq(uint64_t l, uint64_t r) {
-    return (l == r) ? IFCMP_TRUE_NUM : IFCMP_FALSE_NUM;
-}
-
-int32_t iflucmpne(uint64_t l, uint64_t r) {
-    return (l != r) ? IFCMP_TRUE_NUM : IFCMP_FALSE_NUM;
-}
 
 int32_t iflucmplt(uint64_t l, uint64_t r) {
     return (l < r) ? IFCMP_TRUE_NUM : IFCMP_FALSE_NUM;
@@ -708,7 +674,7 @@ TEST_P(UInt64IfCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -736,7 +702,7 @@ TEST_P(UInt64IfCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -749,8 +715,6 @@ TEST_P(UInt64IfCompare, UsingLoadParam) {
 INSTANTIATE_TEST_CASE_P(CompareTest, UInt64IfCompare, ::testing::Combine(
     ::testing::ValuesIn(TRTest::const_value_pairs<uint64_t, uint64_t>()),
     ::testing::Values(
-        std::make_tuple("iflucmpeq", iflucmpeq),
-        std::make_tuple("iflucmpne", iflucmpne),
         std::make_tuple("iflucmplt", iflucmplt),
         std::make_tuple("iflucmple", iflucmple),
         std::make_tuple("iflucmpge", iflucmpge),
@@ -808,7 +772,7 @@ TEST_P(FloatCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -834,7 +798,7 @@ TEST_P(FloatCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -898,7 +862,7 @@ TEST_P(DoubleCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -924,7 +888,7 @@ TEST_P(DoubleCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -990,7 +954,7 @@ TEST_P(FloatIfCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -1018,7 +982,7 @@ TEST_P(FloatIfCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -1084,7 +1048,7 @@ TEST_P(DoubleIfCompare, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -1112,7 +1076,7 @@ TEST_P(DoubleIfCompare, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 

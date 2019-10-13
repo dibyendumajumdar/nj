@@ -60,6 +60,8 @@ bool initializeJit();
 void shutdownJit();
 } // namespace NJCompiler
 
+static_assert(TR::LastOMROp == OP_LastOMROp, "Mismatch in OMR IL Opcodes");
+
 namespace nj {
 
 struct FunctionBuilder;

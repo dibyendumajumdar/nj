@@ -45,6 +45,9 @@ set(OMR_TEST_COMPILER OFF CACHE BOOL "Enable building the test compiler")
 set(OMR_GC OFF CACHE BOOL "Enable the GC")
 set(OMR_GC_TEST ${OMR_GC} CACHE BOOL "Enable the GC tests.")
 
+set(OMR_USE_NATIVE_ENCODING ON CACHE BOOL
+	"Indicates that runtime components should use the systems native encoding (currently only defined for z/OS)"
+)
 ## OMR_COMPILER is required for OMR_JITBUILDER and OMR_TEST_COMPILER
 if(NOT OMR_COMPILER)
 	if(OMR_JITBUILDER)
@@ -77,6 +80,10 @@ endif()
 
 set(OMR_TOOLS_IMPORTFILE "IMPORTFILE-NOTFOUND" CACHE FILEPATH
 	"Point it to the ImportTools.cmake file of a native build"
+)
+
+set(OMR_TOOLS_USE_NATIVE_ENCODING ON CACHE BOOL
+	"Indicates if omr tooling should use system native character encoding (currently only defined for z/OS)"
 )
 
 ###
@@ -129,10 +136,10 @@ set(OMR_GC_MODRON_SCAVENGER OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_DOUBLE_MAP_ARRAYLETS OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_CONCURRENT_SCAVENGER OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_CONCURRENT_SWEEP OFF CACHE BOOL "TODO: Document")
-set(OMR_GC_HYBRID_ARRAYLETS OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_IDLE_HEAP_MANAGER OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_OBJECT_ALLOCATION_NOTIFY OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_REALTIME OFF CACHE BOOL "TODO: Document")
+set(OMR_GC_SCAN_OBJECT_GLUE OFF CACHE BOOL "Implement ScanObject in glue code, not OMR core")
 set(OMR_GC_SEGREGATED_HEAP OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_VLHGC OFF CACHE BOOL "TODO: Document")
 set(OMR_GC_VLHGC_CONCURRENT_COPY_FORWARD OFF CACHE BOOL "Enable VLHGC concurrent copy forward")
@@ -191,7 +198,6 @@ set(OMR_NOTIFY_POLICY_CONTROL OFF CACHE BOOL "TODO: Document")
 
 set(OMR_ENV_GCC OFF CACHE BOOL "TODO: Document")
 
-
-set(OMR_OPT_CUDA OFF CACHE BOOL "TODO: Document")
+set(OMR_OPT_CUDA OFF CACHE BOOL "Enable CUDA support in OMR")
 
 set(OMR_SANITIZE OFF CACHE STRING "Sanitizer selection. Only has an effect on GNU or Clang")

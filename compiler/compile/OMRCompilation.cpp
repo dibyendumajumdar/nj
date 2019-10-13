@@ -56,6 +56,7 @@
 #include "env/PersistentInfo.hpp"
 #include "env/StackMemoryRegion.hpp"
 #include "env/TRMemory.hpp"
+#include "env/TypeLayout.hpp"
 #include "env/defines.h"
 #include "env/jittypes.h"
 #include "il/Block.hpp"
@@ -246,7 +247,6 @@ OMR::Compilation::Compilation(
    _snippetsToBePatchedOnClassUnload(getTypedAllocator<TR::Snippet*>(self()->allocator())),
    _methodSnippetsToBePatchedOnClassUnload(getTypedAllocator<TR::Snippet*>(self()->allocator())),
    _snippetsToBePatchedOnClassRedefinition(getTypedAllocator<TR::Snippet*>(self()->allocator())),
-   _snippetsToBePatchedOnRegisterNative(getTypedAllocator<TR_Pair<TR::Snippet,TR_ResolvedMethod> *>(self()->allocator())),
    _genILSyms(getTypedAllocator<TR::ResolvedMethodSymbol*>(self()->allocator())),
    _noEarlyInline(true),
    _returnInfo(TR_VoidReturn),
@@ -293,6 +293,7 @@ OMR::Compilation::Compilation(
    _gpuKernelLineNumberList(m),
    _gpuPtxCount(0),
    _bitVectorPool(self()),
+   _typeLayoutMap((LayoutComparator()), LayoutAllocator(self()->region())),
    _tlsManager(*self())
    {
 
@@ -898,7 +899,7 @@ OMR::Compilation::getProfilingMode()
    if (!self()->isProfilingCompilation())
       return DisabledProfiling;
 
-   if (self()->getOption(TR_EnableJProfiling) || self()->getOption(TR_EnableJProfilingInProfilingCompilations))
+   if (self()->getOption(TR_EnableJProfiling) || !self()->getOption(TR_DisableJProfilingInProfilingCompilations))
       return JProfiling;
 
    return JitProfiling;
@@ -1164,7 +1165,7 @@ int32_t OMR::Compilation::compile()
                TR::Node*node = tt->getNode()->getFirstChild();
                if (node->getOpCode().isCall())
                   {
-                  TR_Method *method = node->getSymbol()->getMethodSymbol()->getMethod();
+                  TR::Method *method = node->getSymbol()->getMethodSymbol()->getMethod();
                   if (method)
                      {
                      TR_ByteCodeInfo &bcInfo = node->getByteCodeInfo();
@@ -1273,20 +1274,6 @@ void OMR::Compilation::performOptimizations()
    {
 
    _optimizer = TR::Optimizer::createOptimizer(self(), self()->getJittedMethodSymbol(), false);
-
-   // This opt is needed if certain ilgen input is seen but there is no optimizer created at this point.
-   // So the block are tracked during ilgen and the opt is turned on here.
-   //
-   ListIterator<TR::Block> listIt(&_methodSymbol->getTrivialDeadTreeBlocksList());
-   for (TR::Block *block = listIt.getFirst(); block; block = listIt.getNext())
-      {
-      ((TR::Optimizer*)(_optimizer))->setRequestOptimization(OMR::trivialDeadTreeRemoval, true, block);
-      }
-
-   if (_methodSymbol->hasUnkilledTemps())
-      {
-      ((TR::Optimizer*)(_optimizer))->setRequestOptimization(OMR::globalDeadStoreElimination);
-      }
 
    if (_optimizer)
       _optimizer->optimize();
@@ -1856,7 +1843,9 @@ void OMR::Compilation::reportFailure(const char *reason)
    {
    traceMsg(self(), "Compilation Failed Because: %s\n", reason);
    if (self()->getOption(TR_PrintErrorInfoOnCompFailure))
+      {
       fprintf(stderr, "Compilation Failed Because: %s\n", reason);
+      }
    }
 
 void OMR::Compilation::AddCopyPropagationRematerializationCandidate(TR::SymbolReference * sr)
@@ -2762,4 +2751,20 @@ bool OMR::Compilation::isRecursiveMethodTarget(TR::Symbol *targetSymbol)
       }
 
    return isRecursive;
+   }
+
+const TR::TypeLayout* OMR::Compilation::typeLayout(TR_OpaqueClassBlock * clazz)
+   {
+   TR::Region& region = self()->region();
+   auto it = _typeLayoutMap.find(clazz); 
+   if (it != _typeLayoutMap.end())
+      {
+      return it->second;
+      }
+   else
+      {
+      const TR::TypeLayout* layout = TR::Compiler->cls.enumerateFields(region, clazz, self());
+      _typeLayoutMap.insert(std::make_pair(clazz, layout)); 
+      return layout; 
+      }
    }

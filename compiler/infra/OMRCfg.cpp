@@ -146,7 +146,7 @@ OMR::CFG::addEdge(TR::CFGEdge *e)
 
 
 TR::CFGEdge *
-OMR::CFG::addEdge(TR::CFGNode *f, TR::CFGNode *t, TR_AllocationKind allocKind)
+OMR::CFG::addEdge(TR::CFGNode *f, TR::CFGNode *t)
    {
 
    if (comp()->getOption(TR_TraceAddAndRemoveEdge))
@@ -156,17 +156,15 @@ OMR::CFG::addEdge(TR::CFGNode *f, TR::CFGNode *t, TR_AllocationKind allocKind)
 
    TR_ASSERT(!f->hasExceptionSuccessor(t), "adding a non exception edge when there's already an exception edge");
 
-   TR::CFGEdge * e = TR::CFGEdge::createEdge(f, t, trMemory(), allocKind);
+   TR::CFGEdge * e = TR::CFGEdge::createEdge(f, t, _internalRegion);
    addEdge(e);
    return e;
    }
 
-
 void
 OMR::CFG::addExceptionEdge(
       TR::CFGNode *f,
-      TR::CFGNode *t,
-      TR_AllocationKind allocKind)
+      TR::CFGNode *t)
    {
    if (comp()->getOption(TR_TraceAddAndRemoveEdge))
       {
@@ -212,7 +210,7 @@ OMR::CFG::addExceptionEdge(
          return;
          }
       }
-   TR::CFGEdge* e = TR::CFGEdge::createExceptionEdge(f,t, trMemory(), allocKind);
+   TR::CFGEdge* e = TR::CFGEdge::createExceptionEdge(f,t, _internalRegion);
    _numEdges++;
 
    // Tell the control tree to modify the structures containing this edge
@@ -227,8 +225,6 @@ OMR::CFG::addExceptionEdge(
          }
       }
    }
-
-
 
 void
 OMR::CFG::addSuccessorEdges(TR::Block * block)
@@ -255,13 +251,13 @@ OMR::CFG::addSuccessorEdges(TR::Block * block)
          break;
          }
       case TR::ificmpeq: case TR::ificmpne: case TR::ificmplt: case TR::ificmpge: case TR::ificmpgt: case TR::ificmple:
-      case TR::ifiucmpeq: case TR::ifiucmpne: case TR::ifiucmplt: case TR::ifiucmpge: case TR::ifiucmpgt: case TR::ifiucmple:
+      case TR::ifiucmplt: case TR::ifiucmpge: case TR::ifiucmpgt: case TR::ifiucmple:
       case TR::iflcmpeq: case TR::iflcmpne: case TR::iflcmplt: case TR::iflcmpge: case TR::iflcmpgt: case TR::iflcmple:
       case TR::iffcmpeq: case TR::iffcmpne: case TR::iffcmplt: case TR::iffcmpge: case TR::iffcmpgt: case TR::iffcmple:
       case TR::ifdcmpeq: case TR::ifdcmpne: case TR::ifdcmplt: case TR::ifdcmpge: case TR::ifdcmpgt: case TR::ifdcmple:
       case TR::ifbcmpeq: case TR::ifbcmpne: case TR::ifbcmplt: case TR::ifbcmpge: case TR::ifbcmpgt: case TR::ifbcmple:
       case TR::ifscmpeq: case TR::ifscmpne: case TR::ifscmplt: case TR::ifscmpge: case TR::ifscmpgt: case TR::ifscmple:
-      case TR::ifsucmpeq: case TR::ifsucmpne: case TR::ifsucmplt: case TR::ifsucmpge: case TR::ifsucmpgt: case TR::ifsucmple:
+      case TR::ifsucmplt: case TR::ifsucmpge: case TR::ifsucmpgt: case TR::ifsucmple:
       case TR::ifacmpeq: case TR::ifacmpne:
       case TR::iffcmpequ: case TR::iffcmpneu: case TR::iffcmpltu: case TR::iffcmpgeu: case TR::iffcmpgtu: case TR::iffcmpleu:
       case TR::ifdcmpequ: case TR::ifdcmpneu: case TR::ifdcmpltu: case TR::ifdcmpgeu: case TR::ifdcmpgtu: case TR::ifdcmpleu:
@@ -3259,4 +3255,10 @@ OMR::CFG::findReachableBlocks(TR_BitVector *result)
       if (!reachableBlocksAfterEdgesRemoved.get(edge->getTo()->getNumber()))
          addEdge(getStart(), edge->getTo());
       }
+   }
+
+TR::Region&
+OMR::CFG::getInternalRegion()
+   {
+   return self()->_internalRegion;
    }

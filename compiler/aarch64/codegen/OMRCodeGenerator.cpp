@@ -22,9 +22,11 @@
 #include <stdlib.h>
 
 #include "codegen/ARM64Instruction.hpp"
+#include "codegen/ARM64OutOfLineCodeSection.hpp"
 #include "codegen/ARM64SystemLinkage.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/CodeGenerator_inlines.hpp"
+#include "codegen/GCStackAtlas.hpp"
 #include "codegen/GCStackMap.hpp"
 #include "codegen/GenerateInstructions.hpp"
 #include "codegen/Linkage.hpp"
@@ -118,6 +120,9 @@ OMR::ARM64::CodeGenerator::CodeGenerator() :
       self()->setGPRegisterIterator(new (self()->trHeapMemory()) TR::RegisterIterator(self()->machine(), TR::RealRegister::FirstGPR, TR::RealRegister::LastGPR));
       self()->setFPRegisterIterator(new (self()->trHeapMemory()) TR::RegisterIterator(self()->machine(), TR::RealRegister::FirstFPR, TR::RealRegister::LastFPR));
       }
+
+   self()->getLinkage()->setParameterLinkageRegisterIndex(self()->comp()->getJittedMethodSymbol());
+
    }
 
 void
@@ -127,9 +132,7 @@ OMR::ARM64::CodeGenerator::beginInstructionSelection()
    TR::Node *startNode = comp->getStartTree()->getNode();
    if (comp->getMethodSymbol()->getLinkageConvention() == TR_Private)
       {
-      TR_UNIMPLEMENTED();
-
-      _returnTypeInfoInstruction = new (self()->trHeapMemory()) TR::ARM64ImmInstruction(TR::InstOpCode::dd, startNode, 0, self());
+      _returnTypeInfoInstruction = generateImmInstruction(self(), TR::InstOpCode::dd, startNode, 0);
       }
    else
       {
@@ -218,6 +221,13 @@ OMR::ARM64::CodeGenerator::doBinaryEncoding()
 
    self()->getLinkage()->createPrologue(cursorInstruction);
 
+   TR::Instruction *prologueCursor = self()->getFirstInstruction();
+   for (TR::Instruction *gcMapCursor = prologueCursor; NULL!= gcMapCursor; gcMapCursor = gcMapCursor->getNext())
+      {
+      if (gcMapCursor->needsGCMap())
+         gcMapCursor->setGCMap(self()->getStackAtlas()->getParameterMap()->clone(self()->trMemory()));
+      }
+
    bool skipOneReturn = false;
    while (cursorInstruction)
       {
@@ -254,7 +264,30 @@ OMR::ARM64::CodeGenerator::doBinaryEncoding()
    while (cursorInstruction)
       {
       self()->setBinaryBufferCursor(cursorInstruction->generateBinaryEncoding());
+      self()->addToAtlas(cursorInstruction);
       cursorInstruction = cursorInstruction->getNext();
+      }
+
+   // Create exception table entries for outlined instructions.
+   //
+   if (!self()->comp()->getOption(TR_DisableOOL))
+      {
+      auto oiIterator = self()->getARM64OutOfLineCodeSectionList().begin();
+      while (oiIterator != self()->getARM64OutOfLineCodeSectionList().end())
+         {
+         uint32_t startOffset = (*oiIterator)->getFirstInstruction()->getBinaryEncoding() - self()->getCodeStart();
+         uint32_t endOffset   = (*oiIterator)->getAppendInstruction()->getBinaryEncoding() - self()->getCodeStart();
+
+         TR::Block * block = (*oiIterator)->getBlock();
+         bool needsETE = (*oiIterator)->getFirstInstruction()->getNode()->getOpCode().hasSymbolReference() &&
+                         (*oiIterator)->getFirstInstruction()->getNode()->getSymbolReference() &&
+                         (*oiIterator)->getFirstInstruction()->getNode()->getSymbolReference()->canCauseGC();
+
+         if (needsETE && block && !block->getExceptionSuccessors().empty())
+            block->addExceptionRangeForSnippet(startOffset, endOffset);
+
+         ++oiIterator;
+         }
       }
    }
 
@@ -337,12 +370,41 @@ TR::Register *OMR::ARM64::CodeGenerator::gprClobberEvaluate(TR::Node *node)
       }
    }
 
+static uint32_t registerBitMask(int32_t reg)
+   {
+   return 1 << (reg-1);
+   }
 
 void OMR::ARM64::CodeGenerator::buildRegisterMapForInstruction(TR_GCStackMap *map)
    {
-   TR_UNIMPLEMENTED();
-   }
+   TR_InternalPointerMap * internalPtrMap = NULL;
+   TR::GCStackAtlas *atlas = self()->getStackAtlas();
+   //
+   // Build the register map
+   //
+   for (int i = TR::RealRegister::FirstGPR; i <= TR::RealRegister::LastAssignableGPR; ++i)
+      {
+      TR::RealRegister * reg = self()->machine()->getRealRegister((TR::RealRegister::RegNum)i);
+      if (reg->getHasBeenAssignedInMethod())
+         {
+         TR::Register *virtReg = reg->getAssignedRegister();
+         if (virtReg)
+            {
+            if (virtReg->containsInternalPointer())
+               {
+               if (!internalPtrMap)
+                  internalPtrMap = new (self()->trHeapMemory()) TR_InternalPointerMap(self()->trMemory());
+               internalPtrMap->addInternalPointerPair(virtReg->getPinningArrayPointer(), i);
+               atlas->addPinningArrayPtrForInternalPtrReg(virtReg->getPinningArrayPointer());
+               }
+            else if (virtReg->containsCollectedReference())
+               map->setRegisterBits(registerBitMask(i));
+            }
+         }
+      }
 
+   map->setInternalPointerMap(internalPtrMap);
+   }
 
 TR_GlobalRegisterNumber OMR::ARM64::CodeGenerator::pickRegister(TR_RegisterCandidate *regCan,
                                                           TR::Block **barr,

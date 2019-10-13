@@ -36,8 +36,11 @@ namespace OMR { typedef OMR::ClassEnv ClassEnvConnector; }
 #include "env/jittypes.h"
 
 struct OMR_VMThread;
+namespace TR { class ClassEnv; }
 namespace TR { class Compilation; }
 namespace TR { class SymbolReference; }
+namespace TR { class TypeLayout; }
+namespace TR { class Region; }
 class TR_ResolvedMethod;
 class TR_Memory;
 
@@ -47,6 +50,8 @@ namespace OMR
 class OMR_EXTENSIBLE ClassEnv
    {
 public:
+
+   TR::ClassEnv *self();
 
    // Are classes allocated on the object heap?
    //
@@ -121,6 +126,20 @@ public:
    intptrj_t getVFTEntry(TR::Compilation *comp, TR_OpaqueClassBlock* clazz, int32_t offset);
 
    bool classUnloadAssumptionNeedsRelocation(TR::Compilation *comp);
+
+   /** \brief
+    *	    Populates a TypeLayout object.
+    *
+    *  \param region
+    *     The region used to allocate TypeLayout.
+    * 
+    *  \param opaqueClazz
+    *     Class of the type whose layout needs to be populated.
+    * 
+    *  \return
+    *     Returns a NULL pointer.
+    */
+   const TR::TypeLayout* enumerateFields(TR::Region& region, TR_OpaqueClassBlock * clazz, TR::Compilation *comp) { return NULL; }
 
    };
 

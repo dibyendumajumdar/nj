@@ -158,7 +158,7 @@ TEST_P(lBitPermuteTest, ConstAddressLengthTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -189,7 +189,7 @@ TEST_P(lBitPermuteTest, ConstAddressTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -219,7 +219,7 @@ TEST_P(lBitPermuteTest, NoConstTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -257,7 +257,7 @@ TEST_P(iBitPermuteTest, ConstAddressLengthTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -292,7 +292,7 @@ TEST_P(iBitPermuteTest, ConstAddressTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -326,7 +326,7 @@ TEST_P(iBitPermuteTest, NoConstTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -365,7 +365,7 @@ TEST_P(sBitPermuteTest, ConstAddressLengthTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -401,7 +401,7 @@ TEST_P(sBitPermuteTest, ConstAddressTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -436,7 +436,7 @@ TEST_P(sBitPermuteTest, NoConstTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -475,7 +475,7 @@ TEST_P(bBitPermuteTest, ConstAddressLengthTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -511,7 +511,7 @@ TEST_P(bBitPermuteTest, ConstAddressTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 
@@ -546,7 +546,7 @@ TEST_P(bBitPermuteTest, NoConstTest)
 
    ASSERT_NOTNULL(trees);
 
-   Tril::DefaultCompiler compiler {trees};
+   Tril::DefaultCompiler compiler(trees);
 
    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\nInput trees: " << inputTrees;
 

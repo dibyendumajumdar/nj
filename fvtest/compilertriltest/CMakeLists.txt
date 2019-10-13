@@ -32,8 +32,8 @@ add_executable(comptest
 	main.cpp
 	JitTestUtilitiesTest.cpp
 	ILValidatorTest.cpp
-	ArithmeticTest.cpp
-	ShiftAndRotateTest.cpp
+	#ArithmeticTest.cpp
+	#ShiftAndRotateTest.cpp
 	SimplifierFoldAbsNegTest.cpp
 	SimplifierFoldAndTest.cpp
 	IfxcmpgeReductionTest.cpp
@@ -47,6 +47,7 @@ add_executable(comptest
 	CompareTest.cpp
 	TypeConversionTest.cpp
 	LocalPassByRefTest.cpp
+	TernaryTest.cpp
 	LinkageTest.cpp
 )
 
@@ -54,6 +55,10 @@ target_link_libraries(comptest
 	omrGtestGlue
 	tril
 )
+
+if(OMR_HOST_OS STREQUAL "zos")
+	target_link_libraries(comptest j9a2e)
+endif()
 
 set_property(TARGET comptest PROPERTY FOLDER fvtest)
 

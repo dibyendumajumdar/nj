@@ -192,7 +192,7 @@ enum TR_CompilationOptions
    TR_DisableAsyncCompilation             = 0x00004000 + 3,
    TR_DisableCompilationThread            = 0x00008000 + 3,
    TR_EnableCompilationThread             = 0x00010000 + 3,
-   TR_EnableJITaaSHeuristics              = 0x00020000 + 3,
+   TR_EnableJITServerHeuristics           = 0x00020000 + 3,
    TR_SoftFailOnAssume                    = 0x00040000 + 3,
    TR_DisableNewBlockOrdering             = 0x00080000 + 3,
    TR_DisableZNext                        = 0x00100000 + 3,
@@ -271,7 +271,7 @@ enum TR_CompilationOptions
    // Option word 6
    //
    TR_EnableAggressiveLoopVersioning      = 0x00000020 + 6,
-   TR_EnableElementPrivatization          = 0x00000040 + 6,
+   // Available                           = 0x00000040 + 6,
    TR_CompileBit                          = 0x00000080 + 6,
    TR_WaitBit                             = 0x00000100 + 6,
    TR_DisableZ14                          = 0x00000200 + 6,
@@ -293,7 +293,7 @@ enum TR_CompilationOptions
    TR_UseSamplingJProfilingForAllFirstTimeComps   = 0x02000000 + 6,
    TR_NoStoreAOT                          = 0x04000000 + 6,
    TR_NoLoadAOT                           = 0x08000000 + 6,
-   TR_DisableNewLoopTransfer              = 0x10000000 + 6, // loop versioning for virtual guards
+   // Available                           = 0x10000000 + 6,
    TR_UseSamplingJProfilingForDLT                 = 0x20000000 + 6,
    TR_UseSamplingJProfilingForInterpSampledMethods= 0x40000000 + 6,
    TR_EmitRelocatableELFFile              = 0x80000000 + 6,
@@ -325,7 +325,7 @@ enum TR_CompilationOptions
    TR_DisableTOCForConsts                 = 0x08000000 + 7,
    TR_UseLowPriorityQueueDuringCLP        = 0x10000000 + 7,
    TR_DisableVectorBCD                    = 0x20000000 + 7,
-   TR_EnableTrivialStoreSinking           = 0x40000000 + 7,
+   // Available                           = 0x40000000 + 7,
    TR_DisableTraps                        = 0x80000000 + 7,
 
    // Option word 8
@@ -335,7 +335,7 @@ enum TR_CompilationOptions
    TR_DisableDirectToJNI                  = 0x00000040 + 8,
    TR_OldJVMPI                            = 0x00000080 + 8,
    TR_EmitExecutableELFFile               = 0x00000100 + 8,
-   TR_EnableJITaaSDoLocalCompilesForRemoteCompiles = 0x00000200 + 8,
+   TR_JITServerFollowRemoteCompileWithLocalCompile = 0x00000200 + 8,
    // Available                           = 0x00000800 + 8,
    TR_DisableLinkageRegisterAllocation    = 0x00001000 + 8,
    // Available                           = 0x00002000 + 8,
@@ -385,9 +385,9 @@ enum TR_CompilationOptions
    TR_DisableNoServerDuringStartup        = 0x04000000 + 9,  // set TR_NoOptServer during startup and insert GCR trees
    TR_BreakOnNew                          = 0x08000000 + 9,
    // Available                           = 0x10000000 + 9,
-   TR_SinkAllStores                       = 0x20000000 + 9,
-   TR_SinkAllBlockedStores                = 0x40000000 + 9,
-   TR_DisableStoreAnchoring               = 0x80000000 + 9,
+   // Available                           = 0x20000000 + 9,
+   // Available                           = 0x40000000 + 9,
+   // Available                           = 0x80000000 + 9,
 
    // Option word 10
    //
@@ -454,7 +454,7 @@ enum TR_CompilationOptions
    TR_DisablePartialInlining                  = 0x00000080 + 12,
    TR_AssumeStartupPhaseUntilToldNotTo        = 0x00000100 + 12,
    // Available                               = 0x00000200 + 12,
-   // Available                               = 0x00000400 + 12,
+   TR_DisableAOTBytesCompression              = 0x00000400 + 12,
    TR_X86UseMFENCE                            = 0x00000800 + 12,
    // Available                               = 0x00001000 + 12,
    // Available                               = 0x00002000 + 12,
@@ -572,7 +572,7 @@ enum TR_CompilationOptions
    // Available                                       = 0x00000400 + 16,
    // Available                                       = 0x00000800 + 16,
    TR_DisableEmptyPreHeaderCheck                      = 0x00001000 + 16,
-   TR_SinkOnlyCCStores                                = 0x00002000 + 16,
+   // Available                                       = 0x00002000 + 16,
    TR_EnableDeterministicOrientedCompilation          = 0x00004000 + 16,
    // Available                                       = 0x00008000 + 16,
    TR_EnableAOTStats                                  = 0x00010000 + 16,
@@ -967,7 +967,7 @@ enum TR_CompilationOptions
    TR_DisableHardwareProfilerReducedWarm              = 0x00002000 + 30,
    TR_RestrictStaticFieldFolding                      = 0x00004000 + 30,
    TR_TraceILValidator                                = 0x00008000 + 30,
-   TR_EnableJProfilingInProfilingCompilations         = 0x00010000 + 30,
+   TR_DisableJProfilingInProfilingCompilations        = 0x00010000 + 30,
    TR_EnableJProfiling                                = 0x00020000 + 30,
    TR_DisableForcedEXInlining                         = 0x00040000 + 30,
    TR_EnableOnsiteCacheForSuperClassTest              = 0x00080000 + 30,
@@ -1049,15 +1049,14 @@ enum TR_CompilationOptions
    //
    TR_TraceLRAResults                   = 0x00000800,
    // Available                         = 0x00001000,
-
+  
    // Register ITF tracing option word
-   //
-   TR_TraceRegisterITFBasic             = TR_TraceGRABasic,
-   // Avaialble                         = 0x00008000,
-   TR_TraceRegisterITFBuild             = 0x00010000,
+  
+   // Available                         = 0x00008000,
+   // Available                         = 0x00010000,
    // Available                         = 0x00020000,
-   TR_TraceRegisterITFColour            = 0x00040000,
-
+   // Available                         = 0x00040000,
+  
    // Register Spill Costs Analysis tracing option word
    //
    TR_TraceSpillCostsBasic              = TR_TraceGRABasic,
@@ -1138,8 +1137,8 @@ enum TR_VerboseFlags
    TR_VerboseHookDetailsClassUnloading,
    TR_VerboseSampleDensity,
    TR_VerboseProfiling,
-   TR_VerboseJITaaS,
-
+   TR_VerboseJITServer,
+   TR_VerboseAOTCompression,
    //If adding new options add an entry to _verboseOptionNames as well
    TR_NumVerboseOptions        // Must be the last one;
    };
@@ -1526,7 +1525,6 @@ public:
    bool      getRegisterAssignmentTraceOption(uint32_t mask) {return (_raTrace & mask) != 0;}
    bool      getTraceRAOption(uint32_t mask);
    bool      getTraceLRA(uint32_t mask) { return (_traceLRA & mask) != 0; }
-   bool      getTraceRegisterITF(uint32_t mask) { return (_traceRegisterITF & mask) != 0; }
    bool      getTraceSpillCosts(uint32_t mask) { return (_traceSpillCosts & mask) != 0; }
    bool      getTraceSimplifier(uint32_t mask) { return (_traceSimplifier & mask) != 0; }
    bool      getDebugEnableFlag(uint32_t mask) { return (_debugEnableFlags & mask) != 0; }
@@ -1918,8 +1916,6 @@ public:
    bool getOptLevelDowngraded() const { return _optLevelDowngraded; }
    static char *getCompilationStrategyName() { return _compilationStrategyName; }
 
-   int32_t getJitMethodEntryAlignmentBoundary(TR::CodeGenerator *cg);
-   void setJitMethodEntryAlignmentBoundary(int32_t boundary) { _jitMethodEntryAlignmentBoundary = boundary; }
 /**   \brief Returns a threshold on the profiling method invocations to trip recompilation
  */
    int32_t getJProfilingMethodRecompThreshold() { return _jProfilingMethodRecompThreshold; }
@@ -2329,7 +2325,6 @@ protected:
    int32_t                     _addressToEnumerate;   // Addresses enumeration option flags
    int32_t                     _raTrace;              // Register assigner trace flags
    int32_t                     _traceLRA;             // Live Register Analysis trace flags
-   int32_t                     _traceRegisterITF;     // Register ITF trace flags
    int32_t                     _traceILDeadCode;      // Instruction Level Dead Code trace flags
    int32_t                     _traceSpillCosts;      // Register Spill Costs trace flags
    int32_t                     _traceSimplifier;      // Simplifier trace flags
@@ -2394,7 +2389,6 @@ protected:
 
    bool                        _isAOTCompile;
 
-   int32_t                     _jitMethodEntryAlignmentBoundary; /* Alignment boundary for JIT method entry */
    int32_t                     _jProfilingMethodRecompThreshold;
    int32_t                     _jProfilingLoopRecompThreshold;
    char *                      _blockShufflingSequence;

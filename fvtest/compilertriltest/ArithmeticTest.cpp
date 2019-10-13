@@ -25,61 +25,51 @@
 
 #include <cmath>
 
-int32_t iadd(int32_t l, int32_t r) {
-    return l+r;
+#if defined(J9ZOS390)
+namespace std
+{
+   using ::isnan;
+}
+#endif
+
+template <typename T>
+T add(T l, T r) {
+    return l + r;
 }
 
-int32_t isub(int32_t l, int32_t r) {
-    return l-r;
+template <typename T>
+T sub(T l, T r) {
+    return l - r;
 }
 
-int32_t imul(int32_t l, int32_t r) {
-    return l*r;
+template <typename T>
+T mul(T l, T r) {
+    return l * r;
+}
+
+template <typename T>
+T div(T l, T r) {
+    return l / r;
+}
+
+template <typename T>
+T udiv(T l, T r) {
+    return l / r;
+}
+
+template <typename T>
+T rem(T l, T r) {
+    return l % r;
+}
+
+template <typename T>
+T urem(T l, T r) {
+    return l % r;
 }
 
 int32_t imulh(int32_t l, int32_t r) {
     int64_t x = static_cast<int64_t>(l) * static_cast<int64_t>(r);
     return static_cast<int32_t>(x >> 32); // upper 32 bits
-}
-
-int32_t idiv(int32_t l, int32_t r) {
-    return l/r;
-}
-
-uint32_t iudiv(uint32_t l, uint32_t r) {
-    return l/r;
-}
-
-int32_t irem(int32_t l, int32_t r) {
-    return l%r;
-}
-
-uint32_t iurem(uint32_t l, uint32_t r) {
-    return l%r;
-}
-
-int64_t ladd(int64_t l, int64_t r) {
-    return l+r;
-}
-
-int64_t lsub(int64_t l, int64_t r) {
-    return l-r;
-}
-
-int64_t lmul(int64_t l, int64_t r) {
-    return l*r;
-}
-
-int64_t _ldiv(int64_t l, int64_t r) {
-    return l/r;
-}
-
-uint64_t ludiv(uint64_t l, uint64_t r) {
-    return l/r;
-}
-
-int64_t lrem(int64_t l, int64_t r) {
-    return l%r;
 }
 
 class Int32Arithmetic : public TRTest::BinaryOpTest<int32_t> {};
@@ -89,6 +79,10 @@ class UInt32Arithmetic : public TRTest::BinaryOpTest<uint32_t> {};
 class Int64Arithmetic : public TRTest::BinaryOpTest<int64_t> {};
 
 class UInt64Arithmetic : public TRTest::BinaryOpTest<uint64_t> {};
+
+class Int16Arithmetic : public TRTest::BinaryOpTest<int16_t> {};
+
+class Int8Arithmetic : public TRTest::BinaryOpTest<int8_t> {};
 
 TEST_P(Int32Arithmetic, UsingConst) {
     auto param = TRTest::to_struct(GetParam());
@@ -109,7 +103,7 @@ TEST_P(Int32Arithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -136,7 +130,7 @@ TEST_P(Int32Arithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -163,7 +157,7 @@ TEST_P(UInt32Arithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -190,7 +184,7 @@ TEST_P(UInt32Arithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -217,7 +211,7 @@ TEST_P(Int64Arithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -244,7 +238,7 @@ TEST_P(Int64Arithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -271,7 +265,7 @@ TEST_P(UInt64Arithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -298,7 +292,7 @@ TEST_P(UInt64Arithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -306,20 +300,144 @@ TEST_P(UInt64Arithmetic, UsingLoadParam) {
     ASSERT_EQ(param.oracle(param.lhs, param.rhs), entry_point(param.lhs, param.rhs));
 }
 
+TEST_P(Int16Arithmetic, UsingConst) {
+
+    auto param = TRTest::to_struct(GetParam());
+
+    char inputTrees[1024] = {0};
+    std::snprintf(inputTrees, sizeof(inputTrees),
+      "(method return=Int16"
+      "  (block"
+      "    (ireturn"
+      "      (%s"
+      "        (sconst %" OMR_PRId16 ")"
+      "        (sconst %" OMR_PRId16 ")))))",
+      param.opcode.c_str(),
+      param.lhs,
+      param.rhs
+      );
+    auto trees = parseString(inputTrees);
+
+    ASSERT_NOTNULL(trees);
+
+    Tril::DefaultCompiler compiler(trees);
+
+    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
+
+    auto entry_point = compiler.getEntryPoint<int16_t (*)(void)>();
+    volatile auto exp = param.oracle(param.lhs, param.rhs);
+    volatile auto act = entry_point();
+    ASSERT_EQ(exp, act);
+}
+
+TEST_P(Int16Arithmetic, UsingLoadParam) {
+
+    auto param = TRTest::to_struct(GetParam());
+
+    char inputTrees[1024] = {0};
+    std::snprintf(inputTrees, sizeof(inputTrees),
+      "(method return=Int16 args=[Int16, Int16]"
+      "  (block"
+      "    (ireturn"
+      "      (%s"
+      "        (sload parm=0)"
+      "        (sload parm=1)))))",
+      param.opcode.c_str()
+      );
+    auto trees = parseString(inputTrees);
+
+    ASSERT_NOTNULL(trees);
+
+    Tril::DefaultCompiler compiler(trees);
+
+    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
+
+    auto entry_point = compiler.getEntryPoint<int16_t (*)(int16_t, int16_t)>();
+    ASSERT_EQ(param.oracle(param.lhs, param.rhs), entry_point(param.lhs, param.rhs));
+}
+
+TEST_P(Int8Arithmetic, UsingConst) {
+
+    auto param = TRTest::to_struct(GetParam());
+
+    char inputTrees[1024] = {0};
+    std::snprintf(inputTrees, sizeof(inputTrees),
+      "(method return=Int8"
+      "  (block"
+      "    (ireturn"
+      "      (%s"
+      "        (bconst %" OMR_PRId8 ")"
+      "        (bconst %" OMR_PRId8 ")))))",
+      param.opcode.c_str(),
+      param.lhs,
+      param.rhs
+      );
+    auto trees = parseString(inputTrees);
+
+    ASSERT_NOTNULL(trees);
+
+    Tril::DefaultCompiler compiler(trees);
+
+    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
+
+    auto entry_point = compiler.getEntryPoint<int8_t (*)(void)>();
+    volatile auto exp = param.oracle(param.lhs, param.rhs);
+    volatile auto act = entry_point();
+    ASSERT_EQ(exp, act);
+}
+
+TEST_P(Int8Arithmetic, UsingLoadParam) {
+        
+    auto param = TRTest::to_struct(GetParam());
+
+    char inputTrees[1024] = {0};
+    std::snprintf(inputTrees, sizeof(inputTrees),
+      "(method return=Int8 args=[Int8, Int8]"
+      "  (block"
+      "    (ireturn"
+      "      (%s"
+      "        (bload parm=0)"
+      "        (bload parm=1)))))",
+      param.opcode.c_str()
+      );
+    auto trees = parseString(inputTrees);
+
+    ASSERT_NOTNULL(trees);
+
+    Tril::DefaultCompiler compiler(trees);
+
+    ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
+
+    auto entry_point = compiler.getEntryPoint<int8_t (*)(int8_t, int8_t)>();
+    ASSERT_EQ(param.oracle(param.lhs, param.rhs), entry_point(param.lhs, param.rhs));
+}
+
 INSTANTIATE_TEST_CASE_P(ArithmeticTest, Int32Arithmetic, ::testing::Combine(
     ::testing::ValuesIn(TRTest::const_value_pairs<int32_t, int32_t>()),
     ::testing::Values(
-        std::make_tuple("iadd", iadd),
-        std::make_tuple("isub", isub),
-        std::make_tuple("imul", imul),
-        std::make_tuple("imulh", imulh) )));
+        std::make_tuple("iadd", add<int32_t>),
+        std::make_tuple("isub", sub<int32_t>),
+        std::make_tuple("imul", mul<int32_t>),
+        std::make_tuple("imulh", imulh<int32_t>))));
 
 INSTANTIATE_TEST_CASE_P(ArithmeticTest, Int64Arithmetic, ::testing::Combine(
     ::testing::ValuesIn(TRTest::const_value_pairs<int64_t, int64_t>()),
     ::testing::Values(
-        std::make_tuple("ladd", ladd),
-        std::make_tuple("lsub", lsub),
-        std::make_tuple("lmul", lmul) )));
+        std::make_tuple("ladd", add<int64_t>),
+        std::make_tuple("lsub", sub<int64_t>),
+        std::make_tuple("lmul", mul<int64_t>))));
+
+INSTANTIATE_TEST_CASE_P(ArithmeticTest, Int16Arithmetic, ::testing::Combine(
+    ::testing::ValuesIn(TRTest::const_value_pairs<int16_t, int16_t>()),
+    ::testing::Values(
+        std::make_tuple("sadd", add<int16_t>),
+        std::make_tuple("ssub", sub<int16_t>))));
+
+INSTANTIATE_TEST_CASE_P(ArithmeticTest, Int8Arithmetic, ::testing::Combine(
+    ::testing::ValuesIn(TRTest::const_value_pairs<int8_t, int8_t>()),
+    ::testing::Values(
+        std::make_tuple("badd", add<int8_t>),
+        std::make_tuple("bsub", sub<int8_t>))));
 
 /**
  * @brief Filter function for *div opcodes
@@ -347,15 +465,15 @@ INSTANTIATE_TEST_CASE_P(DivArithmeticTest, Int32Arithmetic, ::testing::Combine(
     ::testing::ValuesIn(
         TRTest::filter(TRTest::const_value_pairs<int32_t, int32_t>(), div_filter<int32_t> )),
     ::testing::Values(
-        std::make_tuple("idiv", idiv),
-        std::make_tuple("irem", irem) )));
+        std::make_tuple("idiv", div),
+        std::make_tuple("irem", rem))));
 
 INSTANTIATE_TEST_CASE_P(DivArithmeticTest, Int64Arithmetic, ::testing::Combine(
     ::testing::ValuesIn(
         TRTest::filter(TRTest::const_value_pairs<int64_t, int64_t>(), div_filter<int64_t> )),
     ::testing::Values(
-        std::make_tuple("ldiv", _ldiv),
-        std::make_tuple("lrem", lrem) )));
+        std::make_tuple("ldiv", div),
+        std::make_tuple("lrem", rem))));
 
 /**
  * @brief Filter function for *udiv opcodes
@@ -375,14 +493,14 @@ INSTANTIATE_TEST_CASE_P(DivArithmeticTest, UInt32Arithmetic, ::testing::Combine(
     ::testing::ValuesIn(
         TRTest::filter(TRTest::const_value_pairs<uint32_t, uint32_t>(), udiv_filter<uint32_t> )),
     ::testing::Values(
-        std::make_tuple("iudiv", iudiv),
-        std::make_tuple("iurem", iurem) )));
+        std::make_tuple("iudiv", udiv),
+        std::make_tuple("iurem", urem))));
 
 INSTANTIATE_TEST_CASE_P(DivArithmeticTest, UInt64Arithmetic, ::testing::Combine(
     ::testing::ValuesIn(
         TRTest::filter(TRTest::const_value_pairs<uint64_t, uint64_t>(), udiv_filter<uint64_t> )),
     ::testing::Values(
-        std::make_tuple("ludiv", ludiv) )));
+        std::make_tuple("ludiv", udiv))));
 
 template <typename T>
 bool smallFp_filter(std::tuple<T, T> a)
@@ -393,21 +511,6 @@ bool smallFp_filter(std::tuple<T, T> a)
    return ((std::abs(a0) < 0.01 && a0 != 0.0) || (std::abs(a1) < 0.01 && a1 != 0.0));
    }
 
-float fadd(float l, float r) {
-    return l+r;
-}
-
-float fsub(float l, float r) {
-    return l-r;
-}
-
-float fmul(float l, float r) {
-    return l*r;
-}
-
-float fdiv(float l, float r) {
-    return l/r;
-}
 
 class FloatArithmetic : public TRTest::BinaryOpTest<float> {};
 
@@ -430,7 +533,7 @@ TEST_P(FloatArithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -461,7 +564,7 @@ TEST_P(FloatArithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -479,27 +582,12 @@ INSTANTIATE_TEST_CASE_P(ArithmeticTest, FloatArithmetic, ::testing::Combine(
     ::testing::ValuesIn(
         TRTest::filter(TRTest::const_value_pairs<float, float>(), smallFp_filter<float>)),
     ::testing::Values(
-        std::make_tuple("fadd", static_cast<float (*)(float, float)>(fadd)),
-        std::make_tuple("fsub", static_cast<float (*)(float, float)>(fsub)),
-        std::make_tuple("fmul", static_cast<float (*)(float, float)>(fmul)),
-        std::make_tuple("fdiv", static_cast<float (*)(float, float)>(fdiv))
+        std::make_tuple("fadd", static_cast<float (*)(float, float)>(add)),
+        std::make_tuple("fsub", static_cast<float (*)(float, float)>(sub)),
+        std::make_tuple("fmul", static_cast<float (*)(float, float)>(mul)),
+        std::make_tuple("fdiv", static_cast<float (*)(float, float)>(div))
     )));
 
-double dadd(double l, double r) {
-    return l+r;
-}
-
-double dsub(double l, double r) {
-    return l-r;
-}
-
-double dmul(double l, double r) {
-    return l*r;
-}
-
-double ddiv(double l, double r) {
-    return l/r;
-}
 
 class DoubleArithmetic : public TRTest::BinaryOpTest<double> {};
 
@@ -522,7 +610,7 @@ TEST_P(DoubleArithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -553,7 +641,7 @@ TEST_P(DoubleArithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -571,10 +659,10 @@ INSTANTIATE_TEST_CASE_P(ArithmeticTest, DoubleArithmetic, ::testing::Combine(
     ::testing::ValuesIn(
         TRTest::filter(TRTest::const_value_pairs<double, double>(), smallFp_filter<double>)),
     ::testing::Values(
-        std::make_tuple("dadd", dadd),
-        std::make_tuple("dsub", dsub),
-        std::make_tuple("dmul", dmul),
-        std::make_tuple("ddiv", ddiv)
+        std::make_tuple("dadd", add),
+        std::make_tuple("dsub", sub),
+        std::make_tuple("dmul", mul),
+        std::make_tuple("ddiv", div)
     )));
 
 template <typename T>
@@ -607,7 +695,7 @@ TEST_P(FloatUnaryArithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -637,7 +725,7 @@ TEST_P(FloatUnaryArithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -682,7 +770,7 @@ TEST_P(DoubleUnaryArithmetic, UsingConst) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 
@@ -712,7 +800,7 @@ TEST_P(DoubleUnaryArithmetic, UsingLoadParam) {
 
     ASSERT_NOTNULL(trees);
 
-    Tril::DefaultCompiler compiler{trees};
+    Tril::DefaultCompiler compiler(trees);
 
     ASSERT_EQ(0, compiler.compile()) << "Compilation failed unexpectedly\n" << "Input trees: " << inputTrees;
 

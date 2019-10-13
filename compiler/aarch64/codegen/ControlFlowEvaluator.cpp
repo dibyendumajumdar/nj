@@ -20,6 +20,7 @@
  *******************************************************************************/
 
 #include "codegen/ARM64ConditionCode.hpp"
+#include "codegen/ARM64HelperCallSnippet.hpp"
 #include "codegen/ARM64Instruction.hpp"
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/GenerateInstructions.hpp"
@@ -46,18 +47,22 @@ genericReturnEvaluator(TR::Node *node, TR::RealRegister::RegNum rnum, TR_Registe
    return NULL;
    }
 
-// also handles iureturn
 TR::Register *
 OMR::ARM64::TreeEvaluator::ireturnEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return genericReturnEvaluator(node, cg->getProperties().getIntegerReturnRegister(), TR_GPR, TR_IntReturn, cg);
    }
 
-// also handles lureturn, areturn
 TR::Register *
 OMR::ARM64::TreeEvaluator::lreturnEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return genericReturnEvaluator(node, cg->getProperties().getLongReturnRegister(), TR_GPR, TR_LongReturn, cg);
+   }
+
+TR::Register *
+OMR::ARM64::TreeEvaluator::areturnEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return genericReturnEvaluator(node, cg->getProperties().getLongReturnRegister(), TR_GPR, TR_ObjectReturn, cg);
    }
 
 // void return
@@ -137,7 +142,6 @@ static TR::Instruction *ificmpHelper(TR::Node *node, TR::ARM64ConditionCode cc, 
    return result;
    }
 
-// also handles ifiucmpeq
 TR::Register *
 OMR::ARM64::TreeEvaluator::ificmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
@@ -145,7 +149,6 @@ OMR::ARM64::TreeEvaluator::ificmpeqEvaluator(TR::Node *node, TR::CodeGenerator *
    return NULL;
    }
 
-// also handles ifiucmpne
 TR::Register *
 OMR::ARM64::TreeEvaluator::ificmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
@@ -217,7 +220,7 @@ OMR::ARM64::TreeEvaluator::iflcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *
    return NULL;
    }
 
-// also handles iflucmpne, ifacmpne
+// also handles ifacmpne
 TR::Register *
 OMR::ARM64::TreeEvaluator::iflcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
@@ -377,14 +380,14 @@ OMR::ARM64::TreeEvaluator::iucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *c
    return icmpHelper(node, TR::CC_HI, false, cg);
    }
 
-// also handles lucmpeq
+// also handles lucmpeq, acmpeq
 TR::Register *
 OMR::ARM64::TreeEvaluator::lcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return icmpHelper(node, TR::CC_EQ, true, cg);
    }
 
-// also handles lucmpne
+// also handles lucmpne, acmpne
 TR::Register *
 OMR::ARM64::TreeEvaluator::lcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
@@ -415,24 +418,28 @@ OMR::ARM64::TreeEvaluator::lcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg
    return icmpHelper(node, TR::CC_LE, true, cg);
    }
 
+// also handles acmplt
 TR::Register *
 OMR::ARM64::TreeEvaluator::lucmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return icmpHelper(node, TR::CC_CC, true, cg);
    }
 
+// also handles acmpge
 TR::Register *
 OMR::ARM64::TreeEvaluator::lucmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return icmpHelper(node, TR::CC_CS, true, cg);
    }
 
+// also handles acmpgt
 TR::Register *
 OMR::ARM64::TreeEvaluator::lucmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return icmpHelper(node, TR::CC_HI, true, cg);
    }
 
+// also handles acmple
 TR::Register *
 OMR::ARM64::TreeEvaluator::lucmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
@@ -471,23 +478,99 @@ OMR::ARM64::TreeEvaluator::acmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg
 
 TR::Register *
 OMR::ARM64::TreeEvaluator::lookupEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-	{
-	// TODO:ARM64: Enable TR::TreeEvaluator::lookupEvaluator in compiler/aarch64/codegen/TreeEvaluatorTable.hpp when Implemented.
-	return OMR::ARM64::TreeEvaluator::unImpOpEvaluator(node, cg);
-	}
+   {
+   // Only temporary (#3963 implements this)
+   cg->comp()->failCompilation<TR::AssertionFailure>("lookupEvaluator");
+   return NULL;
+   }
 
 TR::Register *
 OMR::ARM64::TreeEvaluator::tableEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-	{
-	// TODO:ARM64: Enable TR::TreeEvaluator::tableEvaluator in compiler/aarch64/codegen/TreeEvaluatorTable.hpp when Implemented.
-	return OMR::ARM64::TreeEvaluator::unImpOpEvaluator(node, cg);
-	}
+   {
+   // Only temporary (#3858 implements this)
+   cg->comp()->failCompilation<TR::AssertionFailure>("tableEvaluator");
+   return NULL;
+   }
+
+TR::Register *
+evaluateNULLCHKWithPossibleResolve(TR::Node *node, bool needsResolve, TR::CodeGenerator *cg)
+   {
+   TR::Node *firstChild = node->getFirstChild();
+   TR::ILOpCode &opCode = firstChild->getOpCode();
+   TR::Node *reference = NULL;
+   TR::Compilation *comp = cg->comp();
+   bool useCompressedPointers = comp->useCompressedPointers();
+
+   if (useCompressedPointers && firstChild->getOpCodeValue() == TR::l2a)
+      {
+      TR::ILOpCodes loadOp = cg->comp()->il.opCodeForIndirectLoad(TR::Int32);
+      TR::ILOpCodes rdbarOp = cg->comp()->il.opCodeForIndirectReadBarrier(TR::Int32);
+      TR::Node *n = firstChild;
+      while ((n->getOpCodeValue() != loadOp) && (n->getOpCodeValue() != rdbarOp))
+         n = n->getFirstChild();
+      reference = n->getFirstChild();
+      }
+   else
+      reference = node->getNullCheckReference();
+
+   /* TODO: Resolution */
+   /* if(needsResolve) ... */
+
+   // Only explicit test needed for now.
+   TR::LabelSymbol *snippetLabel = generateLabelSymbol(cg);
+   TR::Snippet *snippet = new (cg->trHeapMemory()) TR::ARM64HelperCallSnippet(cg, node, snippetLabel, node->getSymbolReference(), NULL);
+   cg->addSnippet(snippet);
+   TR::Register *referenceReg = cg->evaluate(reference);
+   TR::InstOpCode::Mnemonic compareOp = useCompressedPointers ? TR::InstOpCode::cbzw : TR::InstOpCode::cbzx;
+   TR::Instruction *cbzInstruction = generateCompareBranchInstruction(cg, compareOp, node, referenceReg, snippetLabel, NULL);
+   cbzInstruction->setNeedsGCMap(0xffffffff);
+   snippet->gcMap().setGCRegisterMask(0xffffffff);
+
+   /*
+    * If the first child is a load with a ref count of 1, just decrement the reference count on the child.
+    * If the first child does not have a register, it means it was never evaluated.
+    * As a result, the grandchild (the variable reference) needs to be decremented as well.
+    *
+    * In other cases, evaluate the child node.
+    *
+    * Under compressedpointers, the first child will have a refCount of at least 2 (the other under an anchor node).
+    */
+   if (opCode.isLoad() && firstChild->getReferenceCount() == 1 
+         && !(firstChild->getSymbolReference()->isUnresolved()))
+      {
+      cg->decReferenceCount(firstChild);
+      if (firstChild->getRegister() == NULL)
+         {
+         cg->decReferenceCount(reference);
+         }
+      }
+   else
+      {
+      if (useCompressedPointers)
+         {
+         bool fixRefCount = false;
+         if (firstChild->getOpCode().isStoreIndirect() 
+               && firstChild->getReferenceCount() > 1)
+            {
+            firstChild->decReferenceCount();
+            fixRefCount = true;
+            }
+         cg->evaluate(firstChild);
+         if (fixRefCount)
+            firstChild->incReferenceCount();
+         }
+      else
+         cg->evaluate(firstChild);
+      cg->decReferenceCount(firstChild);
+      }
+
+   return NULL;
+   }
 
 TR::Register *
 OMR::ARM64::TreeEvaluator::NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
 	{
-	// TODO:ARM64: Enable TR::TreeEvaluator::NULLCHKEvaluator in compiler/aarch64/codegen/TreeEvaluatorTable.hpp when Implemented.
-	return OMR::ARM64::TreeEvaluator::unImpOpEvaluator(node, cg);
+	return evaluateNULLCHKWithPossibleResolve(node, false, cg);
 	}
 
 TR::Register *
@@ -498,11 +581,10 @@ OMR::ARM64::TreeEvaluator::ZEROCHKEvaluator(TR::Node *node, TR::CodeGenerator *c
 	}
 
 TR::Register *
-OMR::ARM64::TreeEvaluator::ResolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-	{
-	// TODO:ARM64: Enable TR::TreeEvaluator::ResolveAndNULLCHKEvaluator in compiler/aarch64/codegen/TreeEvaluatorTable.hpp when Implemented.
-	return OMR::ARM64::TreeEvaluator::unImpOpEvaluator(node, cg);
-	}
+OMR::ARM64::TreeEvaluator::resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return evaluateNULLCHKWithPossibleResolve(node, true, cg);
+   }
 
 TR::Register *
 OMR::ARM64::TreeEvaluator::DIVCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
@@ -538,3 +620,62 @@ OMR::ARM64::TreeEvaluator::ArrayCHKEvaluator(TR::Node *node, TR::CodeGenerator *
 	// TODO:ARM64: Enable TR::TreeEvaluator::ArrayCHKEvaluator in compiler/aarch64/codegen/TreeEvaluatorTable.hpp when Implemented.
 	return OMR::ARM64::TreeEvaluator::unImpOpEvaluator(node, cg);
 	}
+
+static TR::Register *
+commonMinMaxEvaluator(TR::Node *node, bool is64bit, TR::ARM64ConditionCode cc, TR::CodeGenerator *cg)
+   {
+   TR::Node *firstChild = node->getFirstChild();
+   TR::Register *src1Reg = cg->evaluate(firstChild);
+   TR::Register *trgReg;
+
+   if (cg->canClobberNodesRegister(firstChild))
+      {
+      trgReg = src1Reg; // use the first child as the target
+      }
+   else
+      {
+      trgReg = cg->allocateRegister();
+      }
+
+   TR_ASSERT(node->getNumChildren() == 2, "The number of children for imax/imin/lmax/lmin must be 2.");
+
+   TR::Node *secondChild = node->getSecondChild();
+   TR::Register *src2Reg = cg->evaluate(secondChild);
+
+   // ToDo:
+   // Optimize the code by using generateCompareImmInstruction() when possible
+   generateCompareInstruction(cg, node, src1Reg, src2Reg, is64bit);
+
+   TR::InstOpCode::Mnemonic op = is64bit ? TR::InstOpCode::cselx : TR::InstOpCode::cselw;
+   generateCondTrg1Src2Instruction(cg, op, node, trgReg, src1Reg, src2Reg, cc);
+
+   node->setRegister(trgReg);
+   cg->decReferenceCount(firstChild);
+   cg->decReferenceCount(secondChild);
+
+   return trgReg;
+   }
+
+TR::Register *
+OMR::ARM64::TreeEvaluator::imaxEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return commonMinMaxEvaluator(node, false, TR::CC_GT, cg);
+   }
+
+TR::Register *
+OMR::ARM64::TreeEvaluator::lmaxEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return commonMinMaxEvaluator(node, true, TR::CC_GT, cg);
+   }
+
+TR::Register *
+OMR::ARM64::TreeEvaluator::iminEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return commonMinMaxEvaluator(node, false, TR::CC_LT, cg);
+   }
+
+TR::Register *
+OMR::ARM64::TreeEvaluator::lminEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+   return commonMinMaxEvaluator(node, true, TR::CC_LT, cg);
+   }

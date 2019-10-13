@@ -294,8 +294,6 @@ public:
              (getOpCodeValue() == TR::lcmpgt)  ||
              (getOpCodeValue() == TR::lcmple)  ||
              (getOpCodeValue() == TR::lucmp)   ||
-             (getOpCodeValue() == TR::lucmpeq) ||
-             (getOpCodeValue() == TR::lucmpne) ||
              (getOpCodeValue() == TR::lucmplt) ||
              (getOpCodeValue() == TR::lucmpge) ||
              (getOpCodeValue() == TR::lucmpgt) ||
@@ -621,12 +619,9 @@ public:
          {
          case TR::ificmpeq:
          case TR::iflcmpeq:
-         case TR::ifiucmpeq:
-         case TR::iflucmpeq:
          case TR::ifacmpeq:
          case TR::ifbcmpeq:
          case TR::ifscmpeq:
-         case TR::ifsucmpeq:
          case TR::iffcmpeq:
          case TR::ifdcmpeq:
             return true;
@@ -641,12 +636,9 @@ public:
          {
          case TR::ificmpne:
          case TR::iflcmpne:
-         case TR::ifiucmpne:
-         case TR::iflucmpne:
          case TR::ifacmpne:
          case TR::ifbcmpne:
          case TR::ifscmpne:
-         case TR::ifsucmpne:
          case TR::iffcmpne:
          case TR::ifdcmpne:
             return true;
@@ -874,14 +866,10 @@ public:
       return TR::BadILOp;
       }
 
+//TODO (#2657): remove this function as unsigned shfit opcodes have been deprecated
    static TR::ILOpCodes unsignedShiftLeftOpCode(TR::DataType type)
       {
-      switch(type)
-         {
-         case TR::Int32:  return TR::iushl;
-         case TR::Int64:  return TR::lushl;
-         default: TR_ASSERT(false, "no ushl opcode for datatype %s",type.toString());
-         }
+      TR_ASSERT(false, "no ushl opcode for datatype %s",type.toString());
       return TR::BadILOp;
       }
 
@@ -1149,6 +1137,19 @@ public:
       return TR::BadILOp;
       }
 
+   static TR::ILOpCodes ternaryOpCode(TR::DataType type)
+      {
+      switch(type)
+         {
+         case TR::Int8:     return TR::bternary;
+         case TR::Int16:    return TR::sternary;
+         case TR::Int32:    return TR::iternary;
+         case TR::Int64:    return TR::lternary;
+         case TR::Address:  return TR::aternary;
+         default: return TR::BadILOp;
+         }
+      }
+
    static TR::ILOpCodes getCorrespondingLogicalComparison(TR::ILOpCodes op)
          {
          switch (op)
@@ -1221,9 +1222,7 @@ public:
       switch (ind)
          {
          case TR::icalli:    return TR::icall;
-         case TR::iucalli:   return TR::iucall;
          case TR::lcalli:    return TR::lcall;
-         case TR::lucalli:   return TR::lucall;
          case TR::fcalli:    return TR::fcall;
          case TR::dcalli:    return TR::dcall;
          case TR::acalli:    return TR::acall;
