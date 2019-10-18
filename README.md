@@ -56,24 +56,24 @@ Note - the only builds I have done so far as X86-64 versions. I have no means of
 
 ### Linux or Mac OSX
 
-* You will need CMake, Perl, bison and flex installed
+* You will need CMake, Perl, Python, bison and flex installed
 * I follow steps below from the location of source directory.
 
 ```
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=$HOME/Software/omr -DCMAKE_BUILD_TYPE=MinSizeRel ..
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/Software/nj -DCMAKE_BUILD_TYPE=MinSizeRel ..
 make install
 ```
 
 ### Windows 10
 
-* You will need Visual Studio 2017, Perl, [Win flex-bison](https://sourceforge.net/projects/winflexbison/), and CMake installed
+* You will need Visual Studio 2017, Python, Perl, [Win flex-bison](https://sourceforge.net/projects/winflexbison/), and CMake installed
 * Follow these steps from the source directory
 ```
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/Software/omr -G "Visual Studio 15 2017 Win64" ..
+cmake -DCMAKE_INSTALL_PREFIX=/Software/nj -G "Visual Studio 15 2017 Win64" ..
 cmake --build . --target INSTALL --config MinSizeRel
 ```
 
