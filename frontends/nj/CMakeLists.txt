@@ -1,9 +1,9 @@
 include(OmrCompilerSupport)
 
 set(API_FILES
+	env/FrontEnd.cpp
 	compile/Method.cpp
 	control/NJJit.cpp
-	env/FrontEnd.cpp
 	ilgen/NJIlGeneratorMethodDetails.cpp
 	ilgen/NJIlGenerator.cpp
 	ilgen/nj_api.cpp
@@ -48,18 +48,8 @@ create_omr_compiler_library(
 	FILTER ${FILTER_FILES}
 )
 
-# Add interface path so that include paths propagate.
-# NOTE: `release` directory  isn't being automatically setup, so this
-#       is adding the actual compiler dir, as opposed to the 'composed'
-#       install directory.
-target_include_directories(nj
-	INTERFACE
-		ilgen
-		../compiler/
-		../
-)
-
-target_link_libraries(nj
+include_directories(
+	ilgen
 )
 
 install(FILES ilgen/nj_api.h

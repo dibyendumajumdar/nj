@@ -109,9 +109,9 @@ install(
 )
 include_directories(
        ${PROJECT_BINARY_DIR}
-       ./include/
-       ./include_core/
-       ./third_party/
+       ${omr_SOURCE_DIR}/include/
+       ${omr_SOURCE_DIR}/include_core/
+       ${omr_SOURCE_DIR}/third_party/
 )
 
 ###
