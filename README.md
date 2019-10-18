@@ -31,6 +31,7 @@ Following OMR components have been removed:
 * Some tests fail on Windows 10
 * A [C API](https://github.com/dibyendumajumdar/nj/blob/master/frontends/nj/ilgen/nj_api.h) is implemented to allow easy use of the JIT engine in projects; note this is a low level api, not the same as the JitBuilder api provided by Eclipse OMR. A user guide for this api will be available at a future date.
 * An easy way to get started is to use the C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c), which enables you to generate code from C code taking away a lot of the complexities of working with the JIT api.
+* Or you can use the JITBuilder api from OMR which is included and installed by default.
 
 ## Roadmap
 
@@ -46,8 +47,8 @@ merges did not succeed. So sadly I am taking the easy way and am doing periodic 
 
 ## Build Instructions
 
-You can build the libraries and install the C headers plus library. On Windows a static library is built. On Mac OSX and Linux
-a shared library will be built.
+You can build the libraries and install the header files plus library. On Windows a static library is built. On Mac OSX and Linux
+a shared library will be built (JITBuilder library will be static however).
 
 Note - the only builds I have done so far as X86-64 versions. I have no means of testing other architectures.
 
@@ -75,5 +76,6 @@ cd build
 cmake -DCMAKE_INSTALL_PREFIX=/Software/omr -G "Visual Studio 15 2017 Win64" ..
 cmake --build . --target INSTALL --config MinSizeRel
 ```
+
 
 
