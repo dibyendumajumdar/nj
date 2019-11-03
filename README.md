@@ -38,6 +38,9 @@ Following OMR components have been removed:
 * Immediate focus is on trying to use the JIT engine behind a C front end [dmr_C](https://github.com/dibyendumajumdar/dmr_c) and with the help of that, as a backend JIT engine for [Ravi, a Lua 5.3 derived language](https://github.com/dibyendumajumdar/ravi).
 * I would like to further trim the library to make it even leaner and focussed - especially enable a build option that is minimal in size
 
+## Known Issues
+* The OMR technology originated for Java. In Java, stack values cannot be referenced through pointers. Hence stack values cannot be mofified indirectly via pointers, nor can be be aliased by function calls. OMR's optimizer (mainly the alias analysis framework in the optimizer) does not handle these scaenrios. Hence OMR at present cannot be successfully used as the JIT for a language such as C. The approach I am taking in dmr_C for now is to not allow constructs that are not supported.
+
 ## Merge Strategy
 
 I have [submitted a pull request](https://github.com/eclipse/omr/pull/3606) to Eclipse OMR for the C api as it stands. However that  does not do away with the need to maintain this project as I disagree with one aspect of the Eclipse OMR strategy which is to make the compiler depend on the port and thread libraries. 
