@@ -39,7 +39,7 @@ Following OMR components have been removed:
 * I would like to further trim the library to make it even leaner and focussed - especially enable a build option that is minimal in size
 
 ## Known Issues
-* The OMR technology originated for Java. In Java, stack values cannot be referenced through pointers. Hence stack values cannot be mofified indirectly via pointers, nor can be be aliased by function calls. OMR's optimizer (mainly the alias analysis framework in the optimizer) does not handle these scaenrios. Hence OMR at present cannot be successfully used as the JIT for a language such as C. The approach I am taking in dmr_C for now is to not allow constructs that are not supported.
+* The OMR technology originated for Java. In Java, stack values cannot be referenced through pointers. Hence stack values cannot be mofified indirectly via pointers, nor can be be aliased by function calls. OMR's optimizer (mainly the alias analysis framework in the optimizer) does not handle these scenarios. Hence OMR at present cannot be successfully used as the JIT for a language such as C. The approach I am taking in dmr_C for now is to not allow constructs that are not supported.
 
 ## Merge Strategy
 
